@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/theme/app_theme.dart';
+import 'package:pokedex_tracker/screens/home_screen.dart';
 
 void main() {
   runApp(const PokedexTrackerApp());
@@ -16,7 +17,7 @@ class PokedexTrackerApp extends StatelessWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.system,
-      home: const Placeholder(), // trocar pela HomeScreen depois
+      home: const HomeScreen(),
     );
   }
 }
