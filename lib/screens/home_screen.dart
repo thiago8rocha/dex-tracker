@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/screens/pokedex_screen.dart';
 import 'package:pokedex_tracker/screens/settings_screen.dart';
+import 'package:pokedex_tracker/screens/go_hub_screen.dart';
 
 // ─── MODELOS ─────────────────────────────────────────────────────
 
@@ -230,7 +231,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onNavTap(_NavTab tab) {
     if (tab == _NavTab.nacional) { _openPokedex(_nacEntry);      return; }
-    if (tab == _NavTab.go)       { _openPokedex(_goEntry);       return; }
+    if (tab == _NavTab.go) {
+      Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const GoHubScreen()));
+      return;
+    }
     if (tab == _NavTab.pokopia)  { _openPokedex(_pokopiaEntry);  return; }
     if (tab == _NavTab.times) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -393,7 +398,8 @@ class _HomeScreenState extends State<HomeScreen> {
         border: Border.all(color: scheme.outlineVariant, width: 1));
 
     return GestureDetector(
-      onTap: () => _openPokedex(_goEntry),
+      onTap: () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const GoHubScreen())),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: decoration,
