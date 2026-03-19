@@ -8,12 +8,22 @@ class GoDetailScreen extends StatefulWidget {
   final Pokemon pokemon;
   final bool caught;
   final VoidCallback onToggleCaught;
+  // Navegação entre Pokémon
+  final String? prevName;
+  final int?    prevId;
+  final String? nextName;
+  final int?    nextId;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
 
   const GoDetailScreen({
     super.key,
     required this.pokemon,
     required this.caught,
     required this.onToggleCaught,
+    this.prevName, this.prevId,
+    this.nextName, this.nextId,
+    this.onPrev,  this.onNext,
   });
 
   @override
@@ -88,6 +98,9 @@ class _GoDetailScreenState extends State<GoDetailScreen>
             pokemon: widget.pokemon,
             caught: _caught,
             onToggleCaught: () { setState(() => _caught = !_caught); widget.onToggleCaught(); },
+            prevName: widget.prevName, prevId: widget.prevId,
+            nextName: widget.nextName, nextId: widget.nextId,
+            onPrev: widget.onPrev, onNext: widget.onNext,
           ),
         ],
         body: Column(children: [
@@ -135,25 +148,83 @@ class _GoInfoTabState extends State<_GoInfoTab> {
       final r = await http.get(
         Uri.parse('https://pogoapi.net/api/v1/pokemon_stats.json'));
       if (r.statusCode == 200 && mounted) {
-        final list = json.decode(r.body) as List<dynamic>;
+        // A resposta pode ser lista ou mapa dependendo da versão da API
+        final body = json.decode(r.body);
+        List<dynamic> list;
+        if (body is List) {
+          list = body;
+        } else if (body is Map) {
+          // Formato alternativo: { "1": {...}, "2": {...} }
+          list = body.values.toList();
+        } else {
+          list = [];
+        }
         for (final p in list) {
-          if ((p['id'] as int) == widget.pokemon.id) {
-            setState(() {
-              _goAtk = (p['base_attack'] as num).toInt();
-              _goDef = (p['base_defense'] as num).toInt();
-              _goSta = (p['base_stamina'] as num).toInt();
-              _loadingStats = false;
-            });
-            return;
+          final pid = p['id'] ?? p['pokemon_id'];
+          if (pid != null && (pid as num).toInt() == widget.pokemon.id) {
+            final atk = (p['base_attack'] ?? p['attack'] ?? 0) as num;
+            final def = (p['base_defense'] ?? p['defense'] ?? 0) as num;
+            final sta = (p['base_stamina'] ?? p['stamina'] ?? 0) as num;
+            if (atk.toInt() > 0 && mounted) {
+              setState(() {
+                _goAtk = atk.toInt();
+                _goDef = def.toInt();
+                _goSta = sta.toInt();
+                _loadingStats = false;
+              });
+              return;
+            }
+            break;
           }
         }
       }
     } catch (_) {}
-    // Fallback: estimativa simples se a API falhar
+
+    // Fallback: buscar do endpoint de stats da PokeAPI e aplicar escala empírica
+    // A escala ~2.0 é uma aproximação razoável para a maioria dos Pokémon
+    try {
+      final r = await http.get(
+        Uri.parse('https://pokeapi.co/api/v2/pokemon/${widget.pokemon.id}'));
+      if (r.statusCode == 200 && mounted) {
+        final d = json.decode(r.body) as Map<String, dynamic>;
+        final stats = d['stats'] as List<dynamic>;
+        int atk = 0, spatk = 0, def = 0, spdef = 0, hp = 0, spd = 0;
+        for (final s in stats) {
+          final sname = s['stat']['name'] as String;
+          final base  = (s['base_stat'] as num).toInt();
+          switch (sname) {
+            case 'attack':          atk   = base; break;
+            case 'special-attack':  spatk = base; break;
+            case 'defense':         def   = base; break;
+            case 'special-defense': spdef = base; break;
+            case 'hp':              hp    = base; break;
+            case 'speed':           spd   = base; break;
+          }
+        }
+        // Fórmula de conversão com speedMod e escala empírica
+        final speedMod = 1 + (spd - 75) / 500;
+        final higherAtk = atk >= spatk ? atk : spatk;
+        final lowerAtk  = atk >= spatk ? spatk : atk;
+        final higherDef = def >= spdef ? def : spdef;
+        final lowerDef  = def >= spdef ? spdef : def;
+        // Multiplicador empírico ajustado para compensar a escala da Niantic
+        const scale = 2.0;
+        final goAtk = ((7 * higherAtk + lowerAtk) / 8 * speedMod * scale).round().clamp(1, 999);
+        final goDef = ((5 * higherDef + 3 * lowerDef) / 8 * speedMod * scale).round().clamp(1, 999);
+        final goSta = (hp * 1.75 + 50).floor().clamp(20, 9999);
+        if (mounted) setState(() {
+          _goAtk = goAtk; _goDef = goDef; _goSta = goSta;
+          _loadingStats = false;
+        });
+        return;
+      }
+    } catch (_) {}
+
+    // Último fallback
     if (mounted) setState(() {
       _goAtk = widget.pokemon.baseAttack;
       _goDef = widget.pokemon.baseDefense;
-      _goSta = widget.pokemon.baseHp;
+      _goSta = (widget.pokemon.baseHp * 1.75 + 50).floor();
       _loadingStats = false;
     });
   }

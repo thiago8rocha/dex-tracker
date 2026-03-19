@@ -427,7 +427,12 @@ class _PokedexScreenState extends State<PokedexScreen> {
             );
           } else if (isGo) {
             return GoDetailScreen(
-              pokemon: pokemon, caught: isCaught, onToggleCaught: onToggle);
+              pokemon: pokemon, caught: isCaught, onToggleCaught: onToggle,
+              prevName: _prevName, prevId: _prevId,
+              nextName: _nextName, nextId: _nextId,
+              onPrev: prevEntry != null ? onPrevCallback : null,
+              onNext: nextEntry != null ? onNextCallback : null,
+            );
           } else if (isPokopia) {
             return PokopiaDetailScreen(
               pokemon: pokemon, caught: isCaught, onToggleCaught: onToggle);
@@ -513,7 +518,11 @@ class _PokedexScreenState extends State<PokedexScreen> {
             onPrev: prevEntry != null ? onP : null, onNext: nextEntry != null ? onN : null,
           );
         } else if (isGo) {
-          return GoDetailScreen(pokemon: pokemon, caught: isCaught, onToggleCaught: onToggle);
+          return GoDetailScreen(
+            pokemon: pokemon, caught: isCaught, onToggleCaught: onToggle,
+            prevName: prevName, prevId: prevId, nextName: nextName, nextId: nextId,
+            onPrev: prevEntry != null ? onP : null, onNext: nextEntry != null ? onN : null,
+          );
         } else if (isPokopia) {
           return PokopiaDetailScreen(pokemon: pokemon, caught: isCaught, onToggleCaught: onToggle);
         } else {
