@@ -8,6 +8,8 @@ import 'package:pokedex_tracker/screens/detail/switch_detail_screen.dart';
 import 'package:pokedex_tracker/screens/detail/go_detail_screen.dart';
 import 'package:pokedex_tracker/screens/detail/pokopia_detail_screen.dart';
 import 'package:pokedex_tracker/models/pokemon.dart';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show defaultSpriteNotifier;
 import 'package:pokedex_tracker/theme/type_colors.dart';
 
 // ─── TIPO PT ─────────────────────────────────────────────────────
@@ -101,7 +103,6 @@ class _PokedexScreenState extends State<PokedexScreen> {
     }
 
     _initPokedex();
-  }
 
   // ─── INICIALIZAÇÃO ────────────────────────────────────────────────
 
@@ -777,12 +778,16 @@ class _PokedexScreenState extends State<PokedexScreen> {
             if (index >= _visibleEntries.length) return _SkeletonCard();
             final entry = _visibleEntries[index];
             final data = _pokemonData[entry.speciesId];
-            return _PokemonCard(
-              entry: entry,
-              data: data,
-              caught: _caughtMap[entry.speciesId] ?? false,
-              onLongPress: () => _toggleCatch(entry.speciesId),
-              onTap: () => _openDetail(entry),
+            return ValueListenableBuilder<String>(
+              valueListenable: defaultSpriteNotifier,
+              builder: (_, sprite, __) => _PokemonCard(
+                entry: entry,
+                data: data,
+                caught: _caughtMap[entry.speciesId] ?? false,
+                defaultSprite: sprite,
+                onLongPress: () => _toggleCatch(entry.speciesId),
+                onTap: () => _openDetail(entry),
+              ),
             );
           },
         ),
@@ -820,6 +825,7 @@ class _PokemonCard extends StatelessWidget {
   final _Entry entry;
   final Map<String, dynamic>? data;
   final bool caught;
+  final String defaultSprite;
   final VoidCallback onLongPress;
   final VoidCallback onTap;
 
@@ -827,9 +833,26 @@ class _PokemonCard extends StatelessWidget {
     required this.entry,
     required this.data,
     required this.caught,
+    required this.defaultSprite,
     required this.onLongPress,
     required this.onTap,
   });
+
+  String? _spriteUrl(Map<String, dynamic> sprites) {
+    final s = sprites['sprites'] as Map<String, dynamic>? ?? {};
+    switch (defaultSprite) {
+      case 'pixel':
+        return s['front_default'] as String?;
+      case 'home':
+        return (s['other']?['home']?['front_default'] as String?)
+            ?? (s['other']?['official-artwork']?['front_default'] as String?)
+            ?? s['front_default'] as String?;
+      case 'artwork':
+      default:
+        return (s['other']?['official-artwork']?['front_default'] as String?)
+            ?? s['front_default'] as String?;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -839,9 +862,7 @@ class _PokemonCard extends StatelessWidget {
     final baseName = rawName.split('-').first;
     final displayName = baseName[0].toUpperCase() + baseName.substring(1);
 
-    final sprite = data!['sprites']['other']['official-artwork']['front_default']
-            as String? ??
-        data!['sprites']['front_default'] as String?;
+    final sprite = _spriteUrl(data!);
 
     final types = (data!['types'] as List<dynamic>)
         .map((t) => t['type']['name'] as String)

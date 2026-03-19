@@ -3,7 +3,7 @@ import 'package:pokedex_tracker/theme/app_theme.dart';
 import 'package:pokedex_tracker/screens/home_screen.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
-    show initBilingualMode;
+    show initBilingualMode, initDefaultSprite;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +14,7 @@ void main() async {
 
   // Carregar modo bilíngue salvo — popula o ValueNotifier global
   await initBilingualMode();
+  await initDefaultSprite();
 
   runApp(const PokedexTrackerApp());
 }

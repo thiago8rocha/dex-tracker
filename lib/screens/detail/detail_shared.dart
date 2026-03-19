@@ -113,6 +113,15 @@ Future<void> initBilingualMode() async {
   bilingualModeNotifier.value = await StorageService().getBilingualMode();
 }
 
+// ─── DEFAULT SPRITE NOTIFIER ─────────────────────────────────────
+// Sincroniza o sprite padrão entre PokedexScreen, DetailHeader e Settings.
+
+final defaultSpriteNotifier = ValueNotifier<String>('artwork');
+
+Future<void> initDefaultSprite() async {
+  defaultSpriteNotifier.value = await StorageService().getDefaultSprite();
+}
+
 // ─── HELPER BILÍNGUE ────────────────────────────────────────────
 // Widget que exibe nome de move ou ability conforme a preferência.
 // Usa o ValueNotifier global — sem FutureBuilder, sem async no build.
@@ -232,16 +241,10 @@ class _DetailHeaderState extends State<DetailHeader> {
   @override
   void initState() {
     super.initState();
-    _applyDefaultSprite();
-  }
-
-  Future<void> _applyDefaultSprite() async {
-    final sprite = await StorageService().getDefaultSprite();
-    if (!mounted) return;
-    setState(() {
-      _isPixel = sprite == 'pixel';
-      _isHome  = sprite == 'home';
-    });
+    // Lê do notifier global — já inicializado no main(), sem async
+    final sprite = defaultSpriteNotifier.value;
+    _isPixel = sprite == 'pixel';
+    _isHome  = sprite == 'home';
   }
 
   /// URL do sprite atual baseado nos estados ativos

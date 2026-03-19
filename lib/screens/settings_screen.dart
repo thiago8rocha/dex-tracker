@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/theme/app_theme.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
-    show bilingualModeNotifier;
+    show bilingualModeNotifier, defaultSpriteNotifier;
 
 // ─── MODELO DE POKEDEX ────────────────────────────────────────────
 
@@ -530,6 +530,7 @@ class _SpriteSettingsScreenState extends State<SpriteSettingsScreen> {
   Future<void> _select(String id) async {
     setState(() => _selected = id);
     await _storage.setDefaultSprite(id);
+    defaultSpriteNotifier.value = id;
   }
 
   @override
