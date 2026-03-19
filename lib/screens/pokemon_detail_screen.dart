@@ -2136,20 +2136,93 @@ class _EvoChainWidget extends StatelessWidget {
   }
 }
 
-class _AvailableIn extends StatelessWidget {
+// "DISPONÍVEL EM" — busca game_indices da PokéAPI (só exibido na Nacional)
+class _AvailableIn extends StatefulWidget {
   final int pokemonId;
   const _AvailableIn({required this.pokemonId});
 
   @override
+  State<_AvailableIn> createState() => _AvailableInState();
+}
+
+class _AvailableInState extends State<_AvailableIn> {
+  List<String> _games = [];
+  bool _loading = true;
+
+  // Traduz slugs de versão para nomes legíveis em PT
+  static const Map<String, String> _gameNames = {
+    'red': 'Red / Blue', 'blue': 'Red / Blue',
+    'yellow': 'Yellow',
+    'gold': 'Gold / Silver', 'silver': 'Gold / Silver',
+    'crystal': 'Crystal',
+    'ruby': 'Ruby / Sapphire', 'sapphire': 'Ruby / Sapphire',
+    'emerald': 'Emerald',
+    'firered': 'FireRed / LeafGreen', 'leafgreen': 'FireRed / LeafGreen',
+    'diamond': 'Diamond / Pearl', 'pearl': 'Diamond / Pearl',
+    'platinum': 'Platinum',
+    'heartgold': 'HeartGold / SoulSilver', 'soulsilver': 'HeartGold / SoulSilver',
+    'black': 'Black / White', 'white': 'Black / White',
+    'black-2': 'Black 2 / White 2', 'white-2': 'Black 2 / White 2',
+    'x': 'X / Y', 'y': 'X / Y',
+    'omega-ruby': 'Omega Ruby / Alpha Sapphire', 'alpha-sapphire': 'Omega Ruby / Alpha Sapphire',
+    'sun': 'Sun / Moon', 'moon': 'Sun / Moon',
+    'ultra-sun': 'Ultra Sun / Ultra Moon', 'ultra-moon': 'Ultra Sun / Ultra Moon',
+    'lets-go-pikachu': "Let's Go Pikachu / Eevee", 'lets-go-eevee': "Let's Go Pikachu / Eevee",
+    'sword': 'Sword / Shield', 'shield': 'Sword / Shield',
+    'brilliant-diamond': 'Brilliant Diamond / Shining Pearl',
+    'shining-pearl': 'Brilliant Diamond / Shining Pearl',
+    'legends-arceus': 'Legends: Arceus',
+    'scarlet': 'Scarlet / Violet', 'violet': 'Scarlet / Violet',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final r = await http.get(
+          Uri.parse('https://pokeapi.co/api/v2/pokemon/${widget.pokemonId}'));
+      if (r.statusCode == 200 && mounted) {
+        final d = json.decode(r.body) as Map<String, dynamic>;
+        final indices = d['game_indices'] as List<dynamic>? ?? [];
+        final seen = <String>{};
+        final games = <String>[];
+        for (final gi in indices) {
+          final version = gi['version']['name'] as String;
+          final display = _gameNames[version];
+          if (display != null && seen.add(display)) {
+            games.add(display);
+          }
+        }
+        if (mounted) setState(() { _games = games; _loading = false; });
+      } else {
+        if (mounted) setState(() => _loading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final games = <String>[];
-    if (pokemonId <= 151) games.addAll(["Let's Go P/E", 'FireRed / LG']);
-    if (pokemonId <= 386) games.add('BD / SP');
-    games.addAll(['Sword / Shield', 'Scarlet / Violet', 'Pokémon GO', 'Nacional']);
-    if (pokemonId <= 242) games.add('Legends: Arceus');
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    if (_games.isEmpty) {
+      return Text('Dados não disponíveis.',
+        style: TextStyle(fontSize: 12,
+          color: Theme.of(context).colorScheme.onSurfaceVariant));
+    }
 
     final neutralBg = context.isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF5F5F5);
-    return Wrap(spacing: 8, runSpacing: 8, children: games.map((g) => Container(
+    return Wrap(spacing: 8, runSpacing: 8, children: _games.map((g) => Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(color: neutralBg, borderRadius: BorderRadius.circular(8)),
       child: Text(g, style: Theme.of(context).textTheme.labelSmall?.copyWith(
