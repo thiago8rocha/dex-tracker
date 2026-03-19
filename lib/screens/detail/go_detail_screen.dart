@@ -117,11 +117,49 @@ class _GoDetailScreenState extends State<GoDetailScreen>
 
 // ─── ABA INFO GO ─────────────────────────────────────────────────
 
-class _GoInfoTab extends StatelessWidget {
+class _GoInfoTab extends StatefulWidget {
   final Pokemon pokemon;
   const _GoInfoTab({required this.pokemon});
 
+  @override
+  State<_GoInfoTab> createState() => _GoInfoTabState();
+}
+
+class _GoInfoTabState extends State<_GoInfoTab> {
+  int _goAtk = 0, _goDef = 0, _goSta = 0;
+  bool _loadingStats = true;
+
+  // Busca os stats GO reais da pogoapi.net — valores precisos do game master
+  Future<void> _loadGoStats() async {
+    try {
+      final r = await http.get(
+        Uri.parse('https://pogoapi.net/api/v1/pokemon_stats.json'));
+      if (r.statusCode == 200 && mounted) {
+        final list = json.decode(r.body) as List<dynamic>;
+        for (final p in list) {
+          if ((p['id'] as int) == widget.pokemon.id) {
+            setState(() {
+              _goAtk = (p['base_attack'] as num).toInt();
+              _goDef = (p['base_defense'] as num).toInt();
+              _goSta = (p['base_stamina'] as num).toInt();
+              _loadingStats = false;
+            });
+            return;
+          }
+        }
+      }
+    } catch (_) {}
+    // Fallback: estimativa simples se a API falhar
+    if (mounted) setState(() {
+      _goAtk = widget.pokemon.baseAttack;
+      _goDef = widget.pokemon.baseDefense;
+      _goSta = widget.pokemon.baseHp;
+      _loadingStats = false;
+    });
+  }
+
   int get _maxCp {
+    if (_goAtk == 0) return 0;
     const cpm40 = 0.7903;
     double sqrt(num n) {
       if (n <= 0) return 0;
@@ -129,16 +167,21 @@ class _GoInfoTab extends StatelessWidget {
       for (int i = 0; i < 30; i++) x = (x + n / x) / 2;
       return x;
     }
-    final cp = ((pokemon.baseAttack + 15) * sqrt(pokemon.baseDefense + 15) *
-        sqrt(pokemon.baseHp + 15) * cpm40 * cpm40 / 10).floor();
+    final cp = ((_goAtk + 15) * sqrt(_goDef + 15) *
+        sqrt(_goSta + 15) * cpm40 * cpm40 / 10).floor();
     return cp < 10 ? 10 : cp;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGoStats();
   }
 
   @override
   Widget build(BuildContext context) {
     final bg     = neutralBg(context);
     final border = neutralBorder(context);
-    // Roxo para GO Rocket — combina com o tema sombrio do Rocket
     const rocketColor = Color(0xFF7B1FA2);
 
     return SingleChildScrollView(
@@ -147,26 +190,30 @@ class _GoInfoTab extends StatelessWidget {
         secTitle(context, 'STATS POKÉMON GO'),
         Container(
           decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-          child: Column(children: [
-            Row(children: [
-              _statBox(context, '${pokemon.baseAttack}',  'Ataque'),
-              Container(width: 0.5, height: 40, color: border),
-              _statBox(context, '${pokemon.baseDefense}', 'Defesa'),
-              Container(width: 0.5, height: 40, color: border),
-              _statBox(context, '${pokemon.baseHp}',      'HP'),
-            ]),
-            Divider(height: 0.5, color: border),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text('CP Máximo (Nível 40)',
-                  style: TextStyle(fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                Text('$_maxCp',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-          ]),
+          child: _loadingStats
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
+              : Column(children: [
+                  Row(children: [
+                    _statBox(context, '$_goAtk', 'Ataque'),
+                    Container(width: 0.5, height: 40, color: border),
+                    _statBox(context, '$_goDef', 'Defesa'),
+                    Container(width: 0.5, height: 40, color: border),
+                    _statBox(context, '$_goSta', 'Stamina'),
+                  ]),
+                  Divider(height: 0.5, color: border),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text('CP Máximo (Nível 40)',
+                        style: TextStyle(fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                      Text('$_maxCp',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                ]),
         ),
         const SizedBox(height: 16),
         secTitle(context, 'DISPONIBILIDADE'),
@@ -190,7 +237,6 @@ class _GoInfoTab extends StatelessWidget {
         const SizedBox(height: 8),
         _obtainCard(context, Icons.star_border_outlined, const Color(0xFFc8a020),
           'Raid de 3 estrelas', 'Disponível como chefe de raid'),
-        // Seção VARIANTES removida — shadow e formas de evento estão na aba Formas
       ]),
     );
   }
