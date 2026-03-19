@@ -79,8 +79,9 @@ class _PokedexScreenState extends State<PokedexScreen> {
   static const int _pageSize = 30;
 
   String _filterStatus = 'todos';
-  String? _filterType;
-  String _sortBy = 'numero';
+  Set<String> _filterTypes = {};   // vazio = todos; até 2 tipos
+  String _sortBy  = 'numero';
+  String _sortDir = 'asc';         // 'asc' | 'desc'
   String _searchQuery = '';
   bool _searchOpen = false;
   final TextEditingController _searchController = TextEditingController();
@@ -205,24 +206,29 @@ class _PokedexScreenState extends State<PokedexScreen> {
       entries = entries.where((e) => _caughtMap[e.speciesId] != true).toList();
     }
 
-    // Filtro tipo
-    if (_filterType != null) {
+    // Filtro tipo — mostra Pokémon que tenham TODOS os tipos selecionados
+    if (_filterTypes.isNotEmpty) {
       entries = entries.where((e) {
         final data = _pokemonData[e.speciesId];
         if (data == null) return true;
-        return _api.extractTypes(data).contains(_filterType);
+        final pokemonTypes = _api.extractTypes(data).toSet();
+        return _filterTypes.every((t) => pokemonTypes.contains(t));
       }).toList();
     }
 
     // Ordenação
     if (_sortBy == 'nome') {
       entries.sort((a, b) {
-        final nameA = _pokemonData[a.speciesId]?['name'] as String? ?? '';
-        final nameB = _pokemonData[b.speciesId]?['name'] as String? ?? '';
-        return nameA.compareTo(nameB);
+        final nameA = (_pokemonData[a.speciesId]?['name'] as String? ?? '').split('-').first;
+        final nameB = (_pokemonData[b.speciesId]?['name'] as String? ?? '').split('-').first;
+        return _sortDir == 'asc' ? nameA.compareTo(nameB) : nameB.compareTo(nameA);
       });
+    } else {
+      // Número
+      if (_sortDir == 'desc') {
+        entries = entries.reversed.toList();
+      }
     }
-    // padrão = por entryNumber (já está ordenado)
 
     // Filtro de busca — nome, número e tipo
     if (_searchQuery.isNotEmpty) {
@@ -562,7 +568,10 @@ class _PokedexScreenState extends State<PokedexScreen> {
                   hintStyle: TextStyle(fontSize: 15),
                 ),
                 style: const TextStyle(fontSize: 15),
-                onChanged: (v) => setState(() => _searchQuery = v),
+                onChanged: (v) {
+                  setState(() => _searchQuery = v);
+                  _loadPage(0);
+                },
               )
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -588,6 +597,7 @@ class _PokedexScreenState extends State<PokedexScreen> {
                 if (!_searchOpen) {
                   _searchQuery = '';
                   _searchController.clear();
+                  _loadPage(0);
                 }
               });
             },
@@ -811,14 +821,16 @@ class _PokedexScreenState extends State<PokedexScreen> {
       isScrollControlled: true,
       builder: (ctx) => _FilterSheet(
         currentStatus: _filterStatus,
-        currentType: _filterType,
+        currentTypes: _filterTypes,
         currentSort: _sortBy,
-        onApply: (status, type, sort) {
+        currentDir: _sortDir,
+        onApply: (status, types, sort, dir) {
           setState(() {
             _filterStatus = status;
-            _filterType = type;
-            _sortBy = sort;
-            _currentPage = 0;
+            _filterTypes  = types;
+            _sortBy       = sort;
+            _sortDir      = dir;
+            _currentPage  = 0;
             _visibleEntries = [];
           });
           _loadPage(0);
@@ -1022,86 +1034,187 @@ class _PokeballPainter extends CustomPainter {
 
 class _FilterSheet extends StatefulWidget {
   final String currentStatus;
-  final String? currentType;
+  final Set<String> currentTypes;
   final String currentSort;
-  final void Function(String, String?, String) onApply;
-  const _FilterSheet({required this.currentStatus, required this.currentType,
-      required this.currentSort, required this.onApply});
+  final String currentDir;
+  final void Function(String, Set<String>, String, String) onApply;
+
+  const _FilterSheet({
+    required this.currentStatus,
+    required this.currentTypes,
+    required this.currentSort,
+    required this.currentDir,
+    required this.onApply,
+  });
+
   @override
   State<_FilterSheet> createState() => _FilterSheetState();
 }
 
 class _FilterSheetState extends State<_FilterSheet> {
   late String _status;
-  String? _type;
+  late Set<String> _types;
   late String _sort;
+  late String _dir;
 
   @override
   void initState() {
     super.initState();
     _status = widget.currentStatus;
-    _type = widget.currentType;
-    _sort = widget.currentSort;
+    _types  = Set.from(widget.currentTypes);
+    _sort   = widget.currentSort;
+    _dir    = widget.currentDir;
+  }
+
+  void _toggleType(String typeKey) {
+    setState(() {
+      if (_types.contains(typeKey)) {
+        _types.remove(typeKey);
+      } else if (_types.length < 2) {
+        _types.add(typeKey);
+      } else {
+        // Já tem 2 — troca o mais antigo pelo novo
+        _types.remove(_types.first);
+        _types.add(typeKey);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Filtros', style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 16),
-            Text('Status', style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, children: ['todos', 'capturados', 'não capturados'].map((s) =>
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Cabeçalho
+          Row(children: [
+            Expanded(child: Text('Filtros',
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600))),
+            if (_types.isNotEmpty || _status != 'todos' || _sort != 'numero' || _dir != 'asc')
+              TextButton(
+                onPressed: () => setState(() {
+                  _status = 'todos';
+                  _types  = {};
+                  _sort   = 'numero';
+                  _dir    = 'asc';
+                }),
+                child: const Text('Limpar'),
+              ),
+          ]),
+          const SizedBox(height: 16),
+
+          // ── Status ──────────────────────────────────────────────
+          Text('Status', style: Theme.of(context).textTheme.labelMedium
+              ?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.8)),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 6, children: [
+            for (final s in ['todos', 'capturados', 'não capturados'])
               ChoiceChip(
                 label: Text(s[0].toUpperCase() + s.substring(1)),
                 selected: _status == s,
                 onSelected: (_) => setState(() => _status = s),
               ),
-            ).toList()),
-            const SizedBox(height: 16),
-            Text('Tipo', style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6, runSpacing: 6,
-              children: [
-                ChoiceChip(label: const Text('Todos'), selected: _type == null,
-                    onSelected: (_) => setState(() => _type = null)),
-                ..._typesPt.entries.map((e) => ChoiceChip(
-                  label: Text(e.value),
-                  selected: _type == e.key,
-                  onSelected: (_) => setState(() => _type = e.key),
-                  selectedColor: TypeColors.fromType(e.value).withOpacity(0.25),
-                  labelStyle: TextStyle(
-                    color: _type == e.key ? TypeColors.fromType(e.value) : null,
-                    fontSize: 12,
-                  ),
-                )),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text('Ordenar por', style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, children: [
-              ChoiceChip(label: const Text('Número'), selected: _sort == 'numero',
-                  onSelected: (_) => setState(() => _sort = 'numero')),
-              ChoiceChip(label: const Text('Nome'), selected: _sort == 'nome',
-                  onSelected: (_) => setState(() => _sort = 'nome')),
-            ]),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => widget.onApply(_status, _type, _sort),
-                child: const Text('Aplicar'),
+          ]),
+          const SizedBox(height: 20),
+
+          // ── Tipo (até 2, estilo dos badges) ─────────────────────
+          Row(children: [
+            Expanded(child: Text('Tipo',
+              style: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.8))),
+            if (_types.isNotEmpty)
+              GestureDetector(
+                onTap: () => setState(() => _types = {}),
+                child: Text('Limpar',
+                  style: TextStyle(fontSize: 12, color: scheme.primary)),
+              ),
+          ]),
+          const SizedBox(height: 4),
+          Text('Selecione até 2 tipos',
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 10),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final e in _typesPt.entries)
+              _buildTypeChip(e.key, e.value),
+          ]),
+          const SizedBox(height: 20),
+
+          // ── Ordenar por ──────────────────────────────────────────
+          Text('Ordenar por', style: Theme.of(context).textTheme.labelMedium
+              ?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.8)),
+          const SizedBox(height: 8),
+          Row(children: [
+            for (final s in [('numero', 'Número'), ('nome', 'Nome')])
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(s.$2),
+                  selected: _sort == s.$1,
+                  onSelected: (_) => setState(() => _sort = s.$1),
+                ),
+              ),
+            const Spacer(),
+            // Direção
+            GestureDetector(
+              onTap: () => setState(() => _dir = _dir == 'asc' ? 'desc' : 'asc'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(
+                    _dir == 'asc' ? Icons.arrow_upward : Icons.arrow_downward,
+                    size: 14, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: 4),
+                  Text(_dir == 'asc' ? 'Crescente' : 'Decrescente',
+                    style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                ]),
               ),
             ),
-          ],
+          ]),
+          const SizedBox(height: 24),
+
+          // ── Aplicar ──────────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => widget.onApply(_status, _types, _sort, _dir),
+              child: const Text('Aplicar'),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildTypeChip(String typeKey, String typePt) {
+    final selected = _types.contains(typeKey);
+    final color    = TypeColors.fromType(typePt);
+    return GestureDetector(
+      onTap: () => _toggleType(typeKey),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected ? color : color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(
+            color: selected ? color : color.withOpacity(0.3),
+            width: selected ? 0 : 1,
+          ),
+        ),
+        child: Text(
+          typePt,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : color,
+          ),
         ),
       ),
     );
