@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:pokedex_tracker/models/pokemon.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
+import 'package:pokedex_tracker/translations.dart';
 
 class NacionalDetailScreen extends StatefulWidget {
   final Pokemon pokemon;
@@ -95,16 +96,13 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
     for (final a in raw) {
       final nameEn = a['ability']['name'] as String;
       final isHidden = a['is_hidden'] as bool;
-      String namePt = '', desc = '';
+      // Tradução local garantida — sem depender da API para nome PT
+      final namePt = translateAbility(nameEn);
+      String desc = '';
       try {
         final r = await http.get(Uri.parse(a['ability']['url'] as String));
         if (r.statusCode == 200) {
           final ad = json.decode(r.body) as Map<String, dynamic>;
-          for (final n in (ad['names'] as List<dynamic>? ?? [])) {
-            if ((n['language']['name'] as String) == 'pt-BR') {
-              namePt = (n['name'] as String? ?? '').trim(); break;
-            }
-          }
           final flavors = ad['flavor_text_entries'] as List<dynamic>? ?? [];
           String ptDesc = '', enDesc = '';
           for (final e in flavors) {

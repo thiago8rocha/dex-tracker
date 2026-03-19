@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:pokedex_tracker/models/pokemon.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/theme/type_colors.dart';
+import 'package:pokedex_tracker/translations.dart';
 
 // ─── UTILITÁRIOS GLOBAIS ─────────────────────────────────────────
 
@@ -999,12 +1000,10 @@ class MoveRow extends StatefulWidget {
 
 class _MoveRowState extends State<MoveRow> {
   Map<String, dynamic>? _detail;
-  String _namePt = '';
 
   @override
   void initState() {
     super.initState();
-    _namePt = widget.move['namePt'] as String? ?? '';
     _load();
   }
 
@@ -1012,19 +1011,7 @@ class _MoveRowState extends State<MoveRow> {
     try {
       final r = await http.get(Uri.parse(widget.move['url'] as String));
       if (r.statusCode == 200 && mounted) {
-        final data = json.decode(r.body) as Map<String, dynamic>;
-        String namePt = '';
-        for (final n in (data['names'] as List<dynamic>? ?? [])) {
-          if ((n['language']['name'] as String) == 'pt-BR') {
-            namePt = (n['name'] as String? ?? '').trim();
-            break;
-          }
-        }
-        if (namePt.isNotEmpty) widget.move['namePt'] = namePt;
-        setState(() {
-          _detail = data;
-          if (namePt.isNotEmpty) _namePt = namePt;
-        });
+        setState(() => _detail = json.decode(r.body));
       }
     } catch (_) {}
   }
@@ -1032,7 +1019,9 @@ class _MoveRowState extends State<MoveRow> {
   @override
   Widget build(BuildContext context) {
     final nameEn = widget.move['name'] as String;
-    final level = widget.move['level'] as int;
+    // Tradução local — garantida para todos os moves do mapa
+    final namePt  = translateMove(nameEn);
+    final level   = widget.move['level'] as int;
     final typeEn = _detail?['type']?['name'] as String? ?? '';
     final typePt = ptType(typeEn);
     final typeColor = TypeColors.fromType(typePt);
@@ -1082,7 +1071,7 @@ class _MoveRowState extends State<MoveRow> {
           ),
           const SizedBox(width: 8),
           Expanded(child: BilingualTerm(
-            namePt: _namePt,
+            namePt: namePt,
             nameEn: nameEn,
           )),
           SizedBox(width: 36, child: Text(
