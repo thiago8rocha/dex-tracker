@@ -108,8 +108,11 @@ class _DetailHeaderState extends State<DetailHeader> {
   Widget build(BuildContext context) {
     final p = widget.pokemon;
     final pt = p.types.isNotEmpty ? p.types[0] : 'normal';
-    final c1 = TypeColors.fromType(ptType(pt));
-    final c2 = p.types.length > 1 ? TypeColors.fromType(ptType(p.types[1])) : c1;
+    // Suaviza a cor do tipo misturando com branco — mantém identidade mas reduz saturação
+    final rawC1 = TypeColors.fromType(ptType(pt));
+    final rawC2 = p.types.length > 1 ? TypeColors.fromType(ptType(p.types[1])) : rawC1;
+    final c1 = Color.lerp(rawC1, Colors.white, 0.28)!;
+    final c2 = Color.lerp(rawC2, Colors.white, 0.28)!;
 
     // Pokébola: vermelha = capturado, branca translúcida = não capturado
     final pokeballColor = widget.caught
@@ -450,52 +453,133 @@ class FormsTab extends StatelessWidget {
             'sprites/pokemon/other/official-artwork/$id.png';
         final c1 = types.isNotEmpty ? TypeColors.fromType(ptType(types[0])) : Colors.grey;
         final c2 = types.length > 1 ? TypeColors.fromType(ptType(types[1])) : c1;
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final gameBg   = isDark ? const Color(0xFF3A3A3A) : const Color(0xFFDDDDDD);
+        final gameText = isDark ? const Color(0xFFAAAAAA) : const Color(0xFF666666);
 
-        return Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
-              colors: [c1.withOpacity(0.2), c2.withOpacity(0.1)],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: c1.withOpacity(0.3), width: 0.8),
-          ),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Image.network(sprite, width: 72, height: 72,
-                errorBuilder: (_, __, ___) => const Icon(Icons.catching_pokemon, size: 50)),
-            const SizedBox(height: 6),
-            Text(_formatFormName(name),
-              style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w600, fontSize: 11),
-              maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
-            const SizedBox(height: 4),
-            Wrap(spacing: 4, children: types.map((t) {
-              final tc = TypeColors.fromType(ptType(t));
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: tc, borderRadius: BorderRadius.circular(4)),
-                child: Text(ptType(t), style: TextStyle(
-                  fontSize: 8, color: typeTextColor(tc), fontWeight: FontWeight.w700)),
-              );
-            }).toList()),
-            if (game != null) ...[
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(game,
-                  style: TextStyle(fontSize: 8,
-                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500),
-                  textAlign: TextAlign.center),
+        return GestureDetector(
+          onTap: () => _showFormModal(ctx, id, name, types, game, sprite),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                colors: [c1.withOpacity(0.2), c2.withOpacity(0.1)],
               ),
-            ],
-          ]),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: c1.withOpacity(0.3), width: 0.8),
+            ),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Image.network(sprite, width: 72, height: 72,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.catching_pokemon, size: 50)),
+              const SizedBox(height: 6),
+              Text(_formatFormName(name),
+                style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w600, fontSize: 11),
+                maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+              const SizedBox(height: 4),
+              Wrap(spacing: 4, children: types.map((t) {
+                final tc = TypeColors.fromType(ptType(t));
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: tc, borderRadius: BorderRadius.circular(4)),
+                  child: Text(ptType(t), style: TextStyle(
+                    fontSize: 8, color: typeTextColor(tc), fontWeight: FontWeight.w700)),
+                );
+              }).toList()),
+              if (game != null) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: gameBg,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(game,
+                    style: TextStyle(fontSize: 8, color: gameText,
+                      fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center),
+                ),
+              ],
+            ]),
+          ),
         );
       },
+    );
+  }
+
+  void _showFormModal(BuildContext context, int id, String name,
+      List<String> types, String? game, String sprite) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final gameBg   = isDark ? const Color(0xFF3A3A3A) : const Color(0xFFDDDDDD);
+    final gameText = isDark ? const Color(0xFFAAAAAA) : const Color(0xFF666666);
+    final c1 = types.isNotEmpty ? TypeColors.fromType(ptType(types[0])) : Colors.grey;
+    final c2 = types.length > 1 ? TypeColors.fromType(ptType(types[1])) : c1;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        margin: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Handle
+          Container(width: 36, height: 4,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(color: Theme.of(context).colorScheme.outlineVariant,
+              borderRadius: BorderRadius.circular(2))),
+          // Sprite grande com fundo gradiente
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                colors: [c1.withOpacity(0.15), c2.withOpacity(0.08)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Image.network(sprite, height: 180, fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) =>
+                const Icon(Icons.catching_pokemon, size: 120)),
+          ),
+          const SizedBox(height: 16),
+          // Nome
+          Text(_formatFormName(name),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center),
+          const SizedBox(height: 10),
+          // Tipos
+          Row(mainAxisAlignment: MainAxisAlignment.center,
+            children: types.map((t) {
+              final tc = TypeColors.fromType(ptType(t));
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                decoration: BoxDecoration(
+                  color: tc, borderRadius: BorderRadius.circular(4)),
+                child: Text(ptType(t), style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w700,
+                  color: typeTextColor(tc))),
+              );
+            }).toList()),
+          // Jogo
+          if (game != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: gameBg, borderRadius: BorderRadius.circular(4)),
+              child: Text(game, style: TextStyle(
+                fontSize: 11, color: gameText, fontWeight: FontWeight.w500)),
+            ),
+          ],
+        ]),
+      ),
     );
   }
 

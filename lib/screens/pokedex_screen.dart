@@ -79,8 +79,17 @@ class _PokedexScreenState extends State<PokedexScreen> {
   String _filterStatus = 'todos';
   String? _filterType;
   String _sortBy = 'numero';
+  String _searchQuery = '';
+  bool _searchOpen = false;
+  final TextEditingController _searchController = TextEditingController();
 
   bool get _isNacional => widget.pokedexId == 'nacional';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -213,6 +222,30 @@ class _PokedexScreenState extends State<PokedexScreen> {
     }
     // padrão = por entryNumber (já está ordenado)
 
+    // Filtro de busca — nome, número e tipo
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase().trim();
+      entries = entries.where((e) {
+        final data = _pokemonData[e.speciesId];
+        // Por número (#007 ou "7")
+        final numStr = e.speciesId.toString();
+        final numPadded = e.speciesId.toString().padLeft(3, '0');
+        if (numStr.contains(q) || numPadded.contains(q)) return true;
+        // Por nome
+        if (data != null) {
+          final name = (data['name'] as String).split('-').first.toLowerCase();
+          if (name.contains(q)) return true;
+          // Por tipo (EN ou PT)
+          final types = _api.extractTypes(data);
+          for (final t in types) {
+            if (t.toLowerCase().contains(q)) return true;
+            if ((_typesPt[t] ?? '').toLowerCase().contains(q)) return true;
+          }
+        }
+        return false;
+      }).toList();
+    }
+
     return entries;
   }
 
@@ -262,11 +295,12 @@ class _PokedexScreenState extends State<PokedexScreen> {
     await _storage.setCaught(widget.pokedexId, speciesId, newVal);
 
     if (!mounted) return;
-    final name = (_pokemonData[speciesId]?['name'] as String? ?? '#$speciesId')
-        .split('-').first.toUpperCase();
+    final rawName = (_pokemonData[speciesId]?['name'] as String? ?? '#$speciesId')
+        .split('-').first;
+    final name = rawName[0].toUpperCase() + rawName.substring(1).toLowerCase();
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(newVal ? '$name capturado! 🎉' : '$name removido'),
+      content: Text(newVal ? '$name capturado!' : '$name removido'),
       duration: const Duration(seconds: 2),
       behavior: SnackBarBehavior.floating,
     ));
@@ -353,23 +387,50 @@ class _PokedexScreenState extends State<PokedexScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        scrolledUnderElevation: 0, // evita mudança de cor ao rolar
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.pokedexName,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            Text(
-              '$caught / ${_entriesBySection.values.fold(0, (s, l) => s + l.length) == 0 ? widget.totalPokemon : _entriesBySection.values.fold(0, (s, l) => s + l.length)} capturados',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+        scrolledUnderElevation: 0,
+        title: _searchOpen
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Nome, número ou tipo...',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(fontSize: 15),
+                ),
+                style: const TextStyle(fontSize: 15),
+                onChanged: (v) => setState(() => _searchQuery = v),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.pokedexName,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text(
+                    '$caught / ${_entriesBySection.values.fold(0, (s, l) => s + l.length) == 0 ? widget.totalPokemon : _entriesBySection.values.fold(0, (s, l) => s + l.length)} capturados',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
         actions: [
-          IconButton(icon: const Icon(Icons.filter_list), onPressed: _showFilterSheet),
+          // Ícone de busca
+          IconButton(
+            icon: Icon(_searchOpen ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                _searchOpen = !_searchOpen;
+                if (!_searchOpen) {
+                  _searchQuery = '';
+                  _searchController.clear();
+                }
+              });
+            },
+          ),
+          // Ícone de filtro (só quando busca fechada)
+          if (!_searchOpen)
+            IconButton(icon: const Icon(Icons.filter_list), onPressed: _showFilterSheet),
         ],
       ),
       body: Column(

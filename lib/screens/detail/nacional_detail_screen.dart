@@ -199,6 +199,24 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
             }
           } catch (_) {}
         }
+        // Fallback: PokéAPI não retorna version_group para Mega/Gmax
+        // — detectar pelo nome da variedade
+        if (gameLabel == null) {
+          final lowerName = name.toLowerCase();
+          if (lowerName.contains('-mega')) {
+            gameLabel = 'Sword / Shield'; // Megas voltaram via Isle of Armor DLC
+          } else if (lowerName.contains('-gmax')) {
+            gameLabel = 'Sword / Shield';
+          } else if (lowerName.contains('-hisui') || lowerName.contains('-hisuian')) {
+            gameLabel = 'Legends: Arceus';
+          } else if (lowerName.contains('-paldea') || lowerName.contains('-paldean')) {
+            gameLabel = 'Scarlet / Violet';
+          } else if (lowerName.contains('-alola') || lowerName.contains('-alolan')) {
+            gameLabel = 'Sword / Shield';
+          } else if (lowerName.contains('-galar') || lowerName.contains('-galarian')) {
+            gameLabel = 'Sword / Shield';
+          }
+        }
         forms.add({'name': name, 'id': fid, 'types': types,
           'isDefault': v['is_default'] as bool, 'game': gameLabel});
       } catch (_) {}
