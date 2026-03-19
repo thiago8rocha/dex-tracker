@@ -1108,10 +1108,6 @@ class MoveModal extends StatelessWidget {
   Widget build(BuildContext context) {
     final nameEn = move['name'] as String;
     final namePt = translateMove(nameEn);
-    final enLabel = nameEn[0].toUpperCase() + nameEn.substring(1).replaceAll('-', ' ');
-    // Mostra EN abaixo apenas se a tradução for diferente do nome EN formatado
-    final displayName = namePt;
-    final showEn = namePt != enLabel;
     final typeEn = detail?['type']?['name'] as String? ?? '';
     final typePt = ptType(typeEn);
     final typeColor = TypeColors.fromType(typePt);
@@ -1161,12 +1157,14 @@ class MoveModal extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(color: Theme.of(context).colorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(2)))),
+              // Título: respeita a configuração de idioma do usuário via BilingualTerm
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                  if (showEn) Text(enLabel, style: TextStyle(fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                ])),
+                Expanded(child: BilingualTerm(
+                  namePt: namePt,
+                  nameEn: nameEn,
+                  baseStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  secondaryStyle: const TextStyle(fontSize: 13),
+                )),
                 GestureDetector(onTap: onClose,
                   child: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ]),
