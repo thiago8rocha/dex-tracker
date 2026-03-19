@@ -246,31 +246,34 @@ class _HomeScreenState extends State<HomeScreen> {
   // ════════════════════════════════════════════════════════════
 
   // ── 1. Nacional ──────────────────────────────────────────────
-  // "National Pokédex  7/1025" numa linha só, chevron direita
   Widget _buildNacionalCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final caught = _caughtCounts[_nacEntry.pokedexId] ?? 0;
     const total  = 1025;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? scheme.surfaceContainerLow : const Color(0xFFF5EDEC);
 
     return GestureDetector(
       onTap: () => _openPokedex(_nacEntry),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          // Tom neutro ligeiramente elevado — sem cor de marca
-          color: scheme.surfaceContainerLow,
+          color: bg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: scheme.outlineVariant, width: 1),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: Text(
-                'National Pokédex  $caught/$total',
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('National Pokédex',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600),
-              ),
-            ),
+                  fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              Text('$caught/$total',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant)),
+            ]),
             Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
           ],
         ),
@@ -279,30 +282,34 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── 2. Pokémon GO ─────────────────────────────────────────────
-  // "Pokémon GO  0/941" numa linha só, chevron direita
   Widget _buildGoCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final caught = _caughtCounts[_goEntry.pokedexId] ?? 0;
     final total  = _goEntry.totalBase;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? scheme.surfaceContainerLow : const Color(0xFFF5EDEC);
 
     return GestureDetector(
       onTap: () => _openPokedex(_goEntry),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerLow,
+          color: bg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: scheme.outlineVariant, width: 1),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: Text(
-                'Pokémon GO  $caught/$total',
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Pokémon GO',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600),
-              ),
-            ),
+                  fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              Text('$caught/$total',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant)),
+            ]),
             Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
           ],
         ),
@@ -311,7 +318,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── 3. Card simples (sem DLC) ─────────────────────────────────
-  // Tamanho fixo uniforme — nome centralizado + Capturados + X/Y
   Widget _buildSimpleCard(BuildContext context, _PokedexEntry entry) {
     final scheme   = Theme.of(context).colorScheme;
     final caught   = _caughtCounts[entry.pokedexId] ?? 0;
@@ -321,27 +327,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return _CardShell(
       complete: complete,
       onTap: () => _openPokedex(entry),
-      // height fixo para alinhar todos os cards simples
-      height: 100,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(entry.name,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w600, fontSize: 12, height: 1.3)),
-          const SizedBox(height: 6),
-          Text('Capturados',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontSize: 10, color: scheme.onSurfaceVariant)),
-          const SizedBox(height: 1),
-          Text('$caught/$total',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontSize: 13, fontWeight: FontWeight.w700,
-              color: complete ? const Color(0xFF34C759) : scheme.onSurface)),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(entry.name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600, fontSize: 12, height: 1.3)),
+            const SizedBox(height: 6),
+            _buildCountRow(context, scheme, _regionFor(entry.name), caught, total),
+          ],
+        ),
       ),
     );
   }
@@ -400,14 +401,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── 5. Card Pokopia ───────────────────────────────────────────
   // Pokopia
-  // ─────────────────
-  // Amigos  X/311
-  // ─────────────────
-  // Habitats  X/200
+  // Amigos   X/311
+  // ─────────────
+  // Habitats X/200
   Widget _buildPokopiaCard(BuildContext context, _PokedexEntry entry) {
-    final scheme       = Theme.of(context).colorScheme;
-    final amigosCaught = _caughtCounts[entry.pokedexId] ?? 0;
-    final amigosTotal  = entry.totalBase;
+    final scheme        = Theme.of(context).colorScheme;
+    final amigosCaught  = _caughtCounts[entry.pokedexId] ?? 0;
+    final amigosTotal   = entry.totalBase;
     final habitatCaught = _dlcCaught(entry, 'pokopia-habitats');
     final habitatTotal  = entry.pokopiaHabitatTotal ?? 0;
 
@@ -425,14 +425,15 @@ class _HomeScreenState extends State<HomeScreen> {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w600, fontSize: 12, height: 1.3)),
-            _buildSeparator(scheme),
-            // Amigos
+            const SizedBox(height: 6),
+            // Amigos — sem separador antes dele
             _buildCountRow(context, scheme, 'Amigos', amigosCaught, amigosTotal),
+            // Separador ENTRE Amigos e Habitats
             _buildSeparator(scheme),
             // Habitats — mesmo nível que Amigos
             _buildCountRow(context, scheme, 'Habitats', habitatCaught, habitatTotal,
               onTap: () => _openPokedex(entry, sectionFilter: 'pokopia-habitats')),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
           ],
         ),
       ),
@@ -486,10 +487,14 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Região por jogo (para linha principal do DLC card) ────────
   String _regionFor(String gameName) {
     switch (gameName) {
-      case 'Sword / Shield':    return 'Galar';
-      case 'Scarlet / Violet':  return 'Paldea';
-      case 'Legends: Z-A':      return 'Lumiose';
-      default:                  return gameName;
+      case "Let's Go Pikachu / Eevee":            return 'Kanto';
+      case 'Brilliant Diamond / Shining Pearl':   return 'Sinnoh';
+      case 'Legends: Arceus':                     return 'Hisui';
+      case 'FireRed / LeafGreen':                 return 'Kanto';
+      case 'Sword / Shield':                      return 'Galar';
+      case 'Scarlet / Violet':                    return 'Paldea';
+      case 'Legends: Z-A':                        return 'Lumiose';
+      default:                                    return gameName;
     }
   }
 
@@ -586,6 +591,10 @@ class _CardShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Tema claro: rosado muito suave, quase idêntico ao fundo mas perceptível
+    // Tema escuro: surfaceContainer (elevação padrão do Material)
+    final cardColor = isDark ? scheme.surfaceContainer : const Color(0xFFF5EDEC);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -594,7 +603,7 @@ class _CardShell extends StatelessWidget {
             ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
             : EdgeInsets.zero,
         decoration: BoxDecoration(
-          color: scheme.surfaceContainer,
+          color: cardColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: complete
