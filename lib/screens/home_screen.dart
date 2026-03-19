@@ -284,22 +284,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final caught = _caughtCounts[_nacEntry.pokedexId] ?? 0;
     const total  = 1025;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final decoration = isDark
-        ? BoxDecoration(
-            color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: scheme.outlineVariant, width: 1))
-        : BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [
-                Color(_nacEntry.cardColor1).withOpacity(0.35),
-                Color(_nacEntry.cardColor2).withOpacity(0.35),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: scheme.outlineVariant, width: 1));
+    final opacity = isDark ? 0.22 : 0.35;
+    final decoration = BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Color(_nacEntry.cardColor1).withOpacity(opacity),
+            Color(_nacEntry.cardColor2).withOpacity(opacity),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant, width: 1));
 
     return GestureDetector(
       onTap: () => _openPokedex(_nacEntry),
@@ -331,22 +327,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final caught = _caughtCounts[_goEntry.pokedexId] ?? 0;
     final total  = _goEntry.totalBase;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final decoration = isDark
-        ? BoxDecoration(
-            color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: scheme.outlineVariant, width: 1))
-        : BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [
-                Color(_goEntry.cardColor1).withOpacity(0.35),
-                Color(_goEntry.cardColor2).withOpacity(0.35),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: scheme.outlineVariant, width: 1));
+    final opacity = isDark ? 0.22 : 0.35;
+    final decoration = BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Color(_goEntry.cardColor1).withOpacity(opacity),
+            Color(_goEntry.cardColor2).withOpacity(opacity),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant, width: 1));
 
     return GestureDetector(
       onTap: () => _openPokedex(_goEntry),
@@ -664,40 +656,30 @@ class _CardShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final decoration = isDark
-        ? BoxDecoration(
-            color: scheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: complete
-                  ? const Color(0xFF34C759).withOpacity(0.5)
-                  : scheme.outlineVariant,
-              width: 1,
-            ))
-        : BoxDecoration(
-            // Gradiente diagonal: cor1 canto superior-esquerdo → cor2 canto inferior-direito
-            // Opacidade 0.30 mantém o fundo legível mas a cor é claramente visível
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                cardColor1.withOpacity(0.30),
-                cardColor2.withOpacity(0.30),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: complete
-                  ? const Color(0xFF34C759).withOpacity(0.5)
-                  : scheme.outlineVariant,
-              width: 1,
-            ));
+    // Claro: opacidade 0.28 — suave sobre fundo branco
+    // Escuro: opacidade 0.22 — mais sutil sobre fundo escuro, evita cores muito saturadas
+    final opacity = isDark ? 0.22 : 0.28;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: decoration,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              cardColor1.withOpacity(opacity),
+              cardColor2.withOpacity(opacity),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: complete
+                ? const Color(0xFF34C759).withOpacity(0.5)
+                : scheme.outlineVariant,
+            width: 1,
+          ),
+        ),
         child: child,
       ),
     );
