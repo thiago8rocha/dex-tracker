@@ -339,7 +339,7 @@ class _GoInfoTabState extends State<_GoInfoTab> {
           ]),
           const SizedBox(height: 8),
           Row(children: [
-            Expanded(child: _buildRegionalCell(context, pokemon.id)),
+            Expanded(child: _buildRegionalCell(context, widget.pokemon.id)),
             const SizedBox(width: 8),
             Expanded(child: _availCell(context, 'Lucky', 'Via troca', const Color(0xFFFFCC00))),
           ]),
