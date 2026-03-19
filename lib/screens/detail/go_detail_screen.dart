@@ -96,8 +96,6 @@ class _GoDetailScreenState extends State<GoDetailScreen>
             child: TabBar(
               controller: _tabController,
               tabs: _tabs.map((t) => Tab(text: t)).toList(),
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
               labelColor: Theme.of(context).colorScheme.primary,
               unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
               indicatorColor: Theme.of(context).colorScheme.primary,
@@ -172,18 +170,19 @@ class _GoInfoTab extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         secTitle(context, 'DISPONIBILIDADE'),
-        GridView.count(
-          shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2, childAspectRatio: 2.8,
-          crossAxisSpacing: 8, mainAxisSpacing: 8,
-          children: [
-            _availCell(context, 'Shiny',    '✓ Disponível', const Color(0xFF34C759)),
-            // GO Rocket em roxo
-            _availCell(context, 'Shadow',   '✓ GO Rocket',  rocketColor),
-            _availCell(context, 'Regional', '✗ Global',     Colors.red),
-            _availCell(context, 'Lucky',    'Via troca',    const Color(0xFFFFCC00)),
-          ],
-        ),
+        Column(children: [
+          Row(children: [
+            Expanded(child: _availCell(context, 'Shiny',    'Disponível',   const Color(0xFF34C759))),
+            const SizedBox(width: 8),
+            Expanded(child: _availCell(context, 'Shadow',   'Disponível',   rocketColor)),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: _availCell(context, 'Regional', 'Indisponível', Colors.red)),
+            const SizedBox(width: 8),
+            Expanded(child: _availCell(context, 'Lucky',    'Via troca',    const Color(0xFFFFCC00))),
+          ]),
+        ]),
         const SizedBox(height: 16),
         secTitle(context, 'COMO OBTER'),
         _obtainCard(context, Icons.catching_pokemon_outlined, const Color(0xFF4a9020),
