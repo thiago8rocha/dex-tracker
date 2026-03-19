@@ -1107,12 +1107,11 @@ class MoveModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nameEn = move['name'] as String;
-    final namePt = move['namePt'] as String? ?? '';
-    final displayName = namePt.isNotEmpty
-        ? namePt
-        : nameEn[0].toUpperCase() + nameEn.substring(1).replaceAll('-', ' ');
+    final namePt = translateMove(nameEn);
     final enLabel = nameEn[0].toUpperCase() + nameEn.substring(1).replaceAll('-', ' ');
-    final showEn = namePt.isNotEmpty && namePt != enLabel;
+    // Mostra EN abaixo apenas se a tradução for diferente do nome EN formatado
+    final displayName = namePt;
+    final showEn = namePt != enLabel;
     final typeEn = detail?['type']?['name'] as String? ?? '';
     final typePt = ptType(typeEn);
     final typeColor = TypeColors.fromType(typePt);
