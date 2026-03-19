@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:pokedex_tracker/models/pokemon.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart';
+import 'package:pokedex_tracker/services/storage_service.dart';
 
 class NacionalDetailScreen extends StatefulWidget {
   final Pokemon pokemon;
@@ -36,6 +37,7 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
   List<Map<String, dynamic>> _movesTutor = [];
   List<Map<String, dynamic>> _movesEgg = [];
   bool _loading = true;
+  Set<String>? _activePokedexIds; // null = todas ativas
 
   static const _tabs = ['Info', 'Status', 'Formas', 'Moves'];
 
@@ -51,6 +53,11 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
   void dispose() { _tabController.dispose(); super.dispose(); }
 
   Future<void> _loadAll() async {
+    // Carrega Pokedex ativas primeiro (operação local, rápida)
+    final storage = StorageService();
+    final active = await storage.getActivePokedexIds();
+    if (mounted) setState(() => _activePokedexIds = active);
+
     try {
       final r1 = await http.get(Uri.parse('$kApiBase/pokemon/${widget.pokemon.id}'));
       if (r1.statusCode == 200 && mounted) {
@@ -250,10 +257,25 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
     return tr[en] ?? en;
   }
 
+  // Mapa: pokedexId (chave do storage) → nome exibido no chip "DISPONÍVEL EM"
+  // O pokedexId é gerado pelo getter name.toLowerCase().replaceAll(...)
+  static const Map<String, String> _pokedexIdToGameName = {
+    "lets_go_pikachu___eevee":           "Let's Go P/E",
+    "firered___leafgreen":               'FireRed / LeafGreen',
+    "sword___shield":                    'Sword / Shield',
+    "brilliant_diamond___shining_pearl": 'BD / Shining Pearl',
+    "legends:_arceus":                   'Legends: Arceus',
+    "scarlet___violet":                  'Scarlet / Violet',
+    "pokémon_go":                        'Pokémon GO',
+    "pokopia":                           'Pokopia',
+  };
+
   List<String> get _availableGames {
     if (_speciesData == null) return [];
     final gen = _speciesData!['generation']?['name'] as String? ?? '';
-    const map = {
+
+    // Todos os jogos cobertos por cada geração
+    const genToAllGames = {
       'generation-i':    ["Let's Go P/E", 'FireRed / LeafGreen', 'Sword / Shield', 'BD / Shining Pearl', 'Scarlet / Violet', 'Legends: Arceus', 'Pokémon GO', 'Pokopia'],
       'generation-ii':   ['Sword / Shield', 'BD / Shining Pearl', 'Scarlet / Violet', 'Pokémon GO'],
       'generation-iii':  ['FireRed / LeafGreen', 'Sword / Shield', 'BD / Shining Pearl', 'Scarlet / Violet', 'Pokémon GO'],
@@ -264,7 +286,23 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
       'generation-viii': ['Sword / Shield', 'BD / Shining Pearl', 'Legends: Arceus', 'Pokémon GO'],
       'generation-ix':   ['Scarlet / Violet'],
     };
-    return List<String>.from(map[gen] ?? []);
+
+    final allForGen = List<String>.from(genToAllGames[gen] ?? []);
+
+    // Se _activePokedexIds == null, todas as Pokedex estão ativas (padrão)
+    if (_activePokedexIds == null) return allForGen;
+
+    // Mapa invertido: gameName → pokedexId para filtrar
+    final nameToId = {
+      for (final e in _pokedexIdToGameName.entries) e.value: e.key,
+    };
+
+    // Filtra: mantém só os jogos cuja Pokedex está ativa
+    return allForGen.where((gameName) {
+      final id = nameToId[gameName];
+      if (id == null) return true; // não mapeado = sempre exibe
+      return _activePokedexIds!.contains(id);
+    }).toList();
   }
 
   // ─── BUILD ───────────────────────────────────────────────────

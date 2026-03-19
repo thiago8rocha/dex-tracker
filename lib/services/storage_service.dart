@@ -83,4 +83,30 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
+
+  // ─── POKEDEX ATIVAS ─────────────────────────────────────────────
+  // Salva quais Pokedex estão ativas (visíveis na home).
+  // Por padrão, todas são consideradas ativas se a chave não existir.
+
+  static const String _activePokedexKey = 'active_pokedex_ids';
+
+  /// Retorna o Set de pokedexIds ativos.
+  /// Se nunca foi configurado, retorna null (= todas ativas por padrão).
+  Future<Set<String>?> getActivePokedexIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_activePokedexKey);
+    if (raw == null) return null; // null = todas ativas (padrão)
+    return raw.toSet();
+  }
+
+  Future<void> setActivePokedexIds(Set<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_activePokedexKey, ids.toList());
+  }
+
+  Future<bool> isPokedexActive(String pokedexId) async {
+    final active = await getActivePokedexIds();
+    if (active == null) return true; // todas ativas por padrão
+    return active.contains(pokedexId);
+  }
 }
