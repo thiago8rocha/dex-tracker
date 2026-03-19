@@ -699,7 +699,7 @@ class _PokemonCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                         decoration: BoxDecoration(
                           color: color,
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.circular(3),
                         ),
                         child: Text(
                           _pt(type),

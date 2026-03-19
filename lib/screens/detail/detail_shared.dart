@@ -45,11 +45,11 @@ Color neutralBorder(BuildContext context) =>
 
 // ─── HEADER COMPARTILHADO ────────────────────────────────────────
 
-class DetailHeader extends StatelessWidget {
+class DetailHeader extends StatefulWidget {
   final Pokemon pokemon;
   final bool caught;
   final VoidCallback onToggleCaught;
-  final String caughtLabel; // 'Capturado' ou 'Amigo'
+  final String caughtLabel;
 
   const DetailHeader({
     super.key,
@@ -60,126 +60,234 @@ class DetailHeader extends StatelessWidget {
   });
 
   @override
+  State<DetailHeader> createState() => _DetailHeaderState();
+}
+
+class _DetailHeaderState extends State<DetailHeader> {
+  // Estado dos toggles — independentes, combináveis
+  bool _isHome   = false;
+  bool _isShiny  = false;
+  bool _isFemale = false;
+
+  static const String _base =
+      'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
+
+  String get _spriteUrl {
+    final id = widget.pokemon.id;
+    if (_isHome) {
+      // Pokémon HOME: suporta shiny e female
+      if (_isShiny && _isFemale) return '$_base/other/home/shiny/female/$id.png';
+      if (_isShiny)              return '$_base/other/home/shiny/$id.png';
+      if (_isFemale)             return '$_base/other/home/female/$id.png';
+      return '$_base/other/home/$id.png';
+    }
+    // Official artwork
+    if (_isShiny)  return '$_base/other/official-artwork/shiny/$id.png';
+    if (_isFemale) return '$_base/front_female/$id.png'; // sprites raiz
+    return widget.pokemon.spriteUrl.isNotEmpty
+        ? widget.pokemon.spriteUrl
+        : '$_base/other/official-artwork/$id.png';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final pt = pokemon.types.isNotEmpty ? pokemon.types[0] : 'normal';
+    final pt = widget.pokemon.types.isNotEmpty ? widget.pokemon.types[0] : 'normal';
     final c1 = TypeColors.fromType(ptType(pt));
-    final c2 = pokemon.types.length > 1
-        ? TypeColors.fromType(ptType(pokemon.types[1]))
+    final c2 = widget.pokemon.types.length > 1
+        ? TypeColors.fromType(ptType(widget.pokemon.types[1]))
         : c1;
 
+    // Cor da pokébola: vermelha quando capturado, branca fantasma quando não
+    final pokeballColor = widget.caught
+        ? const Color(0xFFE24B4A)
+        : Colors.white.withOpacity(0.75);
+
     return SliverAppBar(
-      expandedHeight: 220,
+      expandedHeight: 260,
       pinned: true,
       scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
       backgroundColor: c1,
       iconTheme: const IconThemeData(color: Colors.white),
-      actions: [
-        IconButton(
-          onPressed: onToggleCaught,
-          icon: Icon(
-            caught ? Icons.catching_pokemon : Icons.catching_pokemon_outlined,
-            color: Colors.white, size: 28,
-          ),
-        ),
-      ],
+      // Sem actions — botões ficam dentro do flexibleSpace
+      actions: const [],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [c1, c2.withOpacity(0.75)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [c1, c2.withOpacity(0.85)],
             ),
           ),
           child: SafeArea(
             child: Stack(children: [
-              if (pokemon.spriteUrl.isNotEmpty)
-                Positioned(
-                  right: -15, bottom: -5,
-                  child: Opacity(
-                    opacity: 0.2,
-                    child: Image.network(pokemon.spriteUrl,
-                        width: 170, height: 170,
-                        errorBuilder: (_, __, ___) => const SizedBox()),
+              // ── Conteúdo centralizado ─────────────────────────
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 8),
+                  // Sprite
+                  Container(
+                    width: 130, height: 130,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Image.network(
+                      _spriteUrl,
+                      width: 120, height: 120,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) {
+                        // Variante não existe — reseta para padrão
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) setState(() {
+                            _isShiny = false;
+                            _isFemale = false;
+                          });
+                        });
+                        return const Icon(Icons.catching_pokemon,
+                            size: 80, color: Colors.white);
+                      },
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  // Número
+                  Text(
+                    '#${widget.pokemon.id.toString().padLeft(3, '0')}',
+                    style: const TextStyle(color: Colors.white70,
+                        fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 1.0),
+                  ),
+                  const SizedBox(height: 2),
+                  // Nome
+                  Text(
+                    widget.pokemon.name,
+                    style: const TextStyle(color: Colors.white,
+                        fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: 0.3),
+                  ),
+                  const SizedBox(height: 8),
+                  // Badges de tipo — retangulares
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: widget.pokemon.types.map((t) {
+                      final tc = TypeColors.fromType(ptType(t));
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: tc,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.3), width: 1),
+                          boxShadow: [BoxShadow(
+                            color: Colors.black.withOpacity(0.18),
+                            blurRadius: 4, offset: const Offset(0, 2),
+                          )],
+                        ),
+                        child: Text(ptType(t), style: TextStyle(
+                          color: typeTextColor(tc),
+                          fontSize: 12, fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 4),
+                ],
+              ),
+
+              // ── Botões no canto superior direito, dentro do header ──
               Positioned(
-                left: 16, right: 16, bottom: 14,
+                top: 4,
+                right: 0,
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    pokemon.spriteUrl.isNotEmpty
-                        ? Image.network(pokemon.spriteUrl, width: 120, height: 120,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.catching_pokemon, size: 100, color: Colors.white))
-                        : const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
-                    const SizedBox(width: 12),
-                    Expanded(child: Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('#${pokemon.id.toString().padLeft(3, '0')}',
-                            style: const TextStyle(color: Colors.white70,
-                              fontSize: 12, fontWeight: FontWeight.w500)),
-                          Text(pokemon.name,
-                            style: const TextStyle(color: Colors.white,
-                              fontSize: 24, fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 6),
-                          Wrap(spacing: 6, runSpacing: 4,
-                            children: pokemon.types.map((t) {
-                              final tc = TypeColors.fromType(ptType(t));
-                              final isSingle = pokemon.types.length == 1;
-                              return Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: isSingle ? 14 : 10,
-                                  vertical: isSingle ? 5 : 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: tc,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(isSingle ? 0.6 : 0.25),
-                                    width: isSingle ? 1.5 : 0.5,
-                                  ),
-                                  boxShadow: isSingle ? [BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 4, offset: const Offset(0, 2),
-                                  )] : null,
-                                ),
-                                child: Text(ptType(t), style: TextStyle(
-                                  color: typeTextColor(tc),
-                                  fontSize: isSingle ? 12 : 11,
-                                  fontWeight: FontWeight.w700,
-                                )),
-                              );
-                            }).toList()),
-                          if (caught) ...[
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.85),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                const Icon(Icons.check, size: 10, color: Colors.white),
-                                const SizedBox(width: 3),
-                                Text(caughtLabel,
-                                  style: const TextStyle(color: Colors.white,
-                                    fontSize: 10, fontWeight: FontWeight.w600)),
-                              ]),
-                            ),
-                          ],
-                        ],
+                    // Shiny — funciona em ambos os modos
+                    _HeaderIconButton(
+                      icon: Icons.auto_awesome,
+                      active: _isShiny,
+                      activeColor: const Color(0xFFFFD700),
+                      onTap: () => setState(() => _isShiny = !_isShiny),
+                    ),
+                    // Feminino — funciona em ambos os modos
+                    _HeaderIconButton(
+                      icon: Icons.female,
+                      active: _isFemale,
+                      activeColor: Colors.pinkAccent,
+                      onTap: () => setState(() => _isFemale = !_isFemale),
+                    ),
+                    // HOME render
+                    _HeaderIconButton(
+                      icon: Icons.view_in_ar,
+                      active: _isHome,
+                      activeColor: Colors.lightBlueAccent,
+                      onTap: () => setState(() => _isHome = !_isHome),
+                    ),
+                    // Pokébola — capturado/não capturado
+                    GestureDetector(
+                      onTap: widget.onToggleCaught,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                        child: Icon(
+                          Icons.catching_pokemon,
+                          size: 28,
+                          color: pokeballColor,
+                        ),
                       ),
-                    )),
+                    ),
                   ],
                 ),
               ),
             ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Botão compacto de variante dentro do header expandido
+class _HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+  final Color activeColor;
+
+  const _HeaderIconButton({
+    required this.icon,
+    required this.active,
+    required this.onTap,
+    required this.activeColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: 28, height: 28,
+          decoration: BoxDecoration(
+            color: active
+                ? activeColor.withOpacity(0.25)
+                : Colors.black.withOpacity(0.18),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: active
+                  ? activeColor.withOpacity(0.9)
+                  : Colors.white.withOpacity(0.4),
+              width: active ? 1.5 : 0.8,
+            ),
+          ),
+          child: Icon(
+            icon,
+            size: 15,
+            color: active ? activeColor : Colors.white.withOpacity(0.9),
           ),
         ),
       ),
@@ -349,7 +457,7 @@ class FormsTab extends StatelessWidget {
               final tc = TypeColors.fromType(ptType(t));
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: tc, borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: tc, borderRadius: BorderRadius.circular(4)),
                 child: Text(ptType(t), style: TextStyle(
                   fontSize: 8, color: typeTextColor(tc), fontWeight: FontWeight.w700)),
               );
@@ -739,7 +847,7 @@ class MoveModal extends StatelessWidget {
               Row(children: [
                 if (typeEn.isNotEmpty) Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: typeColor, borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: typeColor, borderRadius: BorderRadius.circular(4)),
                   child: Text(typePt, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
                     color: typeTextColor(typeColor)))),
                 const SizedBox(width: 8),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/screens/pokedex_screen.dart';
+import 'package:pokedex_tracker/screens/settings_screen.dart';
 
 class _DlcInfo {
   final String name;
@@ -40,6 +41,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final StorageService _storage = StorageService();
   final Map<String, int> _caughtCounts = {};
+  Set<String>? _activePokedexIds; // null = todas ativas
 
   static const List<_PokedexEntry> _entries = [
     _PokedexEntry(name: "Let's Go Pikachu / Eevee", year: '2018', totalBase: 153, iconBg: '#EAF3DE'),
@@ -80,12 +82,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadCounts() async {
+    // Carrega Pokedex ativas
+    final active = await _storage.getActivePokedexIds();
+    if (mounted) setState(() => _activePokedexIds = active);
+
     final all = [..._entries, _goEntry,
       const _PokedexEntry(name: 'Nacional', year: '', totalBase: 1025)];
     for (final e in all) {
       final c = await _storage.getCaughtCount(e.pokedexId);
       if (mounted) setState(() => _caughtCounts[e.pokedexId] = c);
     }
+  }
+
+  bool _isActive(_PokedexEntry entry) {
+    if (_activePokedexIds == null) return true; // todas ativas por padrão
+    return _activePokedexIds!.contains(entry.pokedexId);
   }
 
   void _openPokedex(_PokedexEntry entry, {String? sectionFilter}) async {
@@ -112,7 +123,14 @@ class _HomeScreenState extends State<HomeScreen> {
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         actions: [
-          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () async {
+              await Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()));
+              _loadCounts(); // recarrega caso Pokedex ativas tenham mudado
+            },
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -129,36 +147,50 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => _openPokedex(const _PokedexEntry(name: 'Nacional', year: '', totalBase: 1025)),
               ),
               const SizedBox(height: 14),
-              // Grid 2×N
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 1.3,
-                ),
-                itemCount: _entries.length,
-                itemBuilder: (ctx, i) {
-                  final e = _entries[i];
-                  return _PokedexCard(
-                    entry: e,
-                    caught: _caughtCounts[e.pokedexId] ?? 0,
-                    onTap: () => _openPokedex(e),
-                    onTapDlc: (api) => _openPokedex(e, sectionFilter: api),
+              // Grid 2×N — só Pokedex ativas
+              Builder(builder: (ctx) {
+                final activeEntries = _entries.where(_isActive).toList();
+                if (activeEntries.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Center(child: Text(
+                      'Nenhuma Pokedex ativa.\nAcesse Configurações para ativar.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    )),
                   );
-                },
-              ),
-              const SizedBox(height: 16),
-              // GO — sem label MOBILE, só uma linha fina separadora
-              Divider(color: Theme.of(context).colorScheme.outlineVariant, height: 1),
-              const SizedBox(height: 12),
-              _GoCard(
-                entry: _goEntry,
-                caught: _caughtCounts[_goEntry.pokedexId] ?? 0,
-                onTap: () => _openPokedex(_goEntry),
-              ),
+                }
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2, crossAxisSpacing: 10,
+                    mainAxisSpacing: 10, childAspectRatio: 1.3,
+                  ),
+                  itemCount: activeEntries.length,
+                  itemBuilder: (ctx, i) {
+                    final e = activeEntries[i];
+                    return _PokedexCard(
+                      entry: e,
+                      caught: _caughtCounts[e.pokedexId] ?? 0,
+                      onTap: () => _openPokedex(e),
+                      onTapDlc: (api) => _openPokedex(e, sectionFilter: api),
+                    );
+                  },
+                );
+              }),
+              // GO — só se ativo
+              if (_isActive(_goEntry)) ...[
+                const SizedBox(height: 16),
+                Divider(color: Theme.of(context).colorScheme.outlineVariant, height: 1),
+                const SizedBox(height: 12),
+                _GoCard(
+                  entry: _goEntry,
+                  caught: _caughtCounts[_goEntry.pokedexId] ?? 0,
+                  onTap: () => _openPokedex(_goEntry),
+                ),
+              ],
               const SizedBox(height: 8),
             ],
           ),
