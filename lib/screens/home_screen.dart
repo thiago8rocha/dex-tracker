@@ -387,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max, // ocupa toda a altura do IntrinsicHeight
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(entry.name,
@@ -396,7 +396,8 @@ class _HomeScreenState extends State<HomeScreen> {
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w600, fontSize: 12, height: 1.3)),
-            const SizedBox(height: 6),
+            // Spacer empurra as linhas de contagem para o rodapé
+            const Spacer(),
             _buildCountRow(context, scheme, _regionFor(entry.name), caught, total),
             const SizedBox(height: 2),
           ],
@@ -430,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Título centralizado
@@ -440,7 +441,8 @@ class _HomeScreenState extends State<HomeScreen> {
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w600, fontSize: 12, height: 1.3)),
-            const SizedBox(height: 6),
+            // Spacer empurra contadores para o rodapé, alinhando com o card vizinho
+            const Spacer(),
             // Linha principal: região X/Y
             _buildCountRow(context, scheme, regionLabel, caught, total),
             // DLCs com separador entre cada uma
@@ -479,7 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Título centralizado
@@ -487,7 +489,8 @@ class _HomeScreenState extends State<HomeScreen> {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w600, fontSize: 12, height: 1.3)),
-            const SizedBox(height: 6),
+            // Spacer empurra contadores para o rodapé
+            const Spacer(),
             // Amigos — sem separador antes dele
             _buildCountRow(context, scheme, 'Amigos', amigosCaught, amigosTotal),
             // Separador ENTRE Amigos e Habitats
