@@ -2040,35 +2040,34 @@ class _AbilityCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: neutralBg, borderRadius: BorderRadius.circular(10)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Nome + badge "Oculta" na mesma linha
         Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-          // Nome PT em destaque
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
             children: [
               Text(_displayName,
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              // Nome EN em subtexto discreto (só mostra se tem PT diferente do EN)
-              if (namePt.isNotEmpty && namePt != _enName)
-                Text(_enName, style: TextStyle(
-                  fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant,
-                )),
+              if (isHidden)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: context.isDark ? hiddenBgDark : hiddenBg,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('Oculta', style: TextStyle(
+                    color: context.isDark ? hiddenTextDark : hiddenText,
+                    fontSize: 10, fontWeight: FontWeight.w500,
+                  )),
+                ),
             ],
           )),
-          if (isHidden) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(
-                color: context.isDark ? hiddenBgDark : hiddenBg,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text('Oculta', style: TextStyle(
-                color: context.isDark ? hiddenTextDark : hiddenText,
-                fontSize: 10, fontWeight: FontWeight.w500,
-              )),
-            ),
-          ],
         ]),
+        // Nome EN em subtexto discreto abaixo (só quando tem tradução PT diferente)
+        if (namePt.isNotEmpty && namePt != _enName)
+          Text(_enName, style: TextStyle(
+            fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant,
+          )),
         if (description.isNotEmpty) ...[
           const SizedBox(height: 5),
           Text(description, style: TextStyle(fontSize: 11,
@@ -2325,141 +2324,36 @@ class _CatLegendItem extends StatelessWidget {
 }
 
 // ─── ONDE ENCONTRAR (jogos switch) ───────────────────────────────
+// Os dados de localização específicos por jogo vêm de curadoria manual
+// (a PokéAPI /encounters retorna dados de jogos antigos não relevantes para os
+// jogos cobertos pelo app). Será implementado via JSON local por Pokedex.
 
-class _WhereToFind extends StatefulWidget {
+class _WhereToFind extends StatelessWidget {
   final int pokemonId;
   const _WhereToFind({required this.pokemonId});
-
-  @override
-  State<_WhereToFind> createState() => _WhereToFindState();
-}
-
-class _WhereToFindState extends State<_WhereToFind> {
-  List<Map<String, dynamic>> _locations = [];
-  bool _loading = true;
-
-  // Traduz método de encontro para PT
-  String _ptMethod(String method) {
-    const map = {
-      'walk': 'Caminhada',
-      'grass-tiles': 'Grama alta',
-      'surf': 'Surf',
-      'old-rod': 'Vara velha',
-      'good-rod': 'Boa vara',
-      'super-rod': 'Super vara',
-      'gift': 'Presente',
-      'gift-egg': 'Ovo presente',
-      'only-one': 'Único',
-      'pokeradar': 'PokéRadar',
-      'cave': 'Caverna',
-      'headbutt': 'Headbutt',
-      'rock-smash': 'Smash Pedra',
-      'trade': 'Troca',
-    };
-    return map[method] ?? method.replaceAll('-', ' ');
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final r = await http.get(Uri.parse(
-          'https://pokeapi.co/api/v2/pokemon/${widget.pokemonId}/encounters'));
-      if (r.statusCode == 200 && mounted) {
-        final data = json.decode(r.body) as List<dynamic>;
-        final locs = <Map<String, dynamic>>[];
-        for (final e in data.take(6)) { // limita a 6 locais
-          final locName = (e['location_area']['name'] as String)
-              .replaceAll('-', ' ')
-              .split(' ')
-              .map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1))
-              .join(' ');
-          final versionDetails = e['version_details'] as List<dynamic>;
-          if (versionDetails.isEmpty) continue;
-          final detail = versionDetails.last;
-          final chance = detail['max_chance'] as int? ?? 0;
-          final methodRaw = (detail['encounter_details'] as List<dynamic>?)
-              ?.firstOrNull?['method']?['name'] as String? ?? 'walk';
-          locs.add({
-            'name': locName,
-            'method': _ptMethod(methodRaw),
-            'chance': '$chance%',
-          });
-        }
-        if (mounted) setState(() { _locations = locs; _loading = false; });
-      } else {
-        if (mounted) setState(() => _loading = false);
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final neutralBg = context.isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF5F5F5);
     final borderColor = context.isDark ? const Color(0xFF3A3A3A) : const Color(0xFFE0E0E0);
 
-    if (_loading) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: neutralBg, borderRadius: BorderRadius.circular(10)),
-        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      );
-    }
-
-    if (_locations.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: neutralBg, borderRadius: BorderRadius.circular(10)),
-        child: Text(
-          'Localização não disponível neste jogo.',
-          style: TextStyle(fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-      );
-    }
-
     return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: Border.all(color: borderColor, width: 0.5),
+        color: neutralBg,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor, width: 0.5),
       ),
-      child: Column(children: _locations.asMap().entries.map((entry) {
-        final isLast = entry.key == _locations.length - 1;
-        final loc = entry.value;
-        return Container(
-          decoration: isLast ? null : BoxDecoration(
-            border: Border(bottom: BorderSide(color: borderColor, width: 0.5)),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          child: Row(children: [
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(loc['name'] as String,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                Text(loc['method'] as String,
-                  style: TextStyle(fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-              ],
-            )),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF3DE), borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(loc['chance'] as String,
-                style: const TextStyle(fontSize: 10, color: Color(0xFF3B6D11),
-                  fontWeight: FontWeight.w500)),
-            ),
-          ]),
-        );
-      }).toList()),
+      child: Row(children: [
+        Icon(Icons.info_outline, size: 15,
+          color: Theme.of(context).colorScheme.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Expanded(child: Text(
+          'Localizações específicas por jogo serão adicionadas via curadoria.',
+          style: TextStyle(fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.4),
+        )),
+      ]),
     );
   }
 }
