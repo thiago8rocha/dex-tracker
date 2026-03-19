@@ -175,7 +175,7 @@ class _AmigosTab extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ]),
             );
-          }).toList(),
+          }).toList()),
         ),
         const SizedBox(height: 16),
 
