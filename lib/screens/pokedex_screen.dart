@@ -361,18 +361,43 @@ class _PokedexScreenState extends State<PokedexScreen> {
     final hasSelection = _selectedSections.isNotEmpty;
     return SizedBox(
       height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
         children: [
-          // Botão X para limpar seleção (só aparece quando há seleção)
+          Expanded(
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(left: 12),
+              children: _sections.map((s) {
+                final isSelected = _selectedSections.contains(s.apiName);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
+                    label: Text(s.isDlc ? '${s.label} (DLC)' : s.label),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      setState(() {
+                        if (isSelected) {
+                          _selectedSections.remove(s.apiName);
+                        } else {
+                          _selectedSections.add(s.apiName);
+                        }
+                        _visibleEntries = [];
+                        _currentPage = 0;
+                      });
+                      _loadPage(0);
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          // Botão X discreto — só aparece quando há seleção
           if (hasSelection)
             Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: ActionChip(
-                avatar: const Icon(Icons.close, size: 14),
-                label: const Text('Limpar'),
-                onPressed: () {
+              padding: const EdgeInsets.only(right: 8, left: 4),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () {
                   setState(() {
                     _selectedSections.clear();
                     _visibleEntries = [];
@@ -380,31 +405,17 @@ class _PokedexScreenState extends State<PokedexScreen> {
                   });
                   _loadPage(0);
                 },
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.close, size: 14,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
               ),
             ),
-          // Um chip por seção — seleção múltipla
-          ..._sections.map((s) {
-            final isSelected = _selectedSections.contains(s.apiName);
-            return Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: FilterChip(
-                label: Text(s.isDlc ? '${s.label} (DLC)' : s.label),
-                selected: isSelected,
-                onSelected: (_) {
-                  setState(() {
-                    if (isSelected) {
-                      _selectedSections.remove(s.apiName);
-                    } else {
-                      _selectedSections.add(s.apiName);
-                    }
-                    _visibleEntries = [];
-                    _currentPage = 0;
-                  });
-                  _loadPage(0);
-                },
-              ),
-            );
-          }),
         ],
       ),
     );
@@ -414,17 +425,42 @@ class _PokedexScreenState extends State<PokedexScreen> {
     final hasSelection = _selectedGens.isNotEmpty;
     return SizedBox(
       height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
         children: [
+          Expanded(
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(left: 12),
+              children: nationalGens.map((gen) {
+                final isSelected = _selectedGens.contains(gen.label);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
+                    label: Text('${gen.label} · ${gen.region}'),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      setState(() {
+                        if (isSelected) {
+                          _selectedGens.remove(gen.label);
+                        } else {
+                          _selectedGens.add(gen.label);
+                        }
+                        _visibleEntries = [];
+                        _currentPage = 0;
+                      });
+                      _loadPage(0);
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
           if (hasSelection)
             Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: ActionChip(
-                avatar: const Icon(Icons.close, size: 14),
-                label: const Text('Limpar'),
-                onPressed: () {
+              padding: const EdgeInsets.only(right: 8, left: 4),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () {
                   setState(() {
                     _selectedGens.clear();
                     _visibleEntries = [];
@@ -432,30 +468,17 @@ class _PokedexScreenState extends State<PokedexScreen> {
                   });
                   _loadPage(0);
                 },
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.close, size: 14,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
               ),
             ),
-          ...nationalGens.map((gen) {
-            final isSelected = _selectedGens.contains(gen.label);
-            return Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: FilterChip(
-                label: Text('${gen.label} · ${gen.region}'),
-                selected: isSelected,
-                onSelected: (_) {
-                  setState(() {
-                    if (isSelected) {
-                      _selectedGens.remove(gen.label);
-                    } else {
-                      _selectedGens.add(gen.label);
-                    }
-                    _visibleEntries = [];
-                    _currentPage = 0;
-                  });
-                  _loadPage(0);
-                },
-              ),
-            );
-          }),
         ],
       ),
     );
