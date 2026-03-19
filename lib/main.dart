@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/theme/app_theme.dart';
 import 'package:pokedex_tracker/screens/home_screen.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show initBilingualMode;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Carregar tema salvo antes de renderizar
+  // Carregar tema salvo
   final savedThemeId = await StorageService().getThemeId();
-  final savedMode = _themeModeFromId(savedThemeId);
-  appThemeController.setTheme(savedThemeId, savedMode);
+  appThemeController.setTheme(savedThemeId, _themeModeFromId(savedThemeId));
+
+  // Carregar modo bilíngue salvo — popula o ValueNotifier global
+  await initBilingualMode();
 
   runApp(const PokedexTrackerApp());
 }

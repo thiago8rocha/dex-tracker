@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/theme/app_theme.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show bilingualModeNotifier;
 
 // ─── MODELO DE POKEDEX ────────────────────────────────────────────
 
@@ -322,6 +324,8 @@ class _BilingualSettingsScreenState extends State<BilingualSettingsScreen> {
   Future<void> _select(String mode) async {
     setState(() => _mode = mode);
     await _storage.setBilingualMode(mode);
+    // Atualiza o notifier global — reflete imediatamente em todos os widgets abertos
+    bilingualModeNotifier.value = mode;
   }
 
   @override

@@ -101,9 +101,20 @@ String ptType(String en) {
 Color typeTextColor(Color bg) =>
     bg.computeLuminance() > 0.35 ? Colors.black87 : Colors.white;
 
+// ─── BILINGUAL MODE NOTIFIER ────────────────────────────────────
+// ValueNotifier global — inicializado no main ou na primeira leitura.
+// Qualquer widget pode ouvir sem async/FutureBuilder.
+
+final bilingualModeNotifier = ValueNotifier<String>('both');
+
+/// Inicializa o notifier lendo do storage. Chamar no main() antes do runApp.
+Future<void> initBilingualMode() async {
+  bilingualModeNotifier.value = await StorageService().getBilingualMode();
+}
+
 // ─── HELPER BILÍNGUE ────────────────────────────────────────────
-// Constrói o Widget de exibição de um termo (move ou ability) conforme
-// a preferência salva. Formato 'both': "Nome PT  nome-en" com cor diferente.
+// Widget que exibe nome de move ou ability conforme a preferência.
+// Usa o ValueNotifier global — sem FutureBuilder, sem async no build.
 
 class BilingualTerm extends StatelessWidget {
   final String namePt;  // nome em português (pode ser vazio)
@@ -121,11 +132,9 @@ class BilingualTerm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String>(
-      future: StorageService().getBilingualMode(),
-      initialData: 'both',
-      builder: (ctx, snap) {
-        final mode = snap.data ?? 'both';
+    return ValueListenableBuilder<String>(
+      valueListenable: bilingualModeNotifier,
+      builder: (ctx, mode, _) {
         final enFormatted = nameEn.isEmpty ? '' :
             nameEn[0].toUpperCase() + nameEn.substring(1).replaceAll('-', ' ');
         final ptFormatted = namePt.isNotEmpty ? namePt : enFormatted;
@@ -990,9 +999,14 @@ class MoveRow extends StatefulWidget {
 
 class _MoveRowState extends State<MoveRow> {
   Map<String, dynamic>? _detail;
+  String _namePt = '';
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _namePt = widget.move['namePt'] as String? ?? '';
+    _load();
+  }
 
   Future<void> _load() async {
     try {
@@ -1007,7 +1021,10 @@ class _MoveRowState extends State<MoveRow> {
           }
         }
         if (namePt.isNotEmpty) widget.move['namePt'] = namePt;
-        setState(() => _detail = data);
+        setState(() {
+          _detail = data;
+          if (namePt.isNotEmpty) _namePt = namePt;
+        });
       }
     } catch (_) {}
   }
@@ -1015,12 +1032,6 @@ class _MoveRowState extends State<MoveRow> {
   @override
   Widget build(BuildContext context) {
     final nameEn = widget.move['name'] as String;
-    final namePt = widget.move['namePt'] as String? ?? '';
-    final displayName = namePt.isNotEmpty
-        ? namePt
-        : nameEn[0].toUpperCase() + nameEn.substring(1).replaceAll('-', ' ');
-    final enLabel = nameEn[0].toUpperCase() + nameEn.substring(1).replaceAll('-', ' ');
-    final showEn = namePt.isNotEmpty && namePt != enLabel;
     final level = widget.move['level'] as int;
     final typeEn = _detail?['type']?['name'] as String? ?? '';
     final typePt = ptType(typeEn);
@@ -1071,7 +1082,7 @@ class _MoveRowState extends State<MoveRow> {
           ),
           const SizedBox(width: 8),
           Expanded(child: BilingualTerm(
-            namePt: namePt,
+            namePt: _namePt,
             nameEn: nameEn,
           )),
           SizedBox(width: 36, child: Text(
