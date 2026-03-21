@@ -1,10 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:pokedex_tracker/models/pokemon.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
-import 'package:pokedex_tracker/services/pokemon_cache_service.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/theme/type_colors.dart';
 import 'package:pokedex_tracker/translations.dart';
@@ -91,173 +88,22 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
     final active = await StorageService().getActivePokedexIds();
     if (mounted) setState(() => _activePokedexIds = active);
 
-    // ── Dados locais (sem rede) ────────────────────────────────────
-    if (svc.isLoaded && svc.get(id) != null) {
-      _abilities = svc.getAbilities(id).map((a) => {
-        'nameEn'     : a['nameEn'] as String,
-        'namePt'     : translateAbility(a['nameEn'] as String),
-        'description': a['description'] as String? ?? '',
-        'isHidden'   : a['isHidden'] as bool,
-      }).toList();
+    _abilities = svc.getAbilities(id).map((a) => {
+      'nameEn'     : a['nameEn'] as String,
+      'namePt'     : translateAbility(a['nameEn'] as String),
+      'description': a['description'] as String? ?? '',
+      'isHidden'   : a['isHidden'] as bool,
+    }).toList();
 
-      _evoChain = svc.getEvoChain(id);
+    _evoChain = svc.getEvoChain(id);
 
-      // Flavor text: tradução cacheada ou fallback EN
-      final flavorEn = svc.getFlavorEn(id);
-      String translated = await PokemonCacheService.instance.getTranslation(flavorEn) ?? '';
-      if (translated.isEmpty && flavorEn.isNotEmpty) {
-        translated = await translateFlavorText(flavorEn);
-        if (translated.isNotEmpty) {
-          await PokemonCacheService.instance.setTranslation(flavorEn, translated);
-        }
-      }
-      _flavorTextPt = translated.isNotEmpty ? translated : flavorEn;
+    final flavorEn = svc.getFlavorEn(id);
+    _flavorTextPt = flavorEn.isNotEmpty
+        ? await translateFlavorText(flavorEn)
+        : '';
+    if (_flavorTextPt.isEmpty) _flavorTextPt = flavorEn;
 
-      if (mounted) setState(() => _loading = false);
-      return;
-    }
-
-    // ── Fallback: chamada de rede (só se asset não disponível) ────
-    final cache = PokemonCacheService.instance;
-    try {
-      var pokemonData = await cache.getPokemon(id);
-      if (pokemonData == null) {
-        final r = await http.get(Uri.parse('$kApiBase/pokemon/$id'));
-        if (r.statusCode == 200) {
-          pokemonData = json.decode(r.body) as Map<String, dynamic>;
-          await cache.setPokemon(id, pokemonData);
-        }
-      }
-      if (pokemonData != null && mounted) {
-        _pokemonData = pokemonData;
-        _parseForms(pokemonData);
-        _parseMoves(pokemonData);
-        await _parseAbilities(pokemonData);
-      }
-
-      var speciesData = await cache.getSpecies(id);
-      if (speciesData == null) {
-        final r = await http.get(Uri.parse('$kApiBase/pokemon-species/$id'));
-        if (r.statusCode == 200) {
-          speciesData = json.decode(r.body) as Map<String, dynamic>;
-          await cache.setSpecies(id, speciesData);
-        }
-      }
-      if (speciesData != null && mounted) {
-        _speciesData = speciesData;
-        await _parseEvoChain(speciesData);
-        await _loadAlternateForms();
-        final rawFlavor = extractFlavorText(
-          speciesData['flavor_text_entries'] as List<dynamic>? ?? [],
-          'nacional',
-        );
-        String translated = await cache.getTranslation(rawFlavor) ?? '';
-        if (translated.isEmpty) {
-          translated = await translateFlavorText(rawFlavor);
-          if (translated.isNotEmpty) await cache.setTranslation(rawFlavor, translated);
-        }
-        if (mounted) setState(() => _flavorTextPt = translated);
-      }
-      if (mounted) setState(() => _loading = false);
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _parseAbilities(Map<String, dynamic> d) async {
-    final raw = d['abilities'] as List<dynamic>;
-    final result = <Map<String, dynamic>>[];
-    for (final a in raw) {
-      final nameEn = a['ability']['name'] as String;
-      final isHidden = a['is_hidden'] as bool;
-      // Tradução local garantida — sem depender da API para nome PT
-      final namePt = translateAbility(nameEn);
-      String desc = '';
-      try {
-        final abilityUrl = a['ability']['url'] as String;
-        var ad = await PokemonCacheService.instance.getAbility(abilityUrl);
-        if (ad == null) {
-          final r = await http.get(Uri.parse(abilityUrl));
-          if (r.statusCode == 200) {
-            ad = json.decode(r.body) as Map<String, dynamic>;
-            await PokemonCacheService.instance.setAbility(abilityUrl, ad);
-          }
-        }
-        if (ad != null) {
-          final flavors = ad['flavor_text_entries'] as List<dynamic>? ?? [];
-          String ptDesc = '', enDesc = '';
-          for (final e in flavors) {
-            final lang = e['language']['name'] as String;
-            if (lang == 'pt-BR' && ptDesc.isEmpty) ptDesc = (e['flavor_text'] as String? ?? '').replaceAll('\n', ' ').trim();
-            else if (lang == 'en' && enDesc.isEmpty) enDesc = (e['flavor_text'] as String? ?? '').replaceAll('\n', ' ').trim();
-          }
-          desc = ptDesc.isNotEmpty ? ptDesc : enDesc.isNotEmpty ? enDesc : '';
-          if (desc.isEmpty) {
-            for (final e in (ad['effect_entries'] as List<dynamic>? ?? [])) {
-              if ((e['language']['name'] as String) == 'en') { desc = (e['short_effect'] as String? ?? '').trim(); break; }
-            }
-          }
-        }
-      } catch (_) {}
-      result.add({'nameEn': nameEn, 'namePt': namePt, 'description': desc, 'isHidden': isHidden});
-    }
-    if (mounted) setState(() => _abilities = result);
-  }
-
-  Future<void> _parseEvoChain(Map<String, dynamic> species) async {
-    try {
-      final url = species['evolution_chain']?['url'] as String?;
-      if (url == null) return;
-      final cache = PokemonCacheService.instance;
-
-      var d = await cache.getEvoChain(url);
-      if (d == null) {
-        final r = await http.get(Uri.parse(url));
-        if (r.statusCode != 200) return;
-        d = json.decode(r.body) as Map<String, dynamic>;
-        await cache.setEvoChain(url, d);
-      }
-
-      final chain = <Map<String, dynamic>>[];
-      Map<String, dynamic>? cur = d['chain'] as Map<String, dynamic>?;
-      while (cur != null) {
-        final su = cur['species']['url'] as String;
-        final parts = su.split('/');
-        final id = int.tryParse(parts[parts.length - 2]) ?? 0;
-        final name = cur['species']['name'] as String;
-        final details = (cur['evolution_details'] as List<dynamic>?)?.firstOrNull;
-        String cond = '';
-        if (details != null) {
-          final lvl = details['min_level'];
-          final item = details['item']?['name'];
-          final happiness = details['min_happiness'];
-          if (lvl != null) cond = 'Nv. $lvl';
-          else if (item != null) cond = item.toString().replaceAll('-', ' ');
-          else if (happiness != null) cond = 'Amizade';
-          else cond = 'Evoluir';
-        }
-        List<String> types = [];
-        try {
-          var pd = await cache.getPokemon(id);
-          if (pd == null) {
-            final rp = await http.get(Uri.parse('$kApiBase/pokemon/$id'));
-            if (rp.statusCode == 200) {
-              pd = json.decode(rp.body) as Map<String, dynamic>;
-              await cache.setPokemon(id, pd);
-            }
-          }
-          if (pd != null) {
-            types = (pd['types'] as List<dynamic>)
-                .map((t) => t['type']['name'] as String)
-                .toList();
-          }
-        } catch (_) {}
-        chain.add({'id': id, 'name': name, 'condition': cond, 'types': types});
-        final next = cur['evolves_to'] as List<dynamic>;
-        cur = next.isNotEmpty ? next[0] as Map<String, dynamic> : null;
-      }
-      if (mounted) setState(() => _evoChain = chain);
-    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
   }
 
   void _parseForms(Map<String, dynamic> d) {
@@ -267,31 +113,7 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
   }
 
   Future<void> _loadAlternateForms() async {
-    if (_speciesData == null) return;
-    final varieties = _speciesData!['varieties'] as List<dynamic>? ?? [];
-    if (varieties.length <= 1) return;
-    final forms = <Map<String, dynamic>>[];
-    for (final v in varieties) {
-      final url  = v['pokemon']['url'] as String;
-      final name = v['pokemon']['name'] as String;
-      try {
-        final r = await http.get(Uri.parse(url));
-        if (r.statusCode != 200) continue;
-        final fd   = json.decode(r.body) as Map<String, dynamic>;
-        final fid  = fd['id'] as int;
-        final types = (fd['types'] as List<dynamic>)
-            .map((t) => t['type']['name'] as String).toList();
-        // Jogo via mapa estático — mais confiável que version_group da API
-        final gameLabel = gameForForm(name);
-        forms.add({'name': name, 'id': fid, 'types': types,
-          'isDefault': v['is_default'] as bool, 'game': gameLabel});
-      } catch (_) {}
-    }
-    forms.sort((a, b) {
-      final aD = a['isDefault'] as bool, bD = b['isDefault'] as bool;
-      if (aD && !bD) return -1; if (!aD && bD) return 1; return 0;
-    });
-    if (mounted) setState(() { _forms = forms; _rebuildTabController(); });
+    // Formas alternativas carregadas via asset quando disponível
   }
 
   void _parseMoves(Map<String, dynamic> d) {

@@ -3,25 +3,27 @@ import 'package:pokedex_tracker/theme/app_theme.dart';
 import 'package:pokedex_tracker/screens/home_screen.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
+import 'package:pokedex_tracker/services/pokedex_silent_refresh_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
     show initBilingualMode, initDefaultSprite;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Carregar tema salvo
   final savedThemeId = await StorageService().getThemeId();
   appThemeController.setTheme(savedThemeId, _themeModeFromId(savedThemeId));
 
-  // Carregar modo bilíngue e sprite padrão
   await initBilingualMode();
   await initDefaultSprite();
 
-  // Carregar dados locais dos pokémon (assets/data/pokedex_data.json)
-  // Feito antes do runApp para que esteja disponível imediatamente
+  // Carrega dados locais instantaneamente antes de mostrar qualquer tela
   await PokedexDataService.instance.load();
 
   runApp(const PokedexTrackerApp());
+
+  // Verificação silenciosa em background — sem impacto visual
+  // Roda 1x por semana, aplica correções na próxima abertura do app
+  PokedexSilentRefreshService.instance.startInBackground();
 }
 
 ThemeMode _themeModeFromId(String id) {
