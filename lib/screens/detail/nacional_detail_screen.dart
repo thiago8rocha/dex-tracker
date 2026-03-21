@@ -52,8 +52,8 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
   bool get _hasMultipleForms => !_loading && _forms.length > 1;
 
   List<String> get _tabs => _hasMultipleForms
-      ? ['About', 'Status', 'Formas', 'Moves']
-      : ['About', 'Status', 'Moves'];
+      ? ['Informações', 'Status', 'Formas', 'Moves']
+      : ['Informações', 'Status', 'Moves'];
 
   @override
   void initState() {

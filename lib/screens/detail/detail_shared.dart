@@ -301,6 +301,7 @@ class BilingualTerm extends StatelessWidget {
 }
 
 // ─── WIDGET: BADGE DE TIPO COM ÍCONE ─────────────────────────────
+// Mesmo estilo do header: container colorido com ícone SVG + nome
 
 class TypeBadge extends StatelessWidget {
   final String type;
@@ -308,17 +309,37 @@ class TypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = typeNamePt[type.toLowerCase()] ?? type;
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Image.asset(typeIconAsset(type), width: 18, height: 18,
-        errorBuilder: (_, __, ___) => const SizedBox(width: 18, height: 18)),
-      const SizedBox(width: 4),
-      Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-    ]);
+    final label = typeNamePt[type.toLowerCase()] ?? ptType(type);
+    final tc = TypeColors.fromType(label);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: tc,
+        borderRadius: BorderRadius.circular(4),
+        boxShadow: [BoxShadow(
+          color: Colors.black.withOpacity(0.12),
+          blurRadius: 3, offset: const Offset(0, 1))],
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Image.asset(
+          typeIconAsset(type),
+          width: 14, height: 14,
+          errorBuilder: (_, __, ___) => const SizedBox(width: 14, height: 14),
+        ),
+        const SizedBox(width: 5),
+        Text(label, style: TextStyle(
+          color: typeTextColor(tc),
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        )),
+      ]),
+    );
   }
 }
 
-// ─── WIDGET: CABEÇALHO DA ABA ABOUT ──────────────────────────────
+// ─── WIDGET: CABEÇALHO DA ABA INFORMAÇÕES ────────────────────────
 // Exibe: categoria centralizada → flavor text → linha altura/tipos/peso
 
 class AboutHeader extends StatelessWidget {
@@ -343,6 +364,13 @@ class AboutHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
 
+    // Categoria: "Pokémon X" (Pokémon sempre primeiro)
+    final categoryLabel = loading
+        ? ''
+        : category.isEmpty
+            ? '—'
+            : 'Pokémon $category';
+
     return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
       // Categoria centralizada
       if (loading)
@@ -350,7 +378,7 @@ class AboutHeader extends StatelessWidget {
           child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
       else
         Text(
-          category.isEmpty ? '—' : '${category} Pokémon',
+          categoryLabel,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 13,
@@ -548,7 +576,7 @@ class _DetailHeaderState extends State<DetailHeader> {
             : false; // artwork oficial não tem versão feminina
 
     return SliverAppBar(
-      expandedHeight: 260,
+      expandedHeight: 280,
       pinned: true,
       scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
@@ -580,11 +608,11 @@ class _DetailHeaderState extends State<DetailHeader> {
                   // Sprite sem borda/círculo
                   Image.network(
                     _spriteUrl,
-                    width: 130, height: 130,
+                    width: 160, height: 160,
                     fit: BoxFit.contain,
                     filterQuality: _isPixel ? FilterQuality.none : FilterQuality.medium,
                     errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.catching_pokemon, size: 80, color: Colors.white),
+                        const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
                   ),
                   const SizedBox(height: 10),
                   Text('#${p.id.toString().padLeft(3, '0')}',
@@ -594,28 +622,6 @@ class _DetailHeaderState extends State<DetailHeader> {
                   Text(p.name,
                     style: const TextStyle(color: Colors.white, fontSize: 22,
                       fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: p.types.map((t) {
-                      final tc = TypeColors.fromType(ptType(t));
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: tc,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
-                          boxShadow: [BoxShadow(
-                            color: Colors.black.withOpacity(0.18),
-                            blurRadius: 4, offset: const Offset(0, 2))],
-                        ),
-                        child: Text(ptType(t), style: TextStyle(
-                          color: typeTextColor(tc), fontSize: 12,
-                          fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                      );
-                    }).toList(),
-                  ),
                   const SizedBox(height: 4),
                 ],
               ),
