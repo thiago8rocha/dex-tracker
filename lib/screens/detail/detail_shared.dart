@@ -368,8 +368,8 @@ const Map<String, Color> typeIconColors = {
 };
 
 // ─── WIDGET: BADGE DE TIPO ────────────────────────────────────────
-// Ícone (círculo recortado, 32x32) + fundo colorido + texto branco.
-// O ícone já contém a cor de fundo correta — sem blendMode necessário.
+// Círculo PNG (transparente fora) encaixado no lado esquerdo
+// do retângulo colorido. Sem blendMode, sem layer extra.
 
 class TypeBadge extends StatelessWidget {
   final String type;
@@ -384,37 +384,46 @@ class TypeBadge extends StatelessWidget {
     return SizedBox(
       height: 32,
       width: 130,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: Row(
-          children: [
-            // Ícone: quadrado com o círculo colorido recortado
-            Image.asset(
-              typeIconAsset(type),
-              width: 32,
-              height: 32,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Container(width: 32, height: 32, color: color),
-            ),
-            // Fundo colorido + texto
-            Expanded(
-              child: Container(
+      child: Stack(
+        children: [
+          // Fundo colorido com bordas arredondadas
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
                 color: color,
-                alignment: Alignment.center,
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+          // Texto centralizado (com padding para não sobrepor o ícone)
+          Positioned.fill(
+            left: 30,
+            child: Center(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+          // Círculo PNG sobre o fundo — transparência funciona naturalmente
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: Image.asset(
+              typeIconAsset(type),
+              width: 32,
+              height: 32,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const SizedBox(width: 32),
+            ),
+          ),
+        ],
       ),
     );
   }
