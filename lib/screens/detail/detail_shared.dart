@@ -64,31 +64,41 @@ const Map<String, List<String>> pokedexVersionGroups = {
 Future<String> translateFlavorText(String text) async {
   if (text.isEmpty) return text;
 
-  // Só considera PT se tiver palavras EXCLUSIVAMENTE portuguesas (não existem em inglês)
-  // "do/de/em/que" existem em inglês — NÃO usar. Usar só palavras inequívocas.
+  // Pula tradução apenas se já for inequivocamente português
   final ptOnly = RegExp(
-    r'\b(pokémon|é|não|também|seu|sua|seus|suas|dele|dela|pode|quando|então|assim|isto|isso|esta|este|essa|esse|aqui|muito|mais|pelo|pela|para|com|mas|por|são|está|foi|como|tem|tinha|esse|essa)\b',
+    r'\b(não|também|seus|suas|dele|dela|então|assim|isto|isso|aqui|pelo|pela|são|está)\b',
     caseSensitive: false,
   );
   if (ptOnly.hasMatch(text)) return text;
 
+  // Tentativa 1: Google Translate (gratuito, sem chave)
   try {
-    final encoded = Uri.encodeComponent(text);
-    final url = Uri.parse(
-      'https://translate.googleapis.com/translate_a/single'
-      '?client=gtx&sl=en&tl=pt-BR&dt=t&q=$encoded',
-    );
-    final r = await http.get(url).timeout(const Duration(seconds: 8));
+    final url = Uri.https('translate.googleapis.com', '/translate_a/single', {
+      'client': 'gtx', 'sl': 'en', 'tl': 'pt', 'dt': 't', 'q': text,
+    });
+    final r = await http.get(url).timeout(const Duration(seconds: 6));
     if (r.statusCode == 200) {
-      final data = json.decode(r.body);
-      final parts = data[0] as List<dynamic>;
-      final result = parts
-          .map((p) => (p[0] as String? ?? ''))
-          .join('')
-          .trim();
-      return result.isNotEmpty ? result : text;
+      final data = json.decode(r.body) as List<dynamic>;
+      final result = (data[0] as List<dynamic>)
+          .map((s) => (s as List<dynamic>)[0] as String? ?? '')
+          .join('').trim();
+      if (result.isNotEmpty && result != text) return result;
     }
   } catch (_) {}
+
+  // Tentativa 2: MyMemory (API pública, sem chave)
+  try {
+    final url = Uri.https('api.mymemory.translated.net', '/get', {
+      'q': text, 'langpair': 'en|pt-BR',
+    });
+    final r = await http.get(url).timeout(const Duration(seconds: 6));
+    if (r.statusCode == 200) {
+      final data = json.decode(r.body) as Map<String, dynamic>;
+      final result = data['responseData']?['translatedText'] as String? ?? '';
+      if (result.isNotEmpty && result != text) return result;
+    }
+  } catch (_) {}
+
   return text;
 }
 
@@ -337,29 +347,30 @@ class BilingualTerm extends StatelessWidget {
 // ─── CORES DOS TIPOS ─────────────────────────────────────────────
 // Extraídas dos ícones oficiais do Bulbapedia
 const Map<String, Color> typeIconColors = {
-  'normal':   Color.fromRGBO(163, 165, 162, 1),
-  'fire':     Color.fromRGBO(223,  51,  51, 1),
-  'water':    Color.fromRGBO( 63, 131, 216, 1),
-  'grass':    Color.fromRGBO( 71, 164,  51, 1),
-  'electric': Color.fromRGBO(228, 190,  66, 1),
-  'ice':      Color.fromRGBO( 92, 197, 224, 1),
-  'fighting': Color.fromRGBO(171, 115,  58, 1),
-  'poison':   Color.fromRGBO(147,  68, 204, 1),
-  'ground':   Color.fromRGBO(150,  90,  45, 1),
-  'flying':   Color.fromRGBO(142, 183, 222, 1),
-  'psychic':  Color.fromRGBO(119,  85,  96, 1),
-  'bug':      Color.fromRGBO(172, 183,  86, 1),
-  'rock':     Color.fromRGBO(178, 173, 135, 1),
-  'ghost':    Color.fromRGBO(119,  74, 119, 1),
-  'dragon':   Color.fromRGBO( 83,  98, 224, 1),
-  'dark':     Color.fromRGBO(104,  85,  86, 1),
-  'steel':    Color.fromRGBO(103, 164, 185, 1),
-  'fairy':    Color.fromRGBO(146, 100, 146, 1),
+  'normal':   Color.fromRGBO(164, 165, 163, 1),
+  'fire':     Color.fromRGBO(231,  53,  53, 1),
+  'water':    Color.fromRGBO( 54, 136, 239, 1),
+  'grass':    Color.fromRGBO( 77, 168,  58, 1),
+  'electric': Color.fromRGBO(250, 195,  14, 1),
+  'ice':      Color.fromRGBO( 80, 211, 244, 1),
+  'fighting': Color.fromRGBO(253, 139,  24, 1),
+  'poison':   Color.fromRGBO(151,  75, 206, 1),
+  'ground':   Color.fromRGBO(154,  95,  51, 1),
+  'flying':   Color.fromRGBO(135, 187, 239, 1),
+  'psychic':  Color.fromRGBO(222,  78, 124, 1),
+  'bug':      Color.fromRGBO(156, 170,  49, 1),
+  'rock':     Color.fromRGBO(180, 175, 138, 1),
+  'ghost':    Color.fromRGBO(121,  76, 121, 1),
+  'dragon':   Color.fromRGBO( 97, 110, 227, 1),
+  'dark':     Color.fromRGBO(106,  87,  88, 1),
+  'steel':    Color.fromRGBO(109, 168, 189, 1),
+  'fairy':    Color.fromRGBO(234, 119, 234, 1),
 };
 
 // ─── WIDGET: BADGE DE TIPO ────────────────────────────────────────
-// Retângulo único com a cor do tipo como fundo.
-// O PNG tem fundo transparente e símbolo branco puro — sem recoloração.
+// Retângulo único com cor sólida do tipo.
+// ColorFiltered força os pixels do ícone para branco puro,
+// independente de qualquer artefato residual no PNG.
 
 class TypeBadge extends StatelessWidget {
   final String type;
@@ -380,15 +391,23 @@ class TypeBadge extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(
-            typeIconAsset(type),
-            width: 18,
-            height: 18,
-            // PNG já tem símbolo branco puro — sem recoloração necessária
-            errorBuilder: (_, __, ___) => const SizedBox(width: 18),
+          // ColorFilter.matrix converte qualquer cor para branco, preservando alfa
+          ColorFiltered(
+            colorFilter: const ColorFilter.matrix(<double>[
+              0, 0, 0, 0, 255,
+              0, 0, 0, 0, 255,
+              0, 0, 0, 0, 255,
+              0, 0, 0, 1, 0,
+            ]),
+            child: Image.asset(
+              typeIconAsset(type),
+              width: 20,
+              height: 20,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const SizedBox(width: 20),
+            ),
           ),
           const SizedBox(width: 6),
           Text(
