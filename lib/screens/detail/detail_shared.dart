@@ -486,57 +486,32 @@ class AboutHeader extends StatelessWidget {
       const SizedBox(height: 20),
 
       // Linha: Altura | Tipo | Peso
-      // Labels sempre alinhados pelo topo.
-      // 1 tipo: Row centralizado (sem Expanded, com espaçamento uniforme).
-      // 2 tipos: Row com Expanded para distribuir espaço igualmente.
-      if (types.length <= 1)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+      // Títulos alinhados pelo topo. Valores de Altura e Peso
+      // centrados verticalmente em relação ao bloco de tipos.
+      IntrinsicHeight(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              Text('Altura', style: TextStyle(fontSize: 11, color: secondary)),
-              const SizedBox(height: 6),
-              Text(loading ? '—' : height,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-            ]),
-            Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              Text('Tipo', style: TextStyle(fontSize: 11, color: secondary)),
-              const SizedBox(height: 6),
-              if (loading)
-                const SizedBox(height: 32,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              else if (types.isNotEmpty)
-                TypeBadge(type: types[0]),
-            ]),
-            Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              Text('Peso', style: TextStyle(fontSize: 11, color: secondary)),
-              const SizedBox(height: 6),
-              Text(loading ? '—' : weight,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-            ]),
-          ],
-        )
-      else
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+            // ── Altura ──
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text('Altura', style: TextStyle(fontSize: 11, color: secondary)),
-                const SizedBox(height: 6),
-                Text(loading ? '—' : height,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                Expanded(child: Center(
+                  child: Text(loading ? '—' : height,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                )),
               ],
             )),
+
+            // ── Tipo ──
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text('Tipo', style: TextStyle(fontSize: 11, color: secondary)),
                 const SizedBox(height: 6),
                 if (loading)
-                  const SizedBox(height: 36,
+                  const SizedBox(height: 32,
                     child: CircularProgressIndicator(strokeWidth: 2))
                 else
                   ...types.map((t) => Padding(
@@ -545,17 +520,21 @@ class AboutHeader extends StatelessWidget {
                   )),
               ],
             )),
+
+            // ── Peso ──
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text('Peso', style: TextStyle(fontSize: 11, color: secondary)),
-                const SizedBox(height: 6),
-                Text(loading ? '—' : weight,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                Expanded(child: Center(
+                  child: Text(loading ? '—' : weight,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                )),
               ],
             )),
           ],
         ),
+      ),
 
       const SizedBox(height: 8),
     ]);
