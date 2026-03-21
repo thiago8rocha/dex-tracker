@@ -419,7 +419,7 @@ class TypeBadge extends StatelessWidget {
       ),
     );
   }
-}}
+}
 
 // ─── WIDGET: CABEÇALHO DA ABA INFORMAÇÕES ────────────────────────
 // Layout: categoria (itálico) → flavor text → Altura/Tipo/Peso com label acima
