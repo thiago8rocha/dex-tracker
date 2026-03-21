@@ -712,90 +712,111 @@ class _DetailHeaderState extends State<DetailHeader> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    // Linha inferior: prev | número+nome atual | next
-                    // (todos na mesma linha, mesma baseline)
+                    // Linha inferior: prev (esq) | nome atual (centro absoluto) | next (dir)
+                    // Stack garante que o nome atual fique sempre centralizado na tela,
+                    // independente do tamanho dos nomes prev/next.
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // ── Prev ──────────────────────────────
-                          if (widget.onPrev != null)
-                            GestureDetector(
-                              onTap: widget.onPrev,
-                              behavior: HitTestBehavior.opaque,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                  Icon(Icons.chevron_left, size: 22,
-                                    color: Colors.white.withOpacity(0.9)),
-                                  const SizedBox(width: 2),
-                                  Column(mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      if (widget.prevId != null)
-                                        Text('#${widget.prevId.toString().padLeft(3,'0')}',
-                                          style: TextStyle(fontSize: 10,
-                                            color: Colors.white.withOpacity(0.7),
-                                            fontWeight: FontWeight.w500)),
-                                      if (widget.prevName != null)
-                                        Text(widget.prevName!,
-                                          style: TextStyle(fontSize: 12,
-                                            color: Colors.white.withOpacity(0.9),
-                                            fontWeight: FontWeight.w600)),
-                                    ]),
-                                ]),
-                              ),
-                            )
-                          else
-                            const SizedBox(width: 60),
+                      child: SizedBox(
+                        height: 40,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
 
-                          // ── Nome e número atual (centralizado) ─
-                          Expanded(
-                            child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            // ── Nome e número atual — centro absoluto ──
+                            Column(mainAxisSize: MainAxisSize.min, children: [
                               Text('#${p.id.toString().padLeft(3, '0')}',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.white70, fontSize: 12,
-                                  fontWeight: FontWeight.w500, letterSpacing: 1.0)),
-                              const SizedBox(height: 2),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 1.0,
+                                )),
+                              const SizedBox(height: 1),
                               Text(p.name,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.white, fontSize: 22,
-                                  fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
+                                )),
                             ]),
-                          ),
 
-                          // ── Next ──────────────────────────────
-                          if (widget.onNext != null)
-                            GestureDetector(
-                              onTap: widget.onNext,
-                              behavior: HitTestBehavior.opaque,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                  Column(mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      if (widget.nextId != null)
-                                        Text('#${widget.nextId.toString().padLeft(3,'0')}',
-                                          style: TextStyle(fontSize: 10,
-                                            color: Colors.white.withOpacity(0.7),
-                                            fontWeight: FontWeight.w500)),
-                                      if (widget.nextName != null)
-                                        Text(widget.nextName!,
-                                          style: TextStyle(fontSize: 12,
-                                            color: Colors.white.withOpacity(0.9),
-                                            fontWeight: FontWeight.w600)),
-                                    ]),
-                                  const SizedBox(width: 2),
-                                  Icon(Icons.chevron_right, size: 22,
-                                    color: Colors.white.withOpacity(0.9)),
-                                ]),
+                            // ── Prev — alinhado à esquerda ─────────────
+                            if (widget.onPrev != null)
+                              Positioned(
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                child: GestureDetector(
+                                  onTap: widget.onPrev,
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                                    child: Row(mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.chevron_left, size: 20,
+                                          color: Colors.white.withOpacity(0.9)),
+                                        const SizedBox(width: 2),
+                                        Column(mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            if (widget.prevId != null)
+                                              Text('#${widget.prevId.toString().padLeft(3,'0')}',
+                                                style: TextStyle(fontSize: 10,
+                                                  color: Colors.white.withOpacity(0.65),
+                                                  fontWeight: FontWeight.w500)),
+                                            if (widget.prevName != null)
+                                              Text(widget.prevName!,
+                                                style: TextStyle(fontSize: 11,
+                                                  color: Colors.white.withOpacity(0.85),
+                                                  fontWeight: FontWeight.w600)),
+                                          ]),
+                                      ]),
+                                  ),
+                                ),
                               ),
-                            )
-                          else
-                            const SizedBox(width: 60),
-                        ],
+
+                            // ── Next — alinhado à direita ──────────────
+                            if (widget.onNext != null)
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                bottom: 0,
+                                child: GestureDetector(
+                                  onTap: widget.onNext,
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                                    child: Row(mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Column(mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            if (widget.nextId != null)
+                                              Text('#${widget.nextId.toString().padLeft(3,'0')}',
+                                                style: TextStyle(fontSize: 10,
+                                                  color: Colors.white.withOpacity(0.65),
+                                                  fontWeight: FontWeight.w500)),
+                                            if (widget.nextName != null)
+                                              Text(widget.nextName!,
+                                                style: TextStyle(fontSize: 11,
+                                                  color: Colors.white.withOpacity(0.85),
+                                                  fontWeight: FontWeight.w600)),
+                                          ]),
+                                        const SizedBox(width: 2),
+                                        Icon(Icons.chevron_right, size: 20,
+                                          color: Colors.white.withOpacity(0.9)),
+                                      ]),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
