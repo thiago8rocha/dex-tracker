@@ -369,8 +369,7 @@ const Map<String, Color> typeIconColors = {
 
 // ─── WIDGET: BADGE DE TIPO ────────────────────────────────────────
 // Retângulo único com cor sólida do tipo.
-// ColorFiltered força os pixels do ícone para branco puro,
-// independente de qualquer artefato residual no PNG.
+// ShaderMask garante que o ícone renderize branco sem layer isolado.
 
 class TypeBadge extends StatelessWidget {
   final String type;
@@ -393,14 +392,11 @@ class TypeBadge extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // ColorFilter.matrix converte qualquer cor para branco, preservando alfa
-          ColorFiltered(
-            colorFilter: const ColorFilter.matrix(<double>[
-              0, 0, 0, 0, 255,
-              0, 0, 0, 0, 255,
-              0, 0, 0, 0, 255,
-              0, 0, 0, 1, 0,
-            ]),
+          ShaderMask(
+            blendMode: BlendMode.srcIn,
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Colors.white, Colors.white],
+            ).createShader(bounds),
             child: Image.asset(
               typeIconAsset(type),
               width: 20,
@@ -423,7 +419,7 @@ class TypeBadge extends StatelessWidget {
       ),
     );
   }
-}
+}}
 
 // ─── WIDGET: CABEÇALHO DA ABA INFORMAÇÕES ────────────────────────
 // Layout: categoria (itálico) → flavor text → Altura/Tipo/Peso com label acima
