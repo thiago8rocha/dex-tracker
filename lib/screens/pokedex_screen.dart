@@ -194,20 +194,34 @@ class _PokedexScreenState extends State<PokedexScreen>
         break; // fetchEntriesBySection já busca todas as seções de uma vez
       }
 
-      // Fallback para GO / Pokopia (sem seção na API)
+      // Fallback para GO / Pokopia (sem seção configurada)
       if (bySection.isEmpty) {
         final isPokopia      = _effectivePokedexId.contains('pokopia');
         final isPokopiaEvent = _effectivePokedexId == 'pokopia_event';
-        final ids = isPokopiaEvent
-            ? pokopiaEventSpeciesIds
-            : isPokopia
-                ? pokopiaSpeciesIds
-                : List.generate(math.min(widget.totalPokemon, 1025), (i) => i + 1);
-        bySection['all'] = ids
-            .asMap()
-            .entries
-            .map((e) => _Entry(entryNumber: e.key + 1, speciesId: e.value))
-            .toList();
+        final isGo           = _effectivePokedexId == 'pokémon_go';
+
+        if (isGo) {
+          // Lê do bundle local
+          final bundle = await DexBundleService.instance.loadSection('go');
+          if (bundle != null) {
+            bySection['go'] = bundle
+                .map((e) => _Entry(entryNumber: e['entryNumber']!, speciesId: e['speciesId']!))
+                .toList();
+          }
+        }
+
+        if (bySection.isEmpty) {
+          final ids = isPokopiaEvent
+              ? pokopiaEventSpeciesIds
+              : isPokopia
+                  ? pokopiaSpeciesIds
+                  : List.generate(math.min(widget.totalPokemon, 1025), (i) => i + 1);
+          bySection['all'] = ids
+              .asMap()
+              .entries
+              .map((e) => _Entry(entryNumber: e.key + 1, speciesId: e.value))
+              .toList();
+        }
       }
 
       _entriesBySection = bySection;

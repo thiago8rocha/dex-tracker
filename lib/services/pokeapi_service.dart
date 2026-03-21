@@ -34,8 +34,66 @@ class PokeApiService {
   static const String _base = 'https://pokeapi.co/api/v2';
 
   static const Map<String, List<PokedexSection>> pokedexSections = {
+    // ── Gen I ────────────────────────────────────────────────────
+    "red___blue": [
+      PokedexSection(label: 'Kanto', apiName: 'kanto', isDlc: false),
+    ],
+    "yellow": [
+      PokedexSection(label: 'Kanto', apiName: 'kanto', isDlc: false),
+    ],
+    // ── Gen II ───────────────────────────────────────────────────
+    "gold___silver": [
+      PokedexSection(label: 'Johto', apiName: 'original-johto', isDlc: false),
+    ],
+    "crystal": [
+      PokedexSection(label: 'Johto', apiName: 'original-johto', isDlc: false),
+    ],
+    // ── Gen III ──────────────────────────────────────────────────
+    "ruby___sapphire": [
+      PokedexSection(label: 'Hoenn', apiName: 'hoenn', isDlc: false),
+    ],
+    "firered___leafgreen_(gba)": [
+      PokedexSection(label: 'Kanto', apiName: 'updated-kanto', isDlc: false),
+    ],
+    "emerald": [
+      PokedexSection(label: 'Hoenn', apiName: 'updated-hoenn', isDlc: false),
+    ],
+    // ── Gen IV ───────────────────────────────────────────────────
+    "diamond___pearl": [
+      PokedexSection(label: 'Sinnoh', apiName: 'original-sinnoh', isDlc: false),
+    ],
+    "platinum": [
+      PokedexSection(label: 'Sinnoh', apiName: 'extended-sinnoh', isDlc: false),
+    ],
+    "heartgold___soulsilver": [
+      PokedexSection(label: 'Johto', apiName: 'updated-johto', isDlc: false),
+    ],
+    // ── Gen V ────────────────────────────────────────────────────
+    "black___white": [
+      PokedexSection(label: 'Unova', apiName: 'original-unova', isDlc: false),
+    ],
+    "black_2___white_2": [
+      PokedexSection(label: 'Unova', apiName: 'updated-unova', isDlc: false),
+    ],
+    // ── Gen VI ───────────────────────────────────────────────────
+    "x___y": [
+      PokedexSection(label: 'Kalos Central', apiName: 'kalos-central', isDlc: false),
+      PokedexSection(label: 'Kalos Coastal', apiName: 'kalos-coastal', isDlc: false),
+      PokedexSection(label: 'Kalos Mountain', apiName: 'kalos-mountain', isDlc: false),
+    ],
+    "omega_ruby___alpha_sapphire": [
+      PokedexSection(label: 'Hoenn', apiName: 'updated-hoenn-oras', isDlc: false),
+    ],
+    // ── Gen VII ──────────────────────────────────────────────────
+    "sun___moon": [
+      PokedexSection(label: 'Alola', apiName: 'original-alola', isDlc: false),
+    ],
+    "ultra_sun___ultra_moon": [
+      PokedexSection(label: 'Alola', apiName: 'updated-alola', isDlc: false),
+    ],
+    // ── Gen VIII (Switch) ─────────────────────────────────────────
     "let_s_go_pikachu___eevee": [
-      PokedexSection(label: 'Let\'s Go Kanto', apiName: 'letsgo-kanto', isDlc: false),
+      PokedexSection(label: 'Let's Go Kanto', apiName: 'letsgo-kanto', isDlc: false),
     ],
     "sword___shield": [
       PokedexSection(label: 'Galar', apiName: 'galar', isDlc: false),
@@ -43,11 +101,12 @@ class PokeApiService {
       PokedexSection(label: 'Crown Tundra', apiName: 'crown-tundra', isDlc: true),
     ],
     "brilliant_diamond___shining_pearl": [
-      PokedexSection(label: 'Sinnoh', apiName: 'original-sinnoh', isDlc: false),
+      PokedexSection(label: 'Sinnoh', apiName: 'original-sinnoh-bdsp', isDlc: false),
     ],
     "legends_arceus": [
       PokedexSection(label: 'Hisui', apiName: 'hisui', isDlc: false),
     ],
+    // ── Gen IX ────────────────────────────────────────────────────
     "scarlet___violet": [
       PokedexSection(label: 'Paldea', apiName: 'paldea', isDlc: false),
       PokedexSection(label: 'Teal Mask', apiName: 'kitakami', isDlc: true),
@@ -55,7 +114,9 @@ class PokeApiService {
     ],
     "legends_z-a": [
       PokedexSection(label: 'Lumiose', apiName: 'lumiose', isDlc: false),
+      PokedexSection(label: 'Mega Dimension', apiName: 'mega-dimension', isDlc: true),
     ],
+    // ── Especiais ─────────────────────────────────────────────────
     "firered___leafgreen": [
       PokedexSection(label: 'Kanto', apiName: 'updated-kanto', isDlc: false),
     ],
