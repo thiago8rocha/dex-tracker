@@ -47,6 +47,7 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
   List<Map<String, dynamic>> _movesTutor = [];
   List<Map<String, dynamic>> _movesEgg = [];
   bool _loading = true;
+  String _flavorTextPt = '';
   Set<String>? _activePokedexIds; // null = todas ativas
 
   bool get _hasMultipleForms => !_loading && _forms.length > 1;
@@ -100,6 +101,13 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
         _speciesData = d;
         await _parseEvoChain(d);
         await _loadAlternateForms();
+        // Buscar e traduzir o flavor text
+        final rawFlavor = extractFlavorText(
+          d['flavor_text_entries'] as List<dynamic>? ?? [],
+          'nacional',
+        );
+        final translated = await translateFlavorText(rawFlavor);
+        if (mounted) setState(() => _flavorTextPt = translated);
       }
       if (mounted) setState(() => _loading = false);
     } catch (_) {
@@ -247,11 +255,7 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
   String get _captureRate => _speciesData == null ? '—'
       : '${_speciesData!['capture_rate'] ?? '—'}';
 
-  String get _flavorText {
-    if (_speciesData == null) return '';
-    final entries = _speciesData!['flavor_text_entries'] as List<dynamic>? ?? [];
-    return extractFlavorText(entries, 'nacional');
-  }
+  String get _flavorText => _flavorTextPt;
 
   String get _category {
     if (_speciesData == null) return '—';

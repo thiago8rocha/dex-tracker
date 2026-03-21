@@ -59,7 +59,38 @@ const Map<String, List<String>> pokedexVersionGroups = {
   ],
 };
 
-/// Extrai o melhor flavor text de [flavorEntries] para o [pokedexId] dado.
+/// Traduz o flavor text para pt-BR usando a API gratuita do Google Translate.
+/// Se o texto já estiver em português ou a tradução falhar, retorna o original.
+Future<String> translateFlavorText(String text) async {
+  if (text.isEmpty) return text;
+
+  // Heurística simples: se já contém palavras comuns em português, não traduz
+  final ptWords = RegExp(r'\b(de|da|do|em|que|é|um|uma|seu|sua|pode|quando|este|essa)\b',
+      caseSensitive: false);
+  if (ptWords.hasMatch(text)) return text;
+
+  try {
+    final encoded = Uri.encodeComponent(text);
+    final url = Uri.parse(
+      'https://translate.googleapis.com/translate_a/single'
+      '?client=gtx&sl=en&tl=pt-BR&dt=t&q=$encoded',
+    );
+    final r = await http.get(url).timeout(const Duration(seconds: 6));
+    if (r.statusCode == 200) {
+      final data = json.decode(r.body);
+      // Resposta: [[["translated","original",...],...],...] 
+      final parts = data[0] as List<dynamic>;
+      final result = parts
+          .map((p) => (p[0] as String? ?? ''))
+          .join('')
+          .trim();
+      return result.isNotEmpty ? result : text;
+    }
+  } catch (_) {}
+  return text;
+}
+
+
 /// Prioriza pt-BR e pt; cai para en; prioriza a versão do jogo correto.
 String extractFlavorText(
   List<dynamic> flavorEntries,
@@ -399,44 +430,51 @@ class AboutHeader extends StatelessWidget {
       const SizedBox(height: 20),
 
       // Linha: Altura | Tipo | Peso
-      // Label ACIMA do dado para alinhar independente de 1 ou 2 tipos
-      IntrinsicHeight(
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          _statColumn(context, 'Altura',
+      // Cada coluna: label em cima, dado embaixo, sempre alinhados pelo topo
+      Row(crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Altura ──
+          Expanded(child: Column(children: [
+            Text('Altura', style: TextStyle(
+              fontSize: 11, color: secondary)),
+            const SizedBox(height: 6),
             Text(loading ? '—' : height,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
-          VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
-          _statColumn(context, 'Tipo',
-            loading
-              ? const SizedBox(height: 26,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : Column(mainAxisSize: MainAxisSize.min,
-                  children: types.map((t) =>
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: TypeBadge(type: t),
-                    )).toList())),
-          VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
-          _statColumn(context, 'Peso',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          ])),
+
+          // Divisor vertical
+          Container(width: 1, height: 56, color: Theme.of(context).dividerColor),
+
+          // ── Tipo ──
+          Expanded(child: Column(children: [
+            Text('Tipo', style: TextStyle(
+              fontSize: 11, color: secondary)),
+            const SizedBox(height: 6),
+            if (loading)
+              const SizedBox(height: 26,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            else
+              ...types.map((t) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: TypeBadge(type: t),
+              )),
+          ])),
+
+          // Divisor vertical
+          Container(width: 1, height: 56, color: Theme.of(context).dividerColor),
+
+          // ── Peso ──
+          Expanded(child: Column(children: [
+            Text('Peso', style: TextStyle(
+              fontSize: 11, color: secondary)),
+            const SizedBox(height: 6),
             Text(loading ? '—' : weight,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          ])),
         ]),
-      ),
 
       const SizedBox(height: 8),
     ]);
-  }
-
-  // Label acima, dado abaixo
-  Widget _statColumn(BuildContext context, String label, Widget value) {
-    return Expanded(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Text(label, style: TextStyle(
-        fontSize: 11,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      )),
-      const SizedBox(height: 6),
-      value,
-    ]));
   }
 }
 
@@ -602,112 +640,111 @@ class _DetailHeaderState extends State<DetailHeader> {
 
               // ── Conteúdo central (sempre centralizado) ───────
               Positioned.fill(
-                child: Align(
-                  alignment: Alignment.center,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Sprite sem borda/círculo
-                      Image.network(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Espaço para não sobrepor botões do topo
+                    const SizedBox(height: 8),
+                    // Sprite
+                    Expanded(
+                      child: Image.network(
                         _spriteUrl,
-                        width: 160, height: 160,
                         fit: BoxFit.contain,
                         filterQuality: _isPixel ? FilterQuality.none : FilterQuality.medium,
                         errorBuilder: (_, __, ___) =>
                             const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
                       ),
-                      const SizedBox(height: 10),
-                      Text('#${p.id.toString().padLeft(3, '0')}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12,
-                          fontWeight: FontWeight.w500, letterSpacing: 1.0)),
-                      const SizedBox(height: 2),
-                      Text(p.name,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontSize: 22,
-                          fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-                      const SizedBox(height: 4),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Linha inferior: prev | número+nome atual | next
+                    // (todos na mesma linha, mesma baseline)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // ── Prev ──────────────────────────────
+                          if (widget.onPrev != null)
+                            GestureDetector(
+                              onTap: widget.onPrev,
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                  Icon(Icons.chevron_left, size: 22,
+                                    color: Colors.white.withOpacity(0.9)),
+                                  const SizedBox(width: 2),
+                                  Column(mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      if (widget.prevId != null)
+                                        Text('#${widget.prevId.toString().padLeft(3,'0')}',
+                                          style: TextStyle(fontSize: 10,
+                                            color: Colors.white.withOpacity(0.7),
+                                            fontWeight: FontWeight.w500)),
+                                      if (widget.prevName != null)
+                                        Text(widget.prevName!,
+                                          style: TextStyle(fontSize: 12,
+                                            color: Colors.white.withOpacity(0.9),
+                                            fontWeight: FontWeight.w600)),
+                                    ]),
+                                ]),
+                              ),
+                            )
+                          else
+                            const SizedBox(width: 60),
+
+                          // ── Nome e número atual (centralizado) ─
+                          Expanded(
+                            child: Column(mainAxisSize: MainAxisSize.min, children: [
+                              Text('#${p.id.toString().padLeft(3, '0')}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.white70, fontSize: 12,
+                                  fontWeight: FontWeight.w500, letterSpacing: 1.0)),
+                              const SizedBox(height: 2),
+                              Text(p.name,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.white, fontSize: 22,
+                                  fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+                            ]),
+                          ),
+
+                          // ── Next ──────────────────────────────
+                          if (widget.onNext != null)
+                            GestureDetector(
+                              onTap: widget.onNext,
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                  Column(mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      if (widget.nextId != null)
+                                        Text('#${widget.nextId.toString().padLeft(3,'0')}',
+                                          style: TextStyle(fontSize: 10,
+                                            color: Colors.white.withOpacity(0.7),
+                                            fontWeight: FontWeight.w500)),
+                                      if (widget.nextName != null)
+                                        Text(widget.nextName!,
+                                          style: TextStyle(fontSize: 12,
+                                            color: Colors.white.withOpacity(0.9),
+                                            fontWeight: FontWeight.w600)),
+                                    ]),
+                                  const SizedBox(width: 2),
+                                  Icon(Icons.chevron_right, size: 22,
+                                    color: Colors.white.withOpacity(0.9)),
+                                ]),
+                              ),
+                            )
+                          else
+                            const SizedBox(width: 60),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-
-              // ── Seta anterior (esquerda) ──────────────────────
-              if (widget.onPrev != null)
-                Positioned(
-                  left: 0,
-                  bottom: 12,
-                  child: GestureDetector(
-                    onTap: widget.onPrev,
-                    behavior: HitTestBehavior.opaque,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Icon(Icons.chevron_left, size: 20,
-                            color: Colors.white.withOpacity(0.9)),
-                          const SizedBox(width: 2),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (widget.prevId != null)
-                                Text('#${widget.prevId.toString().padLeft(3,'0')}',
-                                  style: TextStyle(fontSize: 8,
-                                    color: Colors.white.withOpacity(0.7),
-                                    fontWeight: FontWeight.w500)),
-                              if (widget.prevName != null)
-                                Text(widget.prevName!,
-                                  style: TextStyle(fontSize: 9,
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-              // ── Seta próximo (direita) ─────────────────────────
-              if (widget.onNext != null)
-                Positioned(
-                  right: 0,
-                  bottom: 12,
-                  child: GestureDetector(
-                    onTap: widget.onNext,
-                    behavior: HitTestBehavior.opaque,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              if (widget.nextId != null)
-                                Text('#${widget.nextId.toString().padLeft(3,'0')}',
-                                  style: TextStyle(fontSize: 8,
-                                    color: Colors.white.withOpacity(0.7),
-                                    fontWeight: FontWeight.w500)),
-                              if (widget.nextName != null)
-                                Text(widget.nextName!,
-                                  style: TextStyle(fontSize: 9,
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                          const SizedBox(width: 2),
-                          Icon(Icons.chevron_right, size: 20,
-                            color: Colors.white.withOpacity(0.9)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
 
               // ── Coluna de botões no canto direito ─────────────
               // Aligned dentro da SafeArea, mesma coluna que o ícone da AppBar
