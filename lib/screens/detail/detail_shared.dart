@@ -712,42 +712,20 @@ class _DetailHeaderState extends State<DetailHeader> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    // Linha inferior: prev (esq) | nome atual (centro absoluto) | next (dir)
+                    // Linha inferior: prev (esq) | nome atual (centro) | next (dir)
+                    // O nome central usa Positioned.fill com padding lateral
+                    // para nunca sobrepor os prev/next laterais.
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: SizedBox(
                         height: 52,
                         child: Stack(
-                          alignment: Alignment.center,
                           children: [
 
-                            // ── Nome e número atual — centro absoluto ──
-                            Column(mainAxisSize: MainAxisSize.min, children: [
-                              Text('#${p.id.toString().padLeft(3, '0')}',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 1.0,
-                                )),
-                              const SizedBox(height: 2),
-                              Text(p.name,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.3,
-                                )),
-                            ]),
-
-                            // ── Prev — alinhado à esquerda ─────────────
+                            // ── Prev — esquerda ────────────────────────
                             if (widget.onPrev != null)
                               Positioned(
-                                left: 0,
-                                top: 0,
-                                bottom: 0,
+                                left: 0, top: 0, bottom: 0,
                                 child: GestureDetector(
                                   onTap: widget.onPrev,
                                   behavior: HitTestBehavior.opaque,
@@ -778,12 +756,10 @@ class _DetailHeaderState extends State<DetailHeader> {
                                 ),
                               ),
 
-                            // ── Next — alinhado à direita ──────────────
+                            // ── Next — direita ─────────────────────────
                             if (widget.onNext != null)
                               Positioned(
-                                right: 0,
-                                top: 0,
-                                bottom: 0,
+                                right: 0, top: 0, bottom: 0,
                                 child: GestureDetector(
                                   onTap: widget.onNext,
                                   behavior: HitTestBehavior.opaque,
@@ -813,6 +789,37 @@ class _DetailHeaderState extends State<DetailHeader> {
                                   ),
                                 ),
                               ),
+
+                            // ── Nome atual — centralizado com padding lateral ─
+                            // padding de 90px de cada lado reserva espaço para
+                            // os prev/next (max ~80px) sem sobrepor
+                            Positioned.fill(
+                              left: 90, right: 90,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text('#${p.id.toString().padLeft(3, '0')}',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 1.0,
+                                    )),
+                                  const SizedBox(height: 2),
+                                  Text(p.name,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.3,
+                                    )),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
