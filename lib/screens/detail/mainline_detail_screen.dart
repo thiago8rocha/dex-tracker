@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:pokedex_tracker/models/pokemon.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart';
+import 'package:pokedex_tracker/services/pokemon_cache_service.dart';
 import 'package:pokedex_tracker/translations.dart';
 
 class SwitchDetailScreen extends StatefulWidget {
@@ -81,27 +82,47 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
   }
 
   Future<void> _loadAll() async {
+    final cache = PokemonCacheService.instance;
+    final id = widget.pokemon.id;
     try {
-      final r1 = await http.get(Uri.parse('$kApiBase/pokemon/${widget.pokemon.id}'));
-      if (r1.statusCode == 200 && mounted) {
-        final d = json.decode(r1.body) as Map<String, dynamic>;
-        _pokemonData = d;
-        _parseForms(d);
-        _parseMoves(d);
-        await _parseAbilities(d);
+      // ── /pokemon/{id} ──────────────────────────────────────────
+      var pokemonData = await cache.getPokemon(id);
+      if (pokemonData == null) {
+        final r = await http.get(Uri.parse('$kApiBase/pokemon/$id'));
+        if (r.statusCode == 200) {
+          pokemonData = json.decode(r.body) as Map<String, dynamic>;
+          await cache.setPokemon(id, pokemonData);
+        }
       }
-      final r2 = await http.get(Uri.parse('$kApiBase/pokemon-species/${widget.pokemon.id}'));
-      if (r2.statusCode == 200 && mounted) {
-        final d = json.decode(r2.body) as Map<String, dynamic>;
-        _speciesData = d;
-        await _parseEvoChain(d);
+      if (pokemonData != null && mounted) {
+        _pokemonData = pokemonData;
+        _parseForms(pokemonData);
+        _parseMoves(pokemonData);
+        await _parseAbilities(pokemonData);
+      }
+
+      // ── /pokemon-species/{id} ───────────────────────────────────
+      var speciesData = await cache.getSpecies(id);
+      if (speciesData == null) {
+        final r = await http.get(Uri.parse('$kApiBase/pokemon-species/$id'));
+        if (r.statusCode == 200) {
+          speciesData = json.decode(r.body) as Map<String, dynamic>;
+          await cache.setSpecies(id, speciesData);
+        }
+      }
+      if (speciesData != null && mounted) {
+        _speciesData = speciesData;
+        await _parseEvoChain(speciesData);
         await _loadAlternateForms();
-        // Buscar e traduzir o flavor text para o jogo atual
         final rawFlavor = extractFlavorText(
-          d['flavor_text_entries'] as List<dynamic>? ?? [],
+          speciesData['flavor_text_entries'] as List<dynamic>? ?? [],
           widget.pokedexId,
         );
-        final translated = await translateFlavorText(rawFlavor);
+        String translated = await cache.getTranslation(rawFlavor) ?? '';
+        if (translated.isEmpty) {
+          translated = await translateFlavorText(rawFlavor);
+          if (translated.isNotEmpty) await cache.setTranslation(rawFlavor, translated);
+        }
         if (mounted) setState(() => _flavorTextPt = translated);
       }
       if (mounted) setState(() => _loading = false);
@@ -119,9 +140,16 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
       final namePt = translateAbility(nameEn);
       String desc = '';
       try {
-        final r = await http.get(Uri.parse(a['ability']['url'] as String));
-        if (r.statusCode == 200) {
-          final ad = json.decode(r.body) as Map<String, dynamic>;
+        final abilityUrl = a['ability']['url'] as String;
+        var ad = await PokemonCacheService.instance.getAbility(abilityUrl);
+        if (ad == null) {
+          final r = await http.get(Uri.parse(abilityUrl));
+          if (r.statusCode == 200) {
+            ad = json.decode(r.body) as Map<String, dynamic>;
+            await PokemonCacheService.instance.setAbility(abilityUrl, ad);
+          }
+        }
+        if (ad != null) {
           final flavors = ad['flavor_text_entries'] as List<dynamic>? ?? [];
           String ptDesc = '', enDesc = '';
           for (final e in flavors) {
@@ -146,9 +174,16 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
     try {
       final url = species['evolution_chain']?['url'] as String?;
       if (url == null) return;
-      final r = await http.get(Uri.parse(url));
-      if (r.statusCode != 200) return;
-      final d = json.decode(r.body) as Map<String, dynamic>;
+      final cache = PokemonCacheService.instance;
+
+      var d = await cache.getEvoChain(url);
+      if (d == null) {
+        final r = await http.get(Uri.parse(url));
+        if (r.statusCode != 200) return;
+        d = json.decode(r.body) as Map<String, dynamic>;
+        await cache.setEvoChain(url, d);
+      }
+
       final chain = <Map<String, dynamic>>[];
       Map<String, dynamic>? cur = d['chain'] as Map<String, dynamic>?;
       while (cur != null) {
@@ -169,9 +204,15 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
         }
         List<String> types = [];
         try {
-          final rp = await http.get(Uri.parse('$kApiBase/pokemon/$id'));
-          if (rp.statusCode == 200) {
-            final pd = json.decode(rp.body) as Map<String, dynamic>;
+          var pd = await cache.getPokemon(id);
+          if (pd == null) {
+            final rp = await http.get(Uri.parse('$kApiBase/pokemon/$id'));
+            if (rp.statusCode == 200) {
+              pd = json.decode(rp.body) as Map<String, dynamic>;
+              await cache.setPokemon(id, pd);
+            }
+          }
+          if (pd != null) {
             types = (pd['types'] as List<dynamic>)
                 .map((t) => t['type']['name'] as String)
                 .toList();
