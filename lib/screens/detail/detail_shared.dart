@@ -584,46 +584,41 @@ class SectionCard extends StatelessWidget {
         ? typeColor.withOpacity(0.08)
         : typeColor.withOpacity(0.06);
 
-    // Altura do badge do título — para calcular o quanto sobrepõe o card
-    const double badgeHeight = 28.0;
-    const double overlap = badgeHeight / 2; // metade dentro, metade fora
+    final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // ── Card do conteúdo — com paddingTop para dar espaço ao título ──
-        Padding(
-          padding: const EdgeInsets.only(top: overlap),
-          child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.fromLTRB(12, overlap + 8, 12, 12),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: loading
-                ? const Center(child: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: CircularProgressIndicator(strokeWidth: 2)))
-                : child,
+        // ── Card com espaço no topo para o badge ──
+        Container(
+          margin: const EdgeInsets.only(top: 14),
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
+          decoration: BoxDecoration(
+            color: cardBg,
+            border: Border.all(color: typeColor.withOpacity(0.3), width: 1),
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: loading
+              ? const Center(child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircularProgressIndicator(strokeWidth: 2)))
+              : child,
         ),
 
-        // ── Título sobreposto na borda superior ──
+        // ── Badge do título centrado na borda superior do card ──
         Positioned(
           top: 0,
           left: 0,
           right: 0,
           child: Center(
             child: Container(
-              height: badgeHeight,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
+                color: scaffoldBg,
                 border: Border.all(color: typeColor, width: 1.5),
                 borderRadius: BorderRadius.circular(4),
               ),
-              alignment: Alignment.center,
               child: Text(
                 title,
                 style: TextStyle(
