@@ -713,12 +713,10 @@ class _DetailHeaderState extends State<DetailHeader> {
                     ),
                     const SizedBox(height: 6),
                     // Linha inferior: prev (esq) | nome atual (centro absoluto) | next (dir)
-                    // Stack garante que o nome atual fique sempre centralizado na tela,
-                    // independente do tamanho dos nomes prev/next.
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: SizedBox(
-                        height: 40,
+                        height: 52,
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
@@ -733,7 +731,7 @@ class _DetailHeaderState extends State<DetailHeader> {
                                   fontWeight: FontWeight.w500,
                                   letterSpacing: 1.0,
                                 )),
-                              const SizedBox(height: 1),
+                              const SizedBox(height: 2),
                               Text(p.name,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
