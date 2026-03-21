@@ -52,8 +52,8 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
   bool get _hasMultipleForms => !_loading && _forms.length > 1;
 
   List<String> get _tabs => _hasMultipleForms
-      ? ['Informações', 'Status', 'Formas', 'Moves']
-      : ['Informações', 'Status', 'Moves'];
+      ? ['Sobre', 'Status', 'Formas', 'Moves']
+      : ['Sobre', 'Status', 'Moves'];
 
   @override
   void initState() {

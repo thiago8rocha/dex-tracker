@@ -12,7 +12,7 @@ const String kApiBase = 'https://pokeapi.co/api/v2';
 
 // ─── ÍCONES DE TIPO ───────────────────────────────────────────────
 // SVGs em assets/types/<type>.svg (MIT — duiker101/pokemon-type-svg-icons)
-String typeIconAsset(String type) => 'assets/types/${type.toLowerCase()}.svg';
+String typeIconAsset(String type) => 'assets/types/${type.toLowerCase()}.png';
 
 // Nomes traduzidos dos tipos
 const Map<String, String> typeNamePt = {
@@ -60,40 +60,41 @@ const Map<String, List<String>> pokedexVersionGroups = {
 };
 
 /// Extrai o melhor flavor text de [flavorEntries] para o [pokedexId] dado.
-/// Prioriza pt-BR; cai para en; prioriza a versão do jogo correto.
+/// Prioriza pt-BR e pt; cai para en; prioriza a versão do jogo correto.
 String extractFlavorText(
   List<dynamic> flavorEntries,
   String pokedexId,
 ) {
+  String _clean(String s) =>
+      s.replaceAll('\n', ' ').replaceAll('\f', ' ').replaceAll('\r', ' ')
+       .replaceAll(RegExp(r' +'), ' ').trim();
+
+  bool _isPt(String lang) => lang == 'pt-BR' || lang == 'pt';
+
   final preferredGroups = pokedexVersionGroups[pokedexId] ??
       pokedexVersionGroups['nacional']!;
 
-  // Tentar cada version-group preferido, priorizando pt-BR
+  // Tentar cada version-group preferido, priorizando pt/pt-BR
   for (final vg in preferredGroups) {
     String ptText = '', enText = '';
     for (final e in flavorEntries) {
-      final evg = e['version']?['name'] as String? ??
-                  e['version_group']?['name'] as String? ?? '';
-      // A PokeAPI usa version name (ex: 'sword'), não version-group
-      // Verificar se a versão pertence ao group
+      final evg = e['version']?['name'] as String? ?? '';
       if (!_versionBelongsToGroup(evg, vg)) continue;
       final lang = e['language']['name'] as String;
-      final text = (e['flavor_text'] as String? ?? '')
-          .replaceAll('\n', ' ').replaceAll('\f', ' ').trim();
-      if (lang == 'pt-BR' && ptText.isEmpty) ptText = text;
+      final text = _clean(e['flavor_text'] as String? ?? '');
+      if (_isPt(lang) && ptText.isEmpty) ptText = text;
       if (lang == 'en' && enText.isEmpty) enText = text;
     }
     if (ptText.isNotEmpty) return ptText;
     if (enText.isNotEmpty) return enText;
   }
 
-  // Fallback: qualquer entrada em pt-BR ou en
+  // Fallback: qualquer entrada em pt/pt-BR ou en
   String anyPt = '', anyEn = '';
   for (final e in flavorEntries) {
     final lang = e['language']['name'] as String;
-    final text = (e['flavor_text'] as String? ?? '')
-        .replaceAll('\n', ' ').replaceAll('\f', ' ').trim();
-    if (lang == 'pt-BR' && anyPt.isEmpty) anyPt = text;
+    final text = _clean(e['flavor_text'] as String? ?? '');
+    if (_isPt(lang) && anyPt.isEmpty) anyPt = text;
     if (lang == 'en' && anyEn.isEmpty) anyEn = text;
   }
   return anyPt.isNotEmpty ? anyPt : anyEn;
@@ -301,7 +302,7 @@ class BilingualTerm extends StatelessWidget {
 }
 
 // ─── WIDGET: BADGE DE TIPO COM ÍCONE ─────────────────────────────
-// Mesmo estilo do header: container colorido com ícone SVG + nome
+// Tamanho fixo para todos os tipos — container colorido igual ao header
 
 class TypeBadge extends StatelessWidget {
   final String type;
@@ -312,8 +313,8 @@ class TypeBadge extends StatelessWidget {
     final label = typeNamePt[type.toLowerCase()] ?? ptType(type);
     final tc = TypeColors.fromType(label);
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      width: 110, // tamanho fixo para todos os tipos
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: tc,
         borderRadius: BorderRadius.circular(4),
@@ -321,7 +322,9 @@ class TypeBadge extends StatelessWidget {
           color: Colors.black.withOpacity(0.12),
           blurRadius: 3, offset: const Offset(0, 1))],
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
+      child: Row(mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
         Image.asset(
           typeIconAsset(type),
           width: 14, height: 14,
@@ -340,7 +343,7 @@ class TypeBadge extends StatelessWidget {
 }
 
 // ─── WIDGET: CABEÇALHO DA ABA INFORMAÇÕES ────────────────────────
-// Exibe: categoria centralizada → flavor text → linha altura/tipos/peso
+// Layout: categoria (itálico) → flavor text → Altura/Tipo/Peso com label acima
 
 class AboutHeader extends StatelessWidget {
   final String category;
@@ -363,13 +366,9 @@ class AboutHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
-
-    // Categoria: "Pokémon X" (Pokémon sempre primeiro)
     final categoryLabel = loading
         ? ''
-        : category.isEmpty
-            ? '—'
-            : 'Pokémon $category';
+        : category.isEmpty ? '—' : 'Pokémon $category';
 
     return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
       // Categoria centralizada
@@ -381,10 +380,7 @@ class AboutHeader extends StatelessWidget {
           categoryLabel,
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 13,
-            color: secondary,
-            fontStyle: FontStyle.italic,
-          ),
+            fontSize: 13, color: secondary, fontStyle: FontStyle.italic),
         ),
 
       const SizedBox(height: 12),
@@ -402,15 +398,17 @@ class AboutHeader extends StatelessWidget {
 
       const SizedBox(height: 20),
 
-      // Linha: Altura — Tipos — Peso
+      // Linha: Altura | Tipo | Peso
+      // Label ACIMA do dado para alinhar independente de 1 ou 2 tipos
       IntrinsicHeight(
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          _statColumn(context, 'Altura', Text(loading ? '—' : height,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+          _statColumn(context, 'Altura',
+            Text(loading ? '—' : height,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
           VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
           _statColumn(context, 'Tipo',
             loading
-              ? const SizedBox(height: 20,
+              ? const SizedBox(height: 26,
                   child: CircularProgressIndicator(strokeWidth: 2))
               : Column(mainAxisSize: MainAxisSize.min,
                   children: types.map((t) =>
@@ -419,8 +417,9 @@ class AboutHeader extends StatelessWidget {
                       child: TypeBadge(type: t),
                     )).toList())),
           VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
-          _statColumn(context, 'Peso', Text(loading ? '—' : weight,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+          _statColumn(context, 'Peso',
+            Text(loading ? '—' : weight,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
         ]),
       ),
 
@@ -428,14 +427,15 @@ class AboutHeader extends StatelessWidget {
     ]);
   }
 
+  // Label acima, dado abaixo
   Widget _statColumn(BuildContext context, String label, Widget value) {
     return Expanded(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      value,
-      const SizedBox(height: 4),
       Text(label, style: TextStyle(
         fontSize: 11,
         color: Theme.of(context).colorScheme.onSurfaceVariant,
       )),
+      const SizedBox(height: 6),
+      value,
     ]));
   }
 }
@@ -600,30 +600,35 @@ class _DetailHeaderState extends State<DetailHeader> {
           child: SafeArea(
             child: Stack(children: [
 
-              // ── Conteúdo central ──────────────────────────────
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 8),
-                  // Sprite sem borda/círculo
-                  Image.network(
-                    _spriteUrl,
-                    width: 160, height: 160,
-                    fit: BoxFit.contain,
-                    filterQuality: _isPixel ? FilterQuality.none : FilterQuality.medium,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
+              // ── Conteúdo central (sempre centralizado) ───────
+              Positioned.fill(
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Sprite sem borda/círculo
+                      Image.network(
+                        _spriteUrl,
+                        width: 160, height: 160,
+                        fit: BoxFit.contain,
+                        filterQuality: _isPixel ? FilterQuality.none : FilterQuality.medium,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
+                      ),
+                      const SizedBox(height: 10),
+                      Text('#${p.id.toString().padLeft(3, '0')}',
+                        style: const TextStyle(color: Colors.white70, fontSize: 12,
+                          fontWeight: FontWeight.w500, letterSpacing: 1.0)),
+                      const SizedBox(height: 2),
+                      Text(p.name,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontSize: 22,
+                          fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+                      const SizedBox(height: 4),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  Text('#${p.id.toString().padLeft(3, '0')}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12,
-                      fontWeight: FontWeight.w500, letterSpacing: 1.0)),
-                  const SizedBox(height: 2),
-                  Text(p.name,
-                    style: const TextStyle(color: Colors.white, fontSize: 22,
-                      fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-                  const SizedBox(height: 4),
-                ],
+                ),
               ),
 
               // ── Seta anterior (esquerda) ──────────────────────
