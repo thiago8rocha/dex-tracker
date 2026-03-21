@@ -1,10 +1,13 @@
 import 'dart:math' as math;
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pokedex_tracker/services/pokeapi_service.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/dex_bundle_service.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
+import 'package:pokedex_tracker/services/sprite_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
     show defaultSpriteNotifier;
 import 'package:pokedex_tracker/screens/detail/nacional_detail_screen.dart';
@@ -68,6 +71,9 @@ class _PokedexScreenState extends State<PokedexScreen>
   // Capturados: speciesId → bool
   final Map<int, bool> _caughtMap = {};
 
+  // Subscription ao stream de sprites baixados
+  StreamSubscription<(int, String)>? _spriteSubscription;
+
   bool _loadingIds = true;
   bool _loadingPage = false;
   String? _error;
@@ -105,6 +111,7 @@ class _PokedexScreenState extends State<PokedexScreen>
 
   @override
   void dispose() {
+    _spriteSubscription?.cancel();
     _searchController.dispose();
     _pokopiaTabController?.dispose();
     super.dispose();
@@ -229,6 +236,21 @@ class _PokedexScreenState extends State<PokedexScreen>
 
       _entriesBySection = bySection;
 
+      // ── Sprites: prefetch pixel da dex atual + artwork em background ──
+      final allIds = _allFilteredEntries().map((e) => e.speciesId).toList();
+
+      // Listener: quando um artwork chega, força rebuild do card correspondente
+      _spriteSubscription?.cancel();
+      _spriteSubscription = SpriteService.instance.onDownloaded.listen((event) {
+        final (id, type) = event;
+        if (type == 'artwork' && mounted) {
+          setState(() => _pokemonData.remove(id));
+        }
+      });
+
+      // Artwork da dex atual em background (prioridade), depois o restante
+      SpriteService.instance.prefetchDexWithFallback(allIds);
+
       // Carrega status de captura
       final allSpeciesIds = _allFilteredEntries().map((e) => e.speciesId).toList();
       final caughtMap = await _storage.getCaughtMap(_effectivePokedexId, allSpeciesIds);
@@ -348,16 +370,12 @@ class _PokedexScreenState extends State<PokedexScreen>
   /// Monta o mapa local de dados de um pokémon sem chamada de rede.
   /// Substitui a resposta da PokeAPI com dados do bundle + URL de sprite gerada.
   Map<String, dynamic> _localPokemonData(int id) {
-    final svc   = PokedexDataService.instance;
-    final types = svc.getTypes(id);
-    // Nome: converte "bulbasaur" → "Bulbasaur" a partir do ID
-    // O nome canônico em inglês vem do speciesId (mesmo padrão da PokeAPI)
-    final name  = _pokemonNameFromId(id);
-    final sprite = defaultSpriteNotifier.value;
-    final spriteUrl = _buildSpriteUrl(id, sprite);
+    final svc    = PokedexDataService.instance;
+    final types  = svc.getTypes(id);
+    final name   = _pokemonNameFromId(id);
     return {
-      'id':   id,
-      'name': name,
+      'id':    id,
+      'name':  name,
       'types': types.map((t) => {'type': {'name': t}}).toList(),
       'sprites': {
         'front_default': _buildSpriteUrl(id, 'pixel'),
@@ -366,7 +384,6 @@ class _PokedexScreenState extends State<PokedexScreen>
           'home':             {'front_default': _buildSpriteUrl(id, 'home')},
         },
       },
-      '_spriteUrl': spriteUrl,
     };
   }
 
@@ -1004,7 +1021,7 @@ class _PokedexScreenState extends State<PokedexScreen>
 
 // ─── CARD DE POKÉMON ─────────────────────────────────────────────
 
-class _PokemonCard extends StatelessWidget {
+class _PokemonCard extends StatefulWidget {
   final _Entry entry;
   final Map<String, dynamic>? data;
   final bool caught;
@@ -1020,6 +1037,38 @@ class _PokemonCard extends StatelessWidget {
     required this.onLongPress,
     required this.onTap,
   });
+
+  @override
+  State<_PokemonCard> createState() => _PokemonCardState();
+}
+
+class _PokemonCardState extends State<_PokemonCard> {
+  File? _localArtwork;  // artwork cacheado
+  File? _localPixelFallback;  // pixel para silhueta
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLocalSprite();
+    // Escuta novos downloads para atualizar este card
+    SpriteService.instance.onDownloaded.listen((event) {
+      final (id, type) = event;
+      if (type == 'artwork' && id == widget.entry.speciesId && mounted) {
+        _checkLocalSprite();
+      }
+    });
+  }
+
+  Future<void> _checkLocalSprite() async {
+    final artwork = await SpriteService.instance.getCached(widget.entry.speciesId, 'artwork');
+    final pixel   = await SpriteService.instance.getCached(widget.entry.speciesId, 'pixel');
+    if (mounted) {
+      setState(() {
+        _localArtwork = artwork;
+        _localPixelFallback = pixel;
+      });
+    }
+  }
 
   String? _spriteUrl(Map<String, dynamic> sprites) {
     final s = sprites['sprites'] as Map<String, dynamic>? ?? {};
@@ -1037,42 +1086,67 @@ class _PokemonCard extends StatelessWidget {
     }
   }
 
+  Widget _placeholder(Color color) {
+    // Silhueta: pixel sprite escurecido se disponível, senão ícone simples
+    if (_localPixelFallback != null) {
+      return ColorFiltered(
+        colorFilter: const ColorFilter.matrix([
+          -1, 0, 0, 0, 30,   // R: inverte e escurece
+           0,-1, 0, 0, 30,   // G
+           0, 0,-1, 0, 30,   // B
+           0, 0, 0, 1,  0,   // A: mantém transparência
+        ]),
+        child: Image(
+          image: FileImage(_localPixelFallback!),
+          fit: BoxFit.contain,
+        ),
+      );
+    }
+    return Icon(Icons.catching_pokemon, size: 28, color: color.withOpacity(0.4));
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (data == null) return _SkeletonCard();
+    if (widget.data == null) return _SkeletonCard();
 
-    final displayName = data!['name'] as String;
-    final sprite = _spriteUrl(data!);
-
-    final types = (data!['types'] as List<dynamic>)
+    final displayName = widget.data!['name'] as String;
+    final types = (widget.data!['types'] as List<dynamic>)
         .map((t) => t['type']['name'] as String)
         .toList();
 
-    // Cores dos tipos — mais saturadas
     final color1 = TypeColors.fromType(_pt(types[0]));
     final color2 = types.length > 1 ? TypeColors.fromType(_pt(types[1])) : color1;
 
-    // Número formatado com o entryNumber da dex (não o ID nacional)
-    final displayNumber = '#${entry.entryNumber.toString().padLeft(3, '0')}';
+    final displayNumber =
+        '#${widget.entry.entryNumber.toString().padLeft(3, '0')}';
+
+    // Sprite: artwork local se disponível, senão silhueta (pixel escurecido)
+    final Widget spriteWidget = _localArtwork != null
+        ? Image(
+            image: FileImage(_localArtwork!),
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => _placeholder(color1),
+          )
+        : _placeholder(color1);
 
     return GestureDetector(
-      onTap: onTap,
-      onLongPress: onLongPress,
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: caught
+            colors: widget.caught
                 ? [color1.withOpacity(0.45), color2.withOpacity(0.30)]
                 : [color1.withOpacity(0.22), color2.withOpacity(0.14)],
           ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: caught
+            color: widget.caught
                 ? color1.withOpacity(0.65)
                 : color1.withOpacity(0.30),
-            width: caught ? 1.5 : 0.8,
+            width: widget.caught ? 1.5 : 0.8,
           ),
         ),
         child: Stack(
@@ -1084,15 +1158,8 @@ class _PokemonCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Opacity(
-                      opacity: caught ? 1.0 : 0.5,
-                      child: sprite != null
-                          ? Image.network(
-                              sprite,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.catching_pokemon, size: 40),
-                            )
-                          : const Icon(Icons.catching_pokemon, size: 40),
+                      opacity: widget.caught ? 1.0 : 0.5,
+                      child: spriteWidget,
                     ),
                   ),
                   Text(
