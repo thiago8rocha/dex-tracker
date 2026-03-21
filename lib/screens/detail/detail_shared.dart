@@ -64,10 +64,13 @@ const Map<String, List<String>> pokedexVersionGroups = {
 Future<String> translateFlavorText(String text) async {
   if (text.isEmpty) return text;
 
-  // Heurística simples: se já contém palavras comuns em português, não traduz
-  final ptWords = RegExp(r'\b(de|da|do|em|que|é|um|uma|seu|sua|pode|quando|este|essa)\b',
-      caseSensitive: false);
-  if (ptWords.hasMatch(text)) return text;
+  // Só considera PT se tiver palavras EXCLUSIVAMENTE portuguesas (não existem em inglês)
+  // "do/de/em/que" existem em inglês — NÃO usar. Usar só palavras inequívocas.
+  final ptOnly = RegExp(
+    r'\b(pokémon|é|não|também|seu|sua|seus|suas|dele|dela|pode|quando|então|assim|isto|isso|esta|este|essa|esse|aqui|muito|mais|pelo|pela|para|com|mas|por|são|está|foi|como|tem|tinha|esse|essa)\b',
+    caseSensitive: false,
+  );
+  if (ptOnly.hasMatch(text)) return text;
 
   try {
     final encoded = Uri.encodeComponent(text);
@@ -75,10 +78,9 @@ Future<String> translateFlavorText(String text) async {
       'https://translate.googleapis.com/translate_a/single'
       '?client=gtx&sl=en&tl=pt-BR&dt=t&q=$encoded',
     );
-    final r = await http.get(url).timeout(const Duration(seconds: 6));
+    final r = await http.get(url).timeout(const Duration(seconds: 8));
     if (r.statusCode == 200) {
       final data = json.decode(r.body);
-      // Resposta: [[["translated","original",...],...],...] 
       final parts = data[0] as List<dynamic>;
       final result = parts
           .map((p) => (p[0] as String? ?? ''))
@@ -332,33 +334,32 @@ class BilingualTerm extends StatelessWidget {
   }
 }
 
-// ─── CORES DOS ÍCONES DE TIPO ─────────────────────────────────────
-// Extraídas diretamente dos ícones oficiais do Bulbapedia
+// ─── CORES DOS TIPOS ─────────────────────────────────────────────
+// Extraídas dos ícones oficiais do Bulbapedia
 const Map<String, Color> typeIconColors = {
-  'bug':      Color.fromRGBO(158, 172,  54, 1),
-  'dark':     Color.fromRGBO(109,  91,  92, 1),
-  'dragon':   Color.fromRGBO( 99, 113, 227, 1),
-  'electric': Color.fromRGBO(250, 196,  19, 1),
-  'fairy':    Color.fromRGBO(240, 139, 241, 1),
-  'fighting': Color.fromRGBO(253, 156,  59, 1),
-  'fire':     Color.fromRGBO(231,  61,  61, 1),
-  'flying':   Color.fromRGBO(138, 189, 239, 1),
-  'ghost':    Color.fromRGBO(125,  82, 125, 1),
-  'grass':    Color.fromRGBO( 85, 171,  66, 1),
-  'ground':   Color.fromRGBO(156,  99,  56, 1),
-  'ice':      Color.fromRGBO( 88, 212, 244, 1),
-  'normal':   Color.fromRGBO(165, 166, 164, 1),
-  'poison':   Color.fromRGBO(152,  76, 206, 1),
-  'psychic':  Color.fromRGBO(239,  90, 138, 1),
-  'rock':     Color.fromRGBO(180, 176, 139, 1),
-  'steel':    Color.fromRGBO(114, 171, 191, 1),
-  'water':    Color.fromRGBO( 55, 137, 239, 1),
+  'normal':   Color.fromRGBO(163, 165, 162, 1),
+  'fire':     Color.fromRGBO(223,  51,  51, 1),
+  'water':    Color.fromRGBO( 63, 131, 216, 1),
+  'grass':    Color.fromRGBO( 71, 164,  51, 1),
+  'electric': Color.fromRGBO(228, 190,  66, 1),
+  'ice':      Color.fromRGBO( 92, 197, 224, 1),
+  'fighting': Color.fromRGBO(171, 115,  58, 1),
+  'poison':   Color.fromRGBO(147,  68, 204, 1),
+  'ground':   Color.fromRGBO(150,  90,  45, 1),
+  'flying':   Color.fromRGBO(142, 183, 222, 1),
+  'psychic':  Color.fromRGBO(119,  85,  96, 1),
+  'bug':      Color.fromRGBO(172, 183,  86, 1),
+  'rock':     Color.fromRGBO(178, 173, 135, 1),
+  'ghost':    Color.fromRGBO(119,  74, 119, 1),
+  'dragon':   Color.fromRGBO( 83,  98, 224, 1),
+  'dark':     Color.fromRGBO(104,  85,  86, 1),
+  'steel':    Color.fromRGBO(103, 164, 185, 1),
+  'fairy':    Color.fromRGBO(146, 100, 146, 1),
 };
 
 // ─── WIDGET: BADGE DE TIPO ────────────────────────────────────────
-// Estilo pill: círculo colorido com ícone à esquerda,
-// continuado por fundo escuro com texto — cor do círculo igual ao
-// container do ícone para não haver borda visível.
+// Retângulo único com a cor do tipo como fundo.
+// O PNG tem fundo transparente e símbolo branco puro — sem recoloração.
 
 class TypeBadge extends StatelessWidget {
   final String type;
@@ -366,58 +367,41 @@ class TypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final key = type.toLowerCase();
+    final key   = type.toLowerCase();
     final label = typeNamePt[key] ?? ptType(type);
-    final iconColor = typeIconColors[key] ?? const Color(0xFF888888);
-    const textBg   = Color(0xFF404040); // cinza escuro — igual ao badge da referência
+    final color = typeIconColors[key] ?? const Color(0xFF888888);
 
-    return SizedBox(
+    return Container(
+      height: 32,
       width: 130,
-      height: 36,
-      child: Stack(children: [
-        // ── Fundo escuro (direita, pill) ──────────────────────
-        Positioned.fill(
-          child: Container(
-            decoration: BoxDecoration(
-              color: textBg,
-              borderRadius: BorderRadius.circular(18),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Image.asset(
+            typeIconAsset(type),
+            width: 18,
+            height: 18,
+            // PNG já tem símbolo branco puro — sem recoloração necessária
+            errorBuilder: (_, __, ___) => const SizedBox(width: 18),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
             ),
           ),
-        ),
-        // ── Círculo colorido (esquerda, sobre o fundo escuro) ─
-        Positioned(
-          left: 0, top: 0, bottom: 0,
-          child: Container(
-            width: 36,
-            decoration: BoxDecoration(
-              color: iconColor,
-              shape: BoxShape.circle,
-            ),
-            padding: const EdgeInsets.all(5),
-            child: Image.asset(
-              typeIconAsset(type),
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const SizedBox(),
-            ),
-          ),
-        ),
-        // ── Texto ─────────────────────────────────────────────
-        Positioned(
-          left: 40, right: 6, top: 0, bottom: 0,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
