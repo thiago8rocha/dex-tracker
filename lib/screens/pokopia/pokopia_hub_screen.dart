@@ -23,13 +23,13 @@ class PokopiaHubScreen extends StatelessWidget {
 
           _HubCard(
             icon: Icons.people_outline,
-            title: 'Pokedex de Amigos',
-            subtitle: 'Registre os 311 Pokémon que você conheceu em Pokopia',
+            title: 'Pokédex de Amigos',
+            subtitle: 'Registre os 300 Pokémon que você conheceu em Pokopia',
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const PokedexScreen(
                 pokedexId: 'pokopia',
                 pokedexName: 'Pokopia',
-                totalPokemon: 311,
+                totalPokemon: 300,
               ),
             )),
           ),
@@ -171,6 +171,9 @@ const _peculiarPokemon = [
 
 // ─── WIDGETS ─────────────────────────────────────────────────────
 
+
+// ─── HUB CARD ─────────────────────────────────────────────────────
+
 class _HubCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -259,28 +262,20 @@ class _PeculiarCard extends StatelessWidget {
           Expanded(child: Text(data.name,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600))),
-          // chip de especialidade com ícone real
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: scheme.outlineVariant, width: 0.5),
+          // ícone de especialidade sem caixa
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Image.asset(
+              'assets/pokopia/specialties/${data.specialtyAsset}.png',
+              width: 16, height: 16,
+              errorBuilder: (_, __, ___) =>
+                  Icon(Icons.star_outline, size: 16,
+                      color: scheme.onSurfaceVariant),
             ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Image.asset(
-                'assets/pokopia/${data.specialtyAsset}.png',
-                width: 14, height: 14,
-                errorBuilder: (_, __, ___) =>
-                    Icon(Icons.star_outline, size: 14,
-                        color: scheme.onSurfaceVariant),
-              ),
-              const SizedBox(width: 4),
-              Text(data.specialtyLabel,
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500,
-                    color: scheme.onSurfaceVariant)),
-            ]),
-          ),
+            const SizedBox(width: 4),
+            Text(data.specialtyLabel,
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500,
+                  color: scheme.onSurfaceVariant)),
+          ]),
         ]),
         const SizedBox(height: 4),
         Text(

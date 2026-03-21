@@ -4,9 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:pokedex_tracker/services/pokeapi_service.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/screens/detail/nacional_detail_screen.dart';
-import 'package:pokedex_tracker/screens/detail/switch_detail_screen.dart';
-import 'package:pokedex_tracker/screens/detail/go_detail_screen.dart';
-import 'package:pokedex_tracker/screens/detail/pokopia_detail_screen.dart';
+import 'package:pokedex_tracker/screens/detail/mainline_detail_screen.dart';
+import 'package:pokedex_tracker/screens/go/go_detail_screen.dart';
+import 'package:pokedex_tracker/screens/pokopia/pokopia_detail_screen.dart';
 import 'package:pokedex_tracker/models/pokemon.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
     show defaultSpriteNotifier;
@@ -52,7 +52,8 @@ class PokedexScreen extends StatefulWidget {
   State<PokedexScreen> createState() => _PokedexScreenState();
 }
 
-class _PokedexScreenState extends State<PokedexScreen> {
+class _PokedexScreenState extends State<PokedexScreen>
+    with SingleTickerProviderStateMixin {
   final PokeApiService _api = PokeApiService();
   final StorageService _storage = StorageService();
 
@@ -79,18 +80,29 @@ class _PokedexScreenState extends State<PokedexScreen> {
   static const int _pageSize = 30;
 
   String _filterStatus = 'todos';
-  Set<String> _filterTypes = {};   // vazio = todos; até 2 tipos
+  Set<String> _filterTypes = {};        // vazio = todos; até 2 tipos
+  Set<String> _filterSpecialties = {};  // vazio = todos (só Pokopia)
   String _sortBy  = 'numero';
-  String _sortDir = 'asc';         // 'asc' | 'desc'
+  String _sortDir = 'asc';              // 'asc' | 'desc'
   String _searchQuery = '';
   bool _searchOpen = false;
   final TextEditingController _searchController = TextEditingController();
 
   bool get _isNacional => widget.pokedexId == 'nacional';
+  bool get _isPokopia  => widget.pokedexId == 'pokopia' || widget.pokedexId == 'pokopia_event';
+  bool get _isPokopiaBase => widget.pokedexId == 'pokopia';
+
+  // Aba ativa quando é pokopia base (Standard / Event)
+  String _activePokedexId = '';
+  TabController? _pokopiaTabController;
+
+  String get _effectivePokedexId =>
+      _isPokopiaBase ? _activePokedexId : widget.pokedexId;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _pokopiaTabController?.dispose();
     super.dispose();
   }
 
@@ -98,6 +110,31 @@ class _PokedexScreenState extends State<PokedexScreen> {
   void initState() {
     super.initState();
     _sections = _api.getSections(widget.pokedexId);
+
+    if (_isPokopiaBase) {
+      _activePokedexId = 'pokopia';
+      _pokopiaTabController = TabController(length: 2, vsync: this)
+        ..addListener(() {
+          if (!_pokopiaTabController!.indexIsChanging) return;
+          final newId = _pokopiaTabController!.index == 0 ? 'pokopia' : 'pokopia_event';
+          if (newId == _activePokedexId) return;
+          setState(() {
+            _activePokedexId   = newId;
+            _entriesBySection  = {};
+            _visibleEntries    = [];
+            _currentPage       = 0;
+            _caughtMap.clear();
+            _filterStatus      = 'todos';
+            _filterSpecialties = {};
+            _searchQuery       = '';
+            _searchController.clear();
+            _searchOpen        = false;
+          });
+          _initPokedex();
+        });
+    } else {
+      _activePokedexId = widget.pokedexId;
+    }
 
     if (widget.initialSectionFilter != null) {
       _selectedSections.add(widget.initialSectionFilter!);
@@ -115,7 +152,7 @@ class _PokedexScreenState extends State<PokedexScreen> {
       final bySection = <String, List<_Entry>>{};
 
       for (final section in _sections) {
-        final cached = await _storage.getSectionEntries(widget.pokedexId, section.apiName);
+        final cached = await _storage.getSectionEntries(_effectivePokedexId, section.apiName);
         if (cached != null) {
           bySection[section.apiName] = cached
               .map((e) => _Entry(entryNumber: e['entryNumber']!, speciesId: e['speciesId']!))
@@ -125,14 +162,14 @@ class _PokedexScreenState extends State<PokedexScreen> {
 
       // Busca da API as seções faltantes
       if (bySection.length < _sections.length) {
-        final fromApi = await _api.fetchEntriesBySection(widget.pokedexId);
+        final fromApi = await _api.fetchEntriesBySection(_effectivePokedexId);
         for (final entry in fromApi.entries) {
           final entries = entry.value
               .map((e) => _Entry(entryNumber: e.entryNumber, speciesId: e.speciesId))
               .toList();
           bySection[entry.key] = entries;
           await _storage.saveSectionEntries(
-            widget.pokedexId,
+            _effectivePokedexId,
             entry.key,
             entries.map((e) => {'entryNumber': e.entryNumber, 'speciesId': e.speciesId}).toList(),
           );
@@ -141,9 +178,17 @@ class _PokedexScreenState extends State<PokedexScreen> {
 
       // Fallback para GO / Pokopia (sem seção na API)
       if (bySection.isEmpty) {
-        final ids = List.generate(math.min(widget.totalPokemon, 1025), (i) => i + 1);
+        final isPokopia      = _effectivePokedexId.contains('pokopia');
+        final isPokopiaEvent = _effectivePokedexId == 'pokopia_event';
+        final ids = isPokopiaEvent
+            ? pokopiaEventSpeciesIds
+            : isPokopia
+                ? pokopiaSpeciesIds
+                : List.generate(math.min(widget.totalPokemon, 1025), (i) => i + 1);
         bySection['all'] = ids
-            .map((id) => _Entry(entryNumber: id, speciesId: id))
+            .asMap()
+            .entries
+            .map((e) => _Entry(entryNumber: e.key + 1, speciesId: e.value))
             .toList();
       }
 
@@ -151,7 +196,7 @@ class _PokedexScreenState extends State<PokedexScreen> {
 
       // Carrega status de captura
       final allSpeciesIds = _allFilteredEntries().map((e) => e.speciesId).toList();
-      final caughtMap = await _storage.getCaughtMap(widget.pokedexId, allSpeciesIds);
+      final caughtMap = await _storage.getCaughtMap(_effectivePokedexId, allSpeciesIds);
 
       if (!mounted) return;
       setState(() {
@@ -200,9 +245,11 @@ class _PokedexScreenState extends State<PokedexScreen> {
     }
 
     // Filtro status
-    if (_filterStatus == 'capturados') {
+    final metLabel    = _isPokopia ? 'encontrados'     : 'capturados';
+    final notMetLabel = _isPokopia ? 'não encontrados' : 'não capturados';
+    if (_filterStatus == metLabel) {
       entries = entries.where((e) => _caughtMap[e.speciesId] == true).toList();
-    } else if (_filterStatus == 'não capturados') {
+    } else if (_filterStatus == notMetLabel) {
       entries = entries.where((e) => _caughtMap[e.speciesId] != true).toList();
     }
 
@@ -213,6 +260,15 @@ class _PokedexScreenState extends State<PokedexScreen> {
         if (data == null) return true;
         final pokemonTypes = _api.extractTypes(data).toSet();
         return _filterTypes.every((t) => pokemonTypes.contains(t));
+      }).toList();
+    }
+
+    // Filtro especialidade (só Pokopia) — mostra quem tem a especialidade
+    if (_filterSpecialties.isNotEmpty && _isPokopia) {
+      entries = entries.where((e) {
+        final sp = pokopiaSpecialtyMap[e.speciesId];
+        if (sp == null) return false;
+        return _filterSpecialties.any((f) => sp.contains(f));
       }).toList();
     }
 
@@ -300,7 +356,7 @@ class _PokedexScreenState extends State<PokedexScreen> {
     final newVal = !current;
     HapticFeedback.mediumImpact();
     setState(() => _caughtMap[speciesId] = newVal);
-    await _storage.setCaught(widget.pokedexId, speciesId, newVal);
+    await _storage.setCaught(_effectivePokedexId, speciesId, newVal);
 
     if (!mounted) return;
     final rawName = (_pokemonData[speciesId]?['name'] as String? ?? '#$speciesId')
@@ -308,7 +364,9 @@ class _PokedexScreenState extends State<PokedexScreen> {
     final name = rawName[0].toUpperCase() + rawName.substring(1).toLowerCase();
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(newVal ? '$name capturado!' : '$name removido'),
+      content: Text(newVal
+          ? (_isPokopia ? '$name encontrado!' : '$name capturado!')
+          : '$name removido'),
       duration: const Duration(seconds: 2),
       behavior: SnackBarBehavior.floating,
     ));
@@ -405,13 +463,13 @@ class _PokedexScreenState extends State<PokedexScreen> {
 
     final onToggle = () async {
       isCaught = !isCaught;
-      await _storage.setCaught(widget.pokedexId, entry.speciesId, isCaught);
+      await _storage.setCaught(_effectivePokedexId, entry.speciesId, isCaught);
       if (mounted) setState(() => _caughtMap[entry.speciesId] = isCaught);
     };
 
-    final isNacional = widget.pokedexId == 'nacional';
-    final isGo = widget.pokedexId.contains('pokémon_go') || widget.pokedexId.contains('pokemon_go');
-    final isPokopia = widget.pokedexId.contains('pokopia');
+    final isNacional = _effectivePokedexId == 'nacional';
+    final isGo = _effectivePokedexId.contains('pokémon_go') || _effectivePokedexId.contains('pokemon_go');
+    final isPokopia = _effectivePokedexId.contains('pokopia');
 
     if (!mounted) return;
     await Navigator.push(
@@ -459,7 +517,7 @@ class _PokedexScreenState extends State<PokedexScreen> {
     );
 
     if (mounted) {
-      final updated = await _storage.isCaught(widget.pokedexId, entry.speciesId);
+      final updated = await _storage.isCaught(_effectivePokedexId, entry.speciesId);
       setState(() => _caughtMap[entry.speciesId] = updated);
     }
   }
@@ -505,13 +563,13 @@ class _PokedexScreenState extends State<PokedexScreen> {
 
     final onToggle = () async {
       isCaught = !isCaught;
-      await _storage.setCaught(widget.pokedexId, entry.speciesId, isCaught);
+      await _storage.setCaught(_effectivePokedexId, entry.speciesId, isCaught);
       if (mounted) setState(() => _caughtMap[entry.speciesId] = isCaught);
     };
 
-    final isNacional = widget.pokedexId == 'nacional';
-    final isGo = widget.pokedexId.contains('pokémon_go') || widget.pokedexId.contains('pokemon_go');
-    final isPokopia = widget.pokedexId.contains('pokopia');
+    final isNacional = _effectivePokedexId == 'nacional';
+    final isGo = _effectivePokedexId.contains('pokémon_go') || _effectivePokedexId.contains('pokemon_go');
+    final isPokopia = _effectivePokedexId.contains('pokopia');
 
     Navigator.of(detailContext).pushReplacement(PageRouteBuilder(
       pageBuilder: (rc, __, ___) {
@@ -579,7 +637,7 @@ class _PokedexScreenState extends State<PokedexScreen> {
                   Text(widget.pokedexName,
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   Text(
-                    '$caught / ${_entriesBySection.values.fold(0, (s, l) => s + l.length) == 0 ? widget.totalPokemon : _entriesBySection.values.fold(0, (s, l) => s + l.length)} capturados',
+                    '$caught / ${_entriesBySection.values.fold(0, (s, l) => s + l.length) == 0 ? widget.totalPokemon : _entriesBySection.values.fold(0, (s, l) => s + l.length)} ${_isPokopia ? 'encontrados' : 'capturados'}',
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
@@ -609,11 +667,34 @@ class _PokedexScreenState extends State<PokedexScreen> {
       ),
       body: Column(
         children: [
+          // Abas Standard / Event (só Pokopia base)
+          if (_isPokopiaBase && _pokopiaTabController != null)
+            _buildPokopiaTabBar(),
           // Chips de seção (jogos com DLC ou Nacional com gens)
           if (_sections.length > 1) _buildSectionChips(),
           if (_isNacional) _buildGenChips(),
           Expanded(child: _buildBody(filtered)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPokopiaTabBar() {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 0,
+      color: scheme.surface,
+      child: TabBar(
+        controller: _pokopiaTabController,
+        tabs: const [
+          Tab(text: 'Standard'),
+          Tab(text: 'Event'),
+        ],
+        labelColor: scheme.primary,
+        unselectedLabelColor: scheme.onSurfaceVariant,
+        indicatorColor: scheme.primary,
+        tabAlignment: TabAlignment.fill,
+        dividerColor: scheme.outlineVariant,
       ),
     );
   }
@@ -822,16 +903,19 @@ class _PokedexScreenState extends State<PokedexScreen> {
       builder: (ctx) => _FilterSheet(
         currentStatus: _filterStatus,
         currentTypes: _filterTypes,
+        currentSpecialties: _filterSpecialties,
         currentSort: _sortBy,
         currentDir: _sortDir,
-        onApply: (status, types, sort, dir) {
+        isPokopia: _isPokopia,
+        onApply: (status, types, specialties, sort, dir) {
           setState(() {
-            _filterStatus = status;
-            _filterTypes  = types;
-            _sortBy       = sort;
-            _sortDir      = dir;
-            _currentPage  = 0;
-            _visibleEntries = [];
+            _filterStatus     = status;
+            _filterTypes      = types;
+            _filterSpecialties = specialties;
+            _sortBy           = sort;
+            _sortDir          = dir;
+            _currentPage      = 0;
+            _visibleEntries   = [];
           });
           _loadPage(0);
           Navigator.pop(ctx);
@@ -1035,15 +1119,19 @@ class _PokeballPainter extends CustomPainter {
 class _FilterSheet extends StatefulWidget {
   final String currentStatus;
   final Set<String> currentTypes;
+  final Set<String> currentSpecialties;
   final String currentSort;
   final String currentDir;
-  final void Function(String, Set<String>, String, String) onApply;
+  final bool isPokopia;
+  final void Function(String, Set<String>, Set<String>, String, String) onApply;
 
   const _FilterSheet({
     required this.currentStatus,
     required this.currentTypes,
+    required this.currentSpecialties,
     required this.currentSort,
     required this.currentDir,
+    required this.isPokopia,
     required this.onApply,
   });
 
@@ -1054,16 +1142,18 @@ class _FilterSheet extends StatefulWidget {
 class _FilterSheetState extends State<_FilterSheet> {
   late String _status;
   late Set<String> _types;
+  late Set<String> _specialties;
   late String _sort;
   late String _dir;
 
   @override
   void initState() {
     super.initState();
-    _status = widget.currentStatus;
-    _types  = Set.from(widget.currentTypes);
-    _sort   = widget.currentSort;
-    _dir    = widget.currentDir;
+    _status      = widget.currentStatus;
+    _types       = Set.from(widget.currentTypes);
+    _specialties = Set.from(widget.currentSpecialties);
+    _sort        = widget.currentSort;
+    _dir         = widget.currentDir;
   }
 
   void _toggleType(String typeKey) {
@@ -1073,12 +1163,22 @@ class _FilterSheetState extends State<_FilterSheet> {
       } else if (_types.length < 2) {
         _types.add(typeKey);
       } else {
-        // Já tem 2 — troca o mais antigo pelo novo
         _types.remove(_types.first);
         _types.add(typeKey);
       }
     });
   }
+
+  List<String> get _statusOptions => widget.isPokopia
+      ? ['todos', 'encontrados', 'não encontrados']
+      : ['todos', 'capturados', 'não capturados'];
+
+  bool get _hasActiveFilter =>
+      _specialties.isNotEmpty ||
+      _types.isNotEmpty ||
+      _status != 'todos' ||
+      _sort != 'numero' ||
+      _dir != 'asc';
 
   @override
   Widget build(BuildContext context) {
@@ -1093,13 +1193,14 @@ class _FilterSheetState extends State<_FilterSheet> {
             Expanded(child: Text('Filtros',
               style: Theme.of(context).textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.w600))),
-            if (_types.isNotEmpty || _status != 'todos' || _sort != 'numero' || _dir != 'asc')
+            if (_hasActiveFilter)
               TextButton(
                 onPressed: () => setState(() {
-                  _status = 'todos';
-                  _types  = {};
-                  _sort   = 'numero';
-                  _dir    = 'asc';
+                  _status      = 'todos';
+                  _types       = {};
+                  _specialties = {};
+                  _sort        = 'numero';
+                  _dir         = 'asc';
                 }),
                 child: const Text('Limpar'),
               ),
@@ -1111,7 +1212,7 @@ class _FilterSheetState extends State<_FilterSheet> {
               ?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.8)),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 6, children: [
-            for (final s in ['todos', 'capturados', 'não capturados'])
+            for (final s in _statusOptions)
               ChoiceChip(
                 label: Text(s[0].toUpperCase() + s.substring(1)),
                 selected: _status == s,
@@ -1120,27 +1221,50 @@ class _FilterSheetState extends State<_FilterSheet> {
           ]),
           const SizedBox(height: 20),
 
-          // ── Tipo (até 2, estilo dos badges) ─────────────────────
-          Row(children: [
-            Expanded(child: Text('Tipo',
-              style: Theme.of(context).textTheme.labelMedium
-                  ?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.8))),
-            if (_types.isNotEmpty)
-              GestureDetector(
-                onTap: () => setState(() => _types = {}),
-                child: Text('Limpar',
-                  style: TextStyle(fontSize: 12, color: scheme.primary)),
-              ),
-          ]),
-          const SizedBox(height: 4),
-          Text('Selecione até 2 tipos',
-            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
-          const SizedBox(height: 10),
-          Wrap(spacing: 6, runSpacing: 6, children: [
-            for (final e in _typesPt.entries)
-              _buildTypeChip(e.key, e.value),
-          ]),
-          const SizedBox(height: 20),
+          // ── Especialidade (só Pokopia) ───────────────────────────
+          if (widget.isPokopia) ...[
+            Row(children: [
+              Expanded(child: Text('Especialidade',
+                style: Theme.of(context).textTheme.labelMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.8))),
+              if (_specialties.isNotEmpty)
+                GestureDetector(
+                  onTap: () => setState(() => _specialties = {}),
+                  child: Text('Limpar',
+                    style: TextStyle(fontSize: 12, color: scheme.primary)),
+                ),
+            ]),
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final sp in _allSpecialties)
+                _buildSpecialtyChip(sp, scheme),
+            ]),
+            const SizedBox(height: 20),
+          ],
+
+          // ── Tipo (só não-Pokopia) ────────────────────────────────
+          if (!widget.isPokopia) ...[
+            Row(children: [
+              Expanded(child: Text('Tipo',
+                style: Theme.of(context).textTheme.labelMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.8))),
+              if (_types.isNotEmpty)
+                GestureDetector(
+                  onTap: () => setState(() => _types = {}),
+                  child: Text('Limpar',
+                    style: TextStyle(fontSize: 12, color: scheme.primary)),
+                ),
+            ]),
+            const SizedBox(height: 4),
+            Text('Selecione até 2 tipos',
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 10),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final e in _typesPt.entries)
+                _buildTypeChip(e.key, e.value),
+            ]),
+            const SizedBox(height: 20),
+          ],
 
           // ── Ordenar por ──────────────────────────────────────────
           Text('Ordenar por', style: Theme.of(context).textTheme.labelMedium
@@ -1157,7 +1281,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                 ),
               ),
             const Spacer(),
-            // Direção
             GestureDetector(
               onTap: () => setState(() => _dir = _dir == 'asc' ? 'desc' : 'asc'),
               child: Container(
@@ -1183,11 +1306,44 @@ class _FilterSheetState extends State<_FilterSheet> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: () => widget.onApply(_status, _types, _sort, _dir),
+              onPressed: () => widget.onApply(_status, _types, _specialties, _sort, _dir),
               child: const Text('Aplicar'),
             ),
           ),
         ]),
+      ),
+    );
+  }
+
+  Widget _buildSpecialtyChip(String specialty, ColorScheme scheme) {
+    final selected = _specialties.contains(specialty);
+    return GestureDetector(
+      onTap: () => setState(() {
+        if (selected) {
+          _specialties.remove(specialty);
+        } else {
+          _specialties.add(specialty);
+        }
+      }),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected
+              ? scheme.primary
+              : scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? scheme.primary : scheme.outlineVariant,
+            width: selected ? 0 : 1,
+          ),
+        ),
+        child: Text(specialty,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
+          )),
       ),
     );
   }
@@ -1220,3 +1376,12 @@ class _FilterSheetState extends State<_FilterSheet> {
     );
   }
 }
+
+// Lista de todas as especialidades para o filtro Pokopia
+const _allSpecialties = [
+  'Appraise', 'Build', 'Bulldoze', 'Burn', 'Chop', 'Collect',
+  'Crush', 'DJ', 'Dream Island', 'Eat', 'Engineer', 'Explode',
+  'Fly', 'Gather', 'Gather Honey', 'Generate', 'Grow', 'Hype',
+  'Illuminate', 'Litter', 'Paint', 'Party', 'Rarify', 'Recycle',
+  'Search', 'Storage', 'Teleport', 'Trade', 'Transform', 'Water', 'Yawn',
+];

@@ -40,16 +40,23 @@ class SettingsScreen extends StatelessWidget {
           _SectionHeader(label: 'IDIOMA E EXIBIÇÃO'),
           _SettingsTile(
             icon: Icons.language_outlined,
-            title: 'Idioma',
+            title: 'Idioma da Interface',
             subtitle: 'Português (BR) — outros idiomas em breve',
             onTap: null,
           ),
           _SettingsTile(
             icon: Icons.translate_outlined,
-            title: 'Termos bilíngues',
+            title: 'Idioma dos Dados',
             subtitle: 'Nomes de moves e habilidades em PT / EN',
             onTap: () => Navigator.push(context,
               MaterialPageRoute(builder: (_) => const BilingualSettingsScreen())),
+          ),
+          _SettingsTile(
+            icon: Icons.language_outlined,
+            title: 'Idioma do Pokopia',
+            subtitle: 'Traduzir nomes de habitats, receitas, relíquias e fósseis',
+            onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const PokopiaTranslationScreen())),
           ),
 
           _SectionHeader(label: 'POKEDEX'),
@@ -333,7 +340,7 @@ class _BilingualSettingsScreenState extends State<BilingualSettingsScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Termos bilíngues'),
+        title: const Text('Idioma dos Dados'),
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
@@ -780,6 +787,84 @@ class _SettingsTile extends StatelessWidget {
             Icon(Icons.chevron_right, size: 18,
               color: Theme.of(context).colorScheme.onSurfaceVariant),
         ]),
+      ),
+    );
+  }
+}
+// ─── POKOPIA TRANSLATION ──────────────────────────────────────────
+
+class PokopiaTranslationScreen extends StatefulWidget {
+  const PokopiaTranslationScreen({super.key});
+
+  @override
+  State<PokopiaTranslationScreen> createState() =>
+      _PokopiaTranslationScreenState();
+}
+
+class _PokopiaTranslationScreenState
+    extends State<PokopiaTranslationScreen> {
+  // Por ora os toggles são locais; podem ser migrados para SharedPreferences
+  bool _habitats = false;
+  bool _recipes = false;
+  bool _relics = false;
+  bool _specialties = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Idioma do Pokopia'),
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
+      body: ListView(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: scheme.outlineVariant, width: 0.5),
+              ),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(Icons.info_outline, size: 16, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Expanded(child: Text(
+                  'Por padrão, o conteúdo do Pokopia é exibido em inglês (idioma original do jogo). '
+                  'Ative abaixo as seções que você prefere ver traduzidas para o português.',
+                  style: TextStyle(fontSize: 12,
+                      color: scheme.onSurfaceVariant, height: 1.4))),
+              ]),
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('Habitats'),
+            subtitle: const Text('Nomes e condições dos habitats'),
+            value: _habitats,
+            onChanged: (v) => setState(() => _habitats = v),
+          ),
+          SwitchListTile(
+            title: const Text('Receitas'),
+            subtitle: const Text('Nomes das receitas e ingredientes'),
+            value: _recipes,
+            onChanged: (v) => setState(() => _recipes = v),
+          ),
+          SwitchListTile(
+            title: const Text('Relíquias e Fósseis'),
+            subtitle: const Text('Nomes das relíquias perdidas e fósseis'),
+            value: _relics,
+            onChanged: (v) => setState(() => _relics = v),
+          ),
+          SwitchListTile(
+            title: const Text('Especialidades'),
+            subtitle: const Text('Nomes das especialidades dos Pokémon'),
+            value: _specialties,
+            onChanged: (v) => setState(() => _specialties = v),
+          ),
+        ],
       ),
     );
   }

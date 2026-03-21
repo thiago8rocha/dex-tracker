@@ -90,24 +90,16 @@ class _SpecialtyTile extends StatelessWidget {
         border: Border.all(color: scheme.outlineVariant, width: 1),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Ícone da especialidade
-        Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: scheme.outlineVariant, width: 0.5),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(
-              'assets/pokopia/${data.asset}.png',
-              width: 44, height: 44,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Icon(
-                Icons.auto_awesome_outlined,
-                size: 22, color: scheme.onSurfaceVariant),
-            ),
+        // Ícone da especialidade sem caixa
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Image.asset(
+            'assets/pokopia/specialties/${data.asset}.png',
+            width: 44, height: 44,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Icon(
+              Icons.auto_awesome_outlined,
+              size: 22, color: scheme.onSurfaceVariant),
           ),
         ),
         const SizedBox(width: 12),
@@ -160,7 +152,7 @@ class _SpecialtyTile extends StatelessWidget {
 
 class _SpecialtyData {
   final String name;
-  final String asset;       // nome do arquivo em assets/pokopia/
+  final String asset;       // nome do arquivo em assets/pokopia/specialties/
   final String description;
   final String? exclusive;  // Pokémon exclusivo, se houver
 

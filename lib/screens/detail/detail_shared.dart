@@ -215,6 +215,8 @@ class DetailHeader extends StatefulWidget {
   final int?    nextId;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
+  // Ação customizada para o botão de voltar (ex: voltar para habitat)
+  final VoidCallback? customBackAction;
 
   const DetailHeader({
     super.key,
@@ -225,6 +227,7 @@ class DetailHeader extends StatefulWidget {
     this.prevName, this.prevId,
     this.nextName, this.nextId,
     this.onPrev, this.onNext,
+    this.customBackAction,
   });
 
   @override
@@ -318,6 +321,12 @@ class _DetailHeaderState extends State<DetailHeader> {
       surfaceTintColor: Colors.transparent,
       backgroundColor: c1,
       iconTheme: const IconThemeData(color: Colors.white),
+      leading: widget.customBackAction != null
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: widget.customBackAction,
+            )
+          : null,
       actions: const [], // botões dentro do flexibleSpace
       flexibleSpace: FlexibleSpaceBar(
         background: Container(

@@ -47,18 +47,35 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
   List<Map<String, dynamic>> _movesEgg = [];
   bool _loading = true;
 
-  static const _tabs = ['Info', 'Status', 'Formas', 'Moves'];
+  bool get _hasMultipleForms => !_loading && _forms.length > 1;
+
+  List<String> get _tabs => _hasMultipleForms
+      ? ['Informações', 'Status', 'Formas', 'Moves']
+      : ['Informações', 'Status', 'Moves'];
 
   @override
   void initState() {
     super.initState();
     _caught = widget.caught;
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadAll();
   }
 
   @override
   void dispose() { _tabController.dispose(); super.dispose(); }
+
+  void _rebuildTabController() {
+    final newLength = _hasMultipleForms ? 4 : 3;
+    if (_tabController.length != newLength) {
+      final oldIndex = _tabController.index;
+      _tabController.dispose();
+      _tabController = TabController(
+        length: newLength,
+        vsync: this,
+        initialIndex: oldIndex.clamp(0, newLength - 1),
+      );
+    }
+  }
 
   Future<void> _loadAll() async {
     try {
@@ -280,7 +297,7 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
                 loading: _loading,
               ),
               StatusTab(pokemon: widget.pokemon),
-              FormsTab(forms: _forms, loading: _loading),
+              if (_hasMultipleForms) FormsTab(forms: _forms, loading: _loading),
               MovesTab(level: _movesLevel, mt: _movesMT, tutor: _movesTutor, egg: _movesEgg),
             ],
           )),

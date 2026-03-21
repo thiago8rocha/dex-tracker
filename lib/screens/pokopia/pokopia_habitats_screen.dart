@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pokedex_tracker/data/pokopia_habitat_data.dart';
+import 'package:pokedex_tracker/screens/pokopia/pokopia_habitat_detail_screen.dart';
 
 class PokopiaHabitatsScreen extends StatefulWidget {
   const PokopiaHabitatsScreen({super.key});
@@ -8,373 +10,608 @@ class PokopiaHabitatsScreen extends StatefulWidget {
       _PokopiaHabitatsScreenState();
 }
 
-class _PokopiaHabitatsScreenState extends State<PokopiaHabitatsScreen> {
-  String _search = '';
-  String? _selectedArea;
+class _PokopiaHabitatsScreenState extends State<PokopiaHabitatsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
 
-  List<String> get _areas => [
-        'Todos',
-        'Withered Wasteland',
-        'Bleak Beach',
-        'Rocky Ridges',
-        'Sparkling Skylands',
-        'Palette Town',
-        'Dream Islands',
-      ];
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() => setState(() {}));
+  }
 
-  List<_HabitatData> get _filtered {
-    return _habitats.where((h) {
-      final matchSearch = _search.isEmpty ||
-          h.name.toLowerCase().contains(_search.toLowerCase()) ||
-          h.nameEn.toLowerCase().contains(_search.toLowerCase());
-      final matchArea = _selectedArea == null ||
-          _selectedArea == 'Todos' ||
-          h.area == _selectedArea;
-      return matchSearch && matchArea;
-    }).toList();
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Habitats'),
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Standard'),
+            Tab(text: 'Evento'),
+          ],
+        ),
       ),
-      body: Column(children: [
-        // ── Filtros ────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: TextField(
-            onChanged: (v) => setState(() => _search = v),
-            decoration: InputDecoration(
-              hintText: 'Buscar habitat...',
-              prefixIcon: const Icon(Icons.search, size: 20),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: scheme.outlineVariant),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: scheme.outlineVariant),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 10),
-              isDense: true,
-            ),
-          ),
-        ),
-
-        // Filtro de área (chips horizontais)
-        SizedBox(
-          height: 44,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 8),
-            scrollDirection: Axis.horizontal,
-            itemCount: _areas.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (ctx, i) {
-              final area = _areas[i];
-              final selected = (_selectedArea ?? 'Todos') == area;
-              return GestureDetector(
-                onTap: () => setState(() =>
-                    _selectedArea = area == 'Todos' ? null : area),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? scheme.primary
-                        : scheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: selected
-                          ? scheme.primary
-                          : scheme.outlineVariant,
-                    ),
-                  ),
-                  child: Text(area,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: selected
-                          ? scheme.onPrimary
-                          : scheme.onSurfaceVariant,
-                    )),
-                ),
-              );
-            },
-          ),
-        ),
-
-        // ── Lista ──────────────────────────────────────────────
-        Expanded(
-          child: _filtered.isEmpty
-              ? Center(
-                  child: Text('Nenhum habitat encontrado.',
-                    style: TextStyle(
-                        color: scheme.onSurfaceVariant)))
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  itemCount: _filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (ctx, i) =>
-                      _HabitatTile(data: _filtered[i]),
-                ),
-        ),
-      ]),
+      body: TabBarView(
+        controller: _tabController,
+        children: const [
+          _StandardHabitatsTab(),
+          _EventHabitatsTab(),
+        ],
+      ),
     );
   }
 }
 
-// ─── TILE ─────────────────────────────────────────────────────────
+// --- TAB STANDARD -------------------------------------------------------------
 
-class _HabitatTile extends StatelessWidget {
-  final _HabitatData data;
-  const _HabitatTile({required this.data});
+class _StandardHabitatsTab extends StatefulWidget {
+  const _StandardHabitatsTab();
+
+  @override
+  State<_StandardHabitatsTab> createState() => _StandardHabitatsTabState();
+}
+
+class _StandardHabitatsTabState extends State<_StandardHabitatsTab>
+    with AutomaticKeepAliveClientMixin {
+  String _search = '';
+  String? _selectedBiome;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  // Todos os biomas presentes nos dados
+  List<String> get _biomes {
+    final all = <String>{};
+    for (final h in pokopiaHabitats) {
+      all.addAll(h.biomes);
+    }
+    final sorted = all.toList()..sort();
+    return ['Todos', ...sorted];
+  }
+
+  List<PokopiaHabitat> get _filtered {
+    return pokopiaHabitats.where((h) {
+      final q = _search.toLowerCase();
+      final matchSearch = _search.isEmpty ||
+          h.name.toLowerCase().contains(q) ||
+          h.items.any((i) => i.toLowerCase().contains(q)) ||
+          h.pokemon.any((p) => p.name.toLowerCase().contains(q));
+      final matchBiome = _selectedBiome == null ||
+          _selectedBiome == 'Todos' ||
+          h.biomes.contains(_selectedBiome);
+      return matchSearch && matchBiome;
+    }).toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(children: [
+      // Info
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: scheme.outlineVariant, width: 0.5),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.info_outline, size: 14, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Habitats sao criados posicionando objetos e mobiliario '
+                'proximos entre si. Pokemon diferentes aparecem dependendo '
+                'do horario e clima.',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                    height: 1.4),
+              ),
+            ),
+          ]),
+        ),
+      ),
+
+      // Busca
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        child: TextField(
+          onChanged: (v) => setState(() => _search = v),
+          decoration: InputDecoration(
+            hintText: 'Buscar habitat, item ou Pokemon...',
+            prefixIcon: const Icon(Icons.search, size: 20),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: scheme.outlineVariant),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: scheme.outlineVariant),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            isDense: true,
+          ),
+        ),
+      ),
+
+      // Filtro por bioma
+      SizedBox(
+        height: 44,
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          scrollDirection: Axis.horizontal,
+          itemCount: _biomes.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (ctx, i) {
+            final biome = _biomes[i];
+            final selected = (_selectedBiome ?? 'Todos') == biome;
+            return GestureDetector(
+              onTap: () => setState(
+                  () => _selectedBiome = biome == 'Todos' ? null : biome),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? scheme.primary
+                      : scheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: selected
+                        ? scheme.primary
+                        : scheme.outlineVariant,
+                  ),
+                ),
+                child: Text(
+                  biome,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: selected
+                        ? scheme.onPrimary
+                        : scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+
+      // Lista
+      Expanded(
+        child: _filtered.isEmpty
+            ? Center(
+                child: Text('Nenhum habitat encontrado.',
+                    style: TextStyle(color: scheme.onSurfaceVariant)))
+            : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                itemCount: _filtered.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (ctx, i) => _StandardHabitatTile(
+                  habitat: _filtered[i],
+                ),
+              ),
+      ),
+    ]);
+  }
+}
+
+// --- TILE STANDARD ------------------------------------------------------------
+
+class _StandardHabitatTile extends StatefulWidget {
+  final PokopiaHabitat habitat;
+  const _StandardHabitatTile({required this.habitat});
+
+  @override
+  State<_StandardHabitatTile> createState() => _StandardHabitatTileState();
+}
+
+class _StandardHabitatTileState extends State<_StandardHabitatTile> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.outlineVariant, width: 1),
-      ),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Ícone do bioma
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            color: data.color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(data.icon, size: 20, color: data.color),
+    final h = widget.habitat;
+    final colorVal =
+        biomeColor[h.biomes.isNotEmpty ? h.biomes.first : ''] ?? 0xFF607D8B;
+    final color = Color(colorVal);
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PokopiaHabitatDetailScreen(habitat: h),
         ),
-        const SizedBox(width: 12),
-        Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Expanded(child: Text(data.name,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600))),
-              Text(data.area,
-                style: TextStyle(
-                  fontSize: 10, color: scheme.onSurfaceVariant)),
-            ]),
-            const SizedBox(height: 1),
-            Text(data.nameEn,
-              style: TextStyle(
-                fontSize: 10, color: scheme.onSurfaceVariant)),
-            if (data.notes != null) ...[
-              const SizedBox(height: 5),
-              Text(data.notes!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant, height: 1.4)),
-            ],
-          ],
-        )),
-      ]),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outlineVariant, width: 1),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Preview da imagem
+          ClipRRect(
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(12)),
+            child: SizedBox(
+              height: 80,
+              width: double.infinity,
+              child: Image.asset(
+                h.imageAsset,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: color.withOpacity(0.08),
+                  child: Center(
+                    child: Icon(Icons.landscape_outlined,
+                        size: 28, color: color.withOpacity(0.3)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Info
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Text(
+                      '#${h.id.toString().padLeft(3, '0')}',
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        h.name,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => setState(() => _expanded = !_expanded),
+                      child: Icon(
+                        _expanded
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 18,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 6),
+
+                  // Biomas
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: h.biomes
+                        .map((b) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(b,
+                                  style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600,
+                                      color: color)),
+                            ))
+                        .toList(),
+                  ),
+
+                  if (_expanded) ...[
+                    const SizedBox(height: 8),
+
+                    // Itens
+                    if (h.items.isNotEmpty) ...[
+                      Text('Itens necessarios',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: scheme.onSurfaceVariant)),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 5,
+                        runSpacing: 4,
+                        children: h.items
+                            .map((item) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: scheme.surfaceContainer,
+                                    borderRadius:
+                                        BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: scheme.outlineVariant,
+                                        width: 0.5),
+                                  ),
+                                  child: Text(item,
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: scheme.onSurface)),
+                                ))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // Pokemon
+                    if (h.pokemon.isNotEmpty) ...[
+                      Text('Pokemon possiveis',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: scheme.onSurfaceVariant)),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 5,
+                        runSpacing: 4,
+                        children: h.pokemon
+                            .map((p) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: scheme.surfaceContainerHigh,
+                                    borderRadius:
+                                        BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '${p.name} - ${p.rarity}',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        color: scheme.onSurface),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ],
+                  ],
+                ]),
+          ),
+        ]),
+      ),
     );
   }
 }
 
-// ─── DADOS ────────────────────────────────────────────────────────
+// --- TAB EVENTO ---------------------------------------------------------------
 
-class _HabitatData {
-  final String name;
-  final String nameEn;
-  final String area;
-  final Color color;
-  final IconData icon;
-  final String? notes;
-  const _HabitatData({
-    required this.name,
-    required this.nameEn,
-    required this.area,
-    required this.color,
-    required this.icon,
-    this.notes,
-  });
+class _EventHabitatsTab extends StatefulWidget {
+  const _EventHabitatsTab();
+
+  @override
+  State<_EventHabitatsTab> createState() => _EventHabitatsTabState();
 }
 
-const _habitats = [
-  // Withered Wasteland
-  _HabitatData(
-    name: 'Campo Seco',
-    nameEn: 'Dry Field',
-    area: 'Withered Wasteland',
-    color: Color(0xFFA1887F),
-    icon: Icons.landscape_outlined,
-    notes: 'Terra árida e rachada. Atrai Pokémon do tipo Terra e Normal resistentes.',
-  ),
-  _HabitatData(
-    name: 'Ruínas Antigas',
-    nameEn: 'Ancient Ruins',
-    area: 'Withered Wasteland',
-    color: Color(0xFF78909C),
-    icon: Icons.account_balance_outlined,
-    notes: 'Estruturas abandonadas. Pokémon do tipo Psíquico e Fantasma aparecem aqui.',
-  ),
-  _HabitatData(
-    name: 'Rio Seco',
-    nameEn: 'Dry Riverbed',
-    area: 'Withered Wasteland',
-    color: Color(0xFF8D6E63),
-    icon: Icons.water_outlined,
-    notes: 'Leito de rio sem água. Pode ser revitalizado com Pokémon de Water specialty.',
-  ),
+class _EventHabitatsTabState extends State<_EventHabitatsTab>
+    with AutomaticKeepAliveClientMixin {
+  String _search = '';
 
-  // Bleak Beach
-  _HabitatData(
-    name: 'Costa Rochosa',
-    nameEn: 'Rocky Shore',
-    area: 'Bleak Beach',
-    color: Color(0xFF0288D1),
-    icon: Icons.waves_outlined,
-    notes: 'Pedras e conchas na beira-mar. Boa para Pokémon do tipo Água e Pedra.',
-  ),
-  _HabitatData(
-    name: 'Areia Fina',
-    nameEn: 'Sandy Beach',
-    area: 'Bleak Beach',
-    color: Color(0xFFF9A825),
-    icon: Icons.beach_access_outlined,
-    notes: 'Praia de areia suave. Pokémon do tipo Normal e Voador aparecem de manhã.',
-  ),
-  _HabitatData(
-    name: 'Recife de Coral',
-    nameEn: 'Coral Reef',
-    area: 'Bleak Beach',
-    color: Color(0xFFE91E63),
-    icon: Icons.blur_on_outlined,
-    notes: 'Vida marinha abundante. Pokémon raros do tipo Água aparecem aqui à noite.',
-  ),
-  _HabitatData(
-    name: 'Caverna Costeira',
-    nameEn: 'Coastal Cave',
-    area: 'Bleak Beach',
-    color: Color(0xFF546E7A),
-    icon: Icons.brightness_2_outlined,
-    notes: 'Interior escuro e úmido. Pokémon do tipo Fantasma e Caverna habitam este local.',
-  ),
+  @override
+  bool get wantKeepAlive => true;
 
-  // Rocky Ridges
-  _HabitatData(
-    name: 'Encosta Vulcânica',
-    nameEn: 'Volcanic Slope',
-    area: 'Rocky Ridges',
-    color: Color(0xFFD84315),
-    icon: Icons.local_fire_department_outlined,
-    notes: 'Próximo à lava. Apenas Pokémon do tipo Fogo conseguem sobreviver aqui.',
-  ),
-  _HabitatData(
-    name: 'Vale Pedregoso',
-    nameEn: 'Boulder Valley',
-    area: 'Rocky Ridges',
-    color: Color(0xFF795548),
-    icon: Icons.terrain_outlined,
-    notes: 'Rochas gigantes por toda parte. Pokémon do tipo Pedra e Luta vivem aqui.',
-  ),
-  _HabitatData(
-    name: 'Floresta de Pedra',
-    nameEn: 'Stone Forest',
-    area: 'Rocky Ridges',
-    color: Color(0xFF5D4037),
-    icon: Icons.forest_outlined,
-    notes: 'Árvores petrificadas. Pokémon do tipo Dragão e Pedra exploram este bioma.',
-  ),
-  _HabitatData(
-    name: 'Grutas Profundas',
-    nameEn: 'Deep Caves',
-    area: 'Rocky Ridges',
-    color: Color(0xFF263238),
-    icon: Icons.nightlight_outlined,
-    notes: 'Túneis escuros e profundos. Pokémon do tipo Veneno e Inseto se escondem aqui.',
-  ),
+  List<PokopiaEventHabitat> get _filtered {
+    if (_search.isEmpty) return pokopiaEventHabitats;
+    final q = _search.toLowerCase();
+    return pokopiaEventHabitats.where((h) {
+      return h.name.toLowerCase().contains(q) ||
+          h.eventName.toLowerCase().contains(q) ||
+          h.pokemon.any((p) => p.name.toLowerCase().contains(q));
+    }).toList();
+  }
 
-  // Sparkling Skylands
-  _HabitatData(
-    name: 'Ilha Flutuante',
-    nameEn: 'Floating Island',
-    area: 'Sparkling Skylands',
-    color: Color(0xFF7986CB),
-    icon: Icons.cloud_outlined,
-    notes: 'Ilhas no ar cobertas de grama e construções. Pokémon do tipo Voador e Fada vivem aqui.',
-  ),
-  _HabitatData(
-    name: 'Canteiro de Obras',
-    nameEn: 'Construction Site',
-    area: 'Sparkling Skylands',
-    color: Color(0xFFFF8F00),
-    icon: Icons.construction_outlined,
-    notes: 'Área em reconstrução. Pokémon com Build e Engineer specialty aparecem aqui.',
-  ),
-  _HabitatData(
-    name: 'Jardim Aéreo',
-    nameEn: 'Sky Garden',
-    area: 'Sparkling Skylands',
-    color: Color(0xFF43A047),
-    icon: Icons.eco_outlined,
-    notes: 'Jardim cultivado no ar. Pokémon de tipo Planta e Fada preferem este habitat.',
-  ),
-  _HabitatData(
-    name: 'Lixão das Alturas',
-    nameEn: 'Sky Junkyard',
-    area: 'Sparkling Skylands',
-    color: Color(0xFF757575),
-    icon: Icons.delete_outline,
-    notes: 'Repleto de entulho. Pokémon com Recycle e Litter specialty aparecem com mais frequência.',
-  ),
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final scheme = Theme.of(context).colorScheme;
 
-  // Palette Town
-  _HabitatData(
-    name: 'Parques e Jardins',
-    nameEn: 'Parks & Gardens',
-    area: 'Palette Town',
-    color: Color(0xFF4CAF50),
-    icon: Icons.local_florist_outlined,
-    notes: 'Vegetação densa e flores coloridas. Um dos habitats mais ricos em variedade.',
-  ),
-  _HabitatData(
-    name: 'Áreas Urbanas',
-    nameEn: 'Urban Areas',
-    area: 'Palette Town',
-    color: Color(0xFF607D8B),
-    icon: Icons.location_city_outlined,
-    notes: 'Ruas e construções restauradas. Pokémon do tipo Normal e Elétrico se adaptaram bem.',
-  ),
-  _HabitatData(
-    name: 'Campos Abertos',
-    nameEn: 'Open Fields',
-    area: 'Palette Town',
-    color: Color(0xFF8BC34A),
-    icon: Icons.grass_outlined,
-    notes: 'Extensas planícies verdes. Pokémon de tipo Planta, Normal e Terra aparecem aqui.',
-  ),
-  _HabitatData(
-    name: 'Floresta Nativa',
-    nameEn: 'Native Forest',
-    area: 'Palette Town',
-    color: Color(0xFF388E3C),
-    icon: Icons.park_outlined,
-    notes: 'Floresta densa nas proximidades da cidade. Rica em Pokémon de tipo Inseto, Planta e Voador.',
-  ),
+    return Column(children: [
+      // Info
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: scheme.outlineVariant, width: 0.5),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.info_outline, size: 14, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Habitats de evento ficam disponiveis apenas durante eventos '
+                'temporarios. Os eventos se repetem anualmente.',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                    height: 1.4),
+              ),
+            ),
+          ]),
+        ),
+      ),
 
-  // Dream Islands
-  _HabitatData(
-    name: 'Dream Island',
-    nameEn: 'Dream Island',
-    area: 'Dream Islands',
-    color: Color(0xFF9C27B0),
-    icon: Icons.auto_awesome_outlined,
-    notes: 'Ilhas oníricas acessíveis pelo Drifloon. Lendários aparecem aqui de forma aleatória.',
-  ),
-];
+      // Busca
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        child: TextField(
+          onChanged: (v) => setState(() => _search = v),
+          decoration: InputDecoration(
+            hintText: 'Buscar habitat ou Pokemon...',
+            prefixIcon: const Icon(Icons.search, size: 20),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: scheme.outlineVariant),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: scheme.outlineVariant),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            isDense: true,
+          ),
+        ),
+      ),
+
+      const SizedBox(height: 8),
+
+      // Lista
+      Expanded(
+        child: _filtered.isEmpty
+            ? Center(
+                child: Text('Nenhum habitat encontrado.',
+                    style: TextStyle(color: scheme.onSurfaceVariant)))
+            : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                itemCount: _filtered.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (ctx, i) =>
+                    _EventHabitatTile(habitat: _filtered[i]),
+              ),
+      ),
+    ]);
+  }
+}
+
+// --- TILE EVENTO --------------------------------------------------------------
+
+class _EventHabitatTile extends StatefulWidget {
+  final PokopiaEventHabitat habitat;
+  const _EventHabitatTile({required this.habitat});
+
+  @override
+  State<_EventHabitatTile> createState() => _EventHabitatTileState();
+}
+
+class _EventHabitatTileState extends State<_EventHabitatTile> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final h = widget.habitat;
+
+    return GestureDetector(
+      onTap: () => setState(() => _expanded = !_expanded),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outlineVariant, width: 1),
+        ),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Text(
+              '#${h.id.toString().padLeft(3, '0')}',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(h.name,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            Icon(
+                _expanded ? Icons.expand_less : Icons.expand_more,
+                size: 18,
+                color: scheme.onSurfaceVariant),
+          ]),
+          const SizedBox(height: 4),
+          Text(h.eventName,
+              style:
+                  TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+          if (h.items.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 5,
+              runSpacing: 5,
+              children: h.items
+                  .map((c) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: scheme.outlineVariant, width: 0.5),
+                        ),
+                        child: Text(c,
+                            style: TextStyle(
+                                fontSize: 10, color: scheme.onSurface)),
+                      ))
+                  .toList(),
+            ),
+          ],
+          if (_expanded) ...[
+            const SizedBox(height: 8),
+            Text('Pokemon possiveis',
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 5,
+              runSpacing: 5,
+              children: h.pokemon
+                  .map((p) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${p.name} - ${p.rarity}',
+                          style: TextStyle(
+                              fontSize: 10, color: scheme.onSurface),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ],
+        ]),
+      ),
+    );
+  }
+}

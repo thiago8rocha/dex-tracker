@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
+import 'package:pokedex_tracker/services/pokeapi_service.dart';
 import 'package:pokedex_tracker/screens/pokedex_screen.dart';
 import 'package:pokedex_tracker/screens/settings_screen.dart';
 import 'package:pokedex_tracker/screens/pokopia/pokopia_hub_screen.dart';
@@ -159,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _PokedexEntry(name: 'FireRed / LeafGreen', year: '2026', totalBase: 386,
       cardColor1: 0xFFEF5350, cardColor2: 0xFF43A047), // vermelho fogo / verde folha
     _PokedexEntry(
-      name: 'Pokopia', year: '2026', totalBase: 311,
+      name: 'Pokopia', year: '2026', totalBase: 304,
       cardColor1: 0xFF9C27B0, cardColor2: 0xFF7986CB, // roxo Ditto / lilás
       isPokopiaDex: true,
       pokopiaHabitatTotal: 200,
@@ -205,6 +206,12 @@ class _HomeScreenState extends State<HomeScreen> {
         final c = await _storage.getCaughtCountForSection(e.pokedexId, sec);
         if (!mounted) return;
         setState(() => _dlcCounts[key] = c);
+        // Contar eventos no total geral (usa storage 'pokopia_event')
+        final eventCaught = await _storage.getCaughtMap(
+            'pokopia_event', pokopiaEventSpeciesIds);
+        final eventCount = eventCaught.values.where((v) => v).length;
+        if (!mounted) return;
+        setState(() => _dlcCounts['${e.pokedexId}/event'] = eventCount);
       }
     }
   }
@@ -521,15 +528,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── 5. Card Pokopia ───────────────────────────────────────────
   // Pokopia
-  // Amigos   X/311
+  // Amigos   X/300
   // ─────────────
   // Habitats X/200
   Widget _buildPokopiaCard(BuildContext context, _PokedexEntry entry) {
     final scheme        = Theme.of(context).colorScheme;
     final amigosCaught  = _caughtCounts[entry.pokedexId] ?? 0;
-    final amigosTotal   = entry.totalBase;
+    final eventCaught   = _dlcCounts['${entry.pokedexId}/event'] ?? 0;
+    final amigosTotal   = entry.totalBase; // 304 (300 base + 4 evento)
     final habitatCaught = _dlcCaught(entry, 'pokopia-habitats');
     final habitatTotal  = entry.pokopiaHabitatTotal ?? 0;
+
+    // Contador geral engloba base + evento
+    final totalCaught = amigosCaught + eventCaught;
 
     return _CardShell(
       complete: false,
@@ -547,13 +558,11 @@ class _HomeScreenState extends State<HomeScreen> {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w600, fontSize: 12, height: 1.3)),
-            // Spacer empurra contadores para o rodapé
             const Spacer(),
-            // Amigos — sem separador antes dele
-            _buildCountRow(context, scheme, 'Amigos', amigosCaught, amigosTotal),
-            // Separador ENTRE Amigos e Habitats
+            // Amigos (base + evento juntos)
+            _buildCountRow(context, scheme, 'Amigos', totalCaught, amigosTotal),
             _buildSeparator(scheme),
-            // Habitats — mesmo nível que Amigos
+            // Habitats
             _buildCountRow(context, scheme, 'Habitats', habitatCaught, habitatTotal,
               onTap: () => _openPokedex(entry, sectionFilter: 'pokopia-habitats')),
             const SizedBox(height: 2),

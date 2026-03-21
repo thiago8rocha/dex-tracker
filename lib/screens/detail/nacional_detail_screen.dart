@@ -49,18 +49,35 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
   bool _loading = true;
   Set<String>? _activePokedexIds; // null = todas ativas
 
-  static const _tabs = ['Info', 'Status', 'Formas', 'Moves'];
+  bool get _hasMultipleForms => !_loading && _forms.length > 1;
+
+  List<String> get _tabs => _hasMultipleForms
+      ? ['Informações', 'Status', 'Formas', 'Moves']
+      : ['Informações', 'Status', 'Moves'];
 
   @override
   void initState() {
     super.initState();
     _caught = widget.caught;
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadAll();
   }
 
   @override
   void dispose() { _tabController.dispose(); super.dispose(); }
+
+  void _rebuildTabController() {
+    final newLength = _hasMultipleForms ? 4 : 3;
+    if (_tabController.length != newLength) {
+      final oldIndex = _tabController.index;
+      _tabController.dispose();
+      _tabController = TabController(
+        length: newLength,
+        vsync: this,
+        initialIndex: oldIndex.clamp(0, newLength - 1),
+      );
+    }
+  }
 
   Future<void> _loadAll() async {
     // Carrega Pokedex ativas primeiro (operação local, rápida)
@@ -198,7 +215,7 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
       final aD = a['isDefault'] as bool, bD = b['isDefault'] as bool;
       if (aD && !bD) return -1; if (!aD && bD) return 1; return 0;
     });
-    if (mounted) setState(() => _forms = forms);
+    if (mounted) setState(() { _forms = forms; _rebuildTabController(); });
   }
 
   void _parseMoves(Map<String, dynamic> d) {
@@ -350,7 +367,7 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
                 loading: _loading,
               ),
               StatusTab(pokemon: widget.pokemon),
-              FormsTab(forms: _forms, loading: _loading),
+              if (_hasMultipleForms) FormsTab(forms: _forms, loading: _loading),
               MovesTab(level: _movesLevel, mt: _movesMT, tutor: _movesTutor, egg: _movesEgg),
             ],
           )),
