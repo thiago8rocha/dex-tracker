@@ -93,7 +93,7 @@ class PokeApiService {
     ],
     // ── Gen VIII (Switch) ─────────────────────────────────────────
     "let_s_go_pikachu___eevee": [
-      PokedexSection(label: 'Let's Go Kanto', apiName: 'letsgo-kanto', isDlc: false),
+      PokedexSection(label: "Let's Go Kanto", apiName: 'letsgo-kanto', isDlc: false),
     ],
     "sword___shield": [
       PokedexSection(label: 'Galar', apiName: 'galar', isDlc: false),
