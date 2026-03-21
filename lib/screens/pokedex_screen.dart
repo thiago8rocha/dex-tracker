@@ -1072,7 +1072,7 @@ class _PokemonCardState extends State<_PokemonCard> {
 
   String? _spriteUrl(Map<String, dynamic> sprites) {
     final s = sprites['sprites'] as Map<String, dynamic>? ?? {};
-    switch (defaultSprite) {
+    switch (widget.defaultSprite) {
       case 'pixel':
         return s['front_default'] as String?;
       case 'home':
@@ -1206,7 +1206,7 @@ class _PokemonCardState extends State<_PokemonCard> {
                 ],
               ),
             ),
-            if (caught)
+            if (widget.caught)
               Positioned(
                 top: 5,
                 right: 5,
