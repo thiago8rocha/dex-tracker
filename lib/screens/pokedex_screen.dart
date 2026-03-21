@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pokedex_tracker/services/pokeapi_service.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
+import 'package:pokedex_tracker/services/dex_bundle_service.dart';
 import 'package:pokedex_tracker/screens/detail/nacional_detail_screen.dart';
 import 'package:pokedex_tracker/screens/detail/mainline_detail_screen.dart';
 import 'package:pokedex_tracker/screens/go/go_detail_screen.dart';
@@ -152,16 +153,32 @@ class _PokedexScreenState extends State<PokedexScreen>
       final bySection = <String, List<_Entry>>{};
 
       for (final section in _sections) {
+        // 1. Cache local (SharedPreferences)
         final cached = await _storage.getSectionEntries(_effectivePokedexId, section.apiName);
         if (cached != null) {
           bySection[section.apiName] = cached
               .map((e) => _Entry(entryNumber: e['entryNumber']!, speciesId: e['speciesId']!))
               .toList();
+          continue;
         }
-      }
 
-      // Busca da API as seções faltantes
-      if (bySection.length < _sections.length) {
+        // 2. Bundle local (assets/data/dex/dex_*.json)
+        final bundle = await DexBundleService.instance.loadSection(section.apiName);
+        if (bundle != null) {
+          final entries = bundle
+              .map((e) => _Entry(entryNumber: e['entryNumber']!, speciesId: e['speciesId']!))
+              .toList();
+          bySection[section.apiName] = entries;
+          // Persiste no cache para uso futuro sem releitura do bundle
+          await _storage.saveSectionEntries(
+            _effectivePokedexId,
+            section.apiName,
+            bundle,
+          );
+          continue;
+        }
+
+        // 3. Fallback: API de rede
         final fromApi = await _api.fetchEntriesBySection(_effectivePokedexId);
         for (final entry in fromApi.entries) {
           final entries = entry.value
@@ -174,6 +191,7 @@ class _PokedexScreenState extends State<PokedexScreen>
             entries.map((e) => {'entryNumber': e.entryNumber, 'speciesId': e.speciesId}).toList(),
           );
         }
+        break; // fetchEntriesBySection já busca todas as seções de uma vez
       }
 
       // Fallback para GO / Pokopia (sem seção na API)
