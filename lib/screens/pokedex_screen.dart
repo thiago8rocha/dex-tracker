@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:pokedex_tracker/services/pokeapi_service.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/dex_bundle_service.dart';
+import 'package:pokedex_tracker/services/pokedex_data_service.dart';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show defaultSpriteNotifier;
 import 'package:pokedex_tracker/screens/detail/nacional_detail_screen.dart';
 import 'package:pokedex_tracker/screens/detail/mainline_detail_screen.dart';
 import 'package:pokedex_tracker/screens/go/go_detail_screen.dart';
@@ -288,9 +291,7 @@ class _PokedexScreenState extends State<PokedexScreen>
     // Filtro tipo — mostra Pokémon que tenham TODOS os tipos selecionados
     if (_filterTypes.isNotEmpty) {
       entries = entries.where((e) {
-        final data = _pokemonData[e.speciesId];
-        if (data == null) return true;
-        final pokemonTypes = _api.extractTypes(data).toSet();
+        final pokemonTypes = PokedexDataService.instance.getTypes(e.speciesId).toSet();
         return _filterTypes.every((t) => pokemonTypes.contains(t));
       }).toList();
     }
@@ -307,8 +308,8 @@ class _PokedexScreenState extends State<PokedexScreen>
     // Ordenação
     if (_sortBy == 'nome') {
       entries.sort((a, b) {
-        final nameA = (_pokemonData[a.speciesId]?['name'] as String? ?? '').split('-').first;
-        final nameB = (_pokemonData[b.speciesId]?['name'] as String? ?? '').split('-').first;
+        final nameA = PokedexDataService.instance.getName(a.speciesId);
+        final nameB = PokedexDataService.instance.getName(b.speciesId);
         return _sortDir == 'asc' ? nameA.compareTo(nameB) : nameB.compareTo(nameA);
       });
     } else {
@@ -322,21 +323,18 @@ class _PokedexScreenState extends State<PokedexScreen>
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase().trim();
       entries = entries.where((e) {
-        final data = _pokemonData[e.speciesId];
+        final svc = PokedexDataService.instance;
         // Por número (#007 ou "7")
-        final numStr = e.speciesId.toString();
+        final numStr    = e.speciesId.toString();
         final numPadded = e.speciesId.toString().padLeft(3, '0');
         if (numStr.contains(q) || numPadded.contains(q)) return true;
         // Por nome
-        if (data != null) {
-          final name = (data['name'] as String).split('-').first.toLowerCase();
-          if (name.contains(q)) return true;
-          // Por tipo (EN ou PT)
-          final types = _api.extractTypes(data);
-          for (final t in types) {
-            if (t.toLowerCase().contains(q)) return true;
-            if ((_typesPt[t] ?? '').toLowerCase().contains(q)) return true;
-          }
+        final name = svc.getName(e.speciesId).toLowerCase();
+        if (name.contains(q)) return true;
+        // Por tipo (EN ou PT)
+        for (final t in svc.getTypes(e.speciesId)) {
+          if (t.toLowerCase().contains(q)) return true;
+          if ((_typesPt[t] ?? '').toLowerCase().contains(q)) return true;
         }
         return false;
       }).toList();
@@ -346,6 +344,45 @@ class _PokedexScreenState extends State<PokedexScreen>
   }
 
   // ─── PAGINAÇÃO ────────────────────────────────────────────────────
+
+  /// Monta o mapa local de dados de um pokémon sem chamada de rede.
+  /// Substitui a resposta da PokeAPI com dados do bundle + URL de sprite gerada.
+  Map<String, dynamic> _localPokemonData(int id) {
+    final svc   = PokedexDataService.instance;
+    final types = svc.getTypes(id);
+    // Nome: converte "bulbasaur" → "Bulbasaur" a partir do ID
+    // O nome canônico em inglês vem do speciesId (mesmo padrão da PokeAPI)
+    final name  = _pokemonNameFromId(id);
+    final sprite = defaultSpriteNotifier.value;
+    final spriteUrl = _buildSpriteUrl(id, sprite);
+    return {
+      'id':   id,
+      'name': name,
+      'types': types.map((t) => {'type': {'name': t}}).toList(),
+      'sprites': {
+        'front_default': _buildSpriteUrl(id, 'pixel'),
+        'other': {
+          'official-artwork': {'front_default': _buildSpriteUrl(id, 'artwork')},
+          'home':             {'front_default': _buildSpriteUrl(id, 'home')},
+        },
+      },
+      '_spriteUrl': spriteUrl,
+    };
+  }
+
+  /// Monta a URL do sprite a partir do ID e do tipo preferido.
+  String _buildSpriteUrl(int id, String type) {
+    const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
+    switch (type) {
+      case 'pixel': return '$base/$id.png';
+      case 'home':  return '$base/other/home/$id.png';
+      case 'artwork':
+      default:      return '$base/other/official-artwork/$id.png';
+    }
+  }
+
+  /// Retorna o nome do pokémon no formato "Bulbasaur" a partir do ID.
+  String _pokemonNameFromId(int id) => PokedexDataService.instance.getName(id);
 
   Future<void> _loadPage(int page) async {
     if (_loadingPage) return;
@@ -358,19 +395,16 @@ class _PokedexScreenState extends State<PokedexScreen>
       return;
     }
 
-    final toLoad = filtered
+    // Preenche _pokemonData localmente para todos os entries visíveis
+    final toFill = filtered
         .skip(start)
         .take(_pageSize)
         .where((e) => !_pokemonData.containsKey(e.speciesId))
         .map((e) => e.speciesId)
         .toList();
 
-    if (toLoad.isNotEmpty) {
-      final batch = await _api.fetchPokemonBatch(toLoad);
-      if (!mounted) return;
-      for (final p in batch) {
-        _pokemonData[p['id'] as int] = p;
-      }
+    for (final id in toFill) {
+      _pokemonData[id] = _localPokemonData(id);
     }
 
     if (!mounted) return;
@@ -391,9 +425,7 @@ class _PokedexScreenState extends State<PokedexScreen>
     await _storage.setCaught(_effectivePokedexId, speciesId, newVal);
 
     if (!mounted) return;
-    final rawName = (_pokemonData[speciesId]?['name'] as String? ?? '#$speciesId')
-        .split('-').first;
-    final name = rawName[0].toUpperCase() + rawName.substring(1).toLowerCase();
+    final name = PokedexDataService.instance.getName(speciesId);
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(newVal
@@ -406,33 +438,50 @@ class _PokedexScreenState extends State<PokedexScreen>
 
   // ─── DETALHE ──────────────────────────────────────────────────────
 
-  /// Constrói um Pokemon a partir do speciesId carregado em _pokemonData
+  /// Constrói um Pokemon a partir do speciesId — usa dados locais do bundle.
   Pokemon? _buildPokemon(int speciesId) {
     final data = _pokemonData[speciesId];
     if (data == null) return null;
-    final stats   = _api.extractStats(data);
+
     final rawName = data['name'] as String;
-    final baseName = rawName.split('-').first;
-    final displayName = baseName[0].toUpperCase() + baseName.substring(1);
-    final sprites = _api.extractAllSprites(data);
+    final baseName = rawName.startsWith('#') ? rawName : rawName.split('-').first;
+    final displayName = baseName.startsWith('#')
+        ? baseName
+        : baseName[0].toUpperCase() + baseName.substring(1);
+
+    final types = _api.extractTypes(data);
+
+    // Sprites — montadas localmente
+    final spriteType = defaultSpriteNotifier.value;
+    final spriteUrl      = _buildSpriteUrl(speciesId, spriteType);
+    final pixelUrl       = _buildSpriteUrl(speciesId, 'pixel');
+    final homeUrl        = _buildSpriteUrl(speciesId, 'home');
+    final artworkUrl     = _buildSpriteUrl(speciesId, 'artwork');
+    // Shiny segue o mesmo padrão com /shiny/
+    const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
+    final shinyUrl       = '$base/other/official-artwork/shiny/$speciesId.png';
+    final pixelShinyUrl  = '$base/shiny/$speciesId.png';
+    final homeShinyUrl   = '$base/other/home/shiny/$speciesId.png';
+
+    // Stats: zeros pois não estão no bundle (só usados na tela de detalhe que tem sua própria fonte)
     return Pokemon(
-      id: data['id'] as int,
-      name: displayName,
-      types: _api.extractTypes(data),
-      baseHp:        stats['hp'] ?? 0,
-      baseAttack:    stats['attack'] ?? 0,
-      baseDefense:   stats['defense'] ?? 0,
-      baseSpAttack:  stats['special-attack'] ?? 0,
-      baseSpDefense: stats['special-defense'] ?? 0,
-      baseSpeed:     stats['speed'] ?? 0,
-      spriteUrl:          sprites['default'] ?? sprites['pixel'] ?? '',
-      spriteShinyUrl:     sprites['shiny'],
-      spritePixelUrl:     sprites['pixel'],
-      spritePixelShinyUrl:sprites['pixelShiny'],
-      spritePixelFemaleUrl:sprites['pixelFemale'],
-      spriteHomeUrl:      sprites['home'],
-      spriteHomeShinyUrl: sprites['homeShiny'],
-      spriteHomeFemaleUrl:sprites['homeFemale'],
+      id:                  speciesId,
+      name:                displayName,
+      types:               types,
+      baseHp:              0,
+      baseAttack:          0,
+      baseDefense:         0,
+      baseSpAttack:        0,
+      baseSpDefense:       0,
+      baseSpeed:           0,
+      spriteUrl:           spriteType == 'pixel' ? pixelUrl : spriteType == 'home' ? homeUrl : artworkUrl,
+      spriteShinyUrl:      shinyUrl,
+      spritePixelUrl:      pixelUrl,
+      spritePixelShinyUrl: pixelShinyUrl,
+      spritePixelFemaleUrl:null,
+      spriteHomeUrl:       homeUrl,
+      spriteHomeShinyUrl:  homeShinyUrl,
+      spriteHomeFemaleUrl: null,
     );
   }
 
@@ -446,11 +495,9 @@ class _PokedexScreenState extends State<PokedexScreen>
     if (idx < 0 || idx >= filtered.length) return;
     final entry = filtered[idx];
 
-    // Garante que o Pokémon atual está carregado
+    // Garante que o Pokémon atual está carregado localmente
     if (!_pokemonData.containsKey(entry.speciesId)) {
-      final batch = await _api.fetchPokemonBatch([entry.speciesId]);
-      if (!mounted) return;
-      for (final p in batch) _pokemonData[p['id'] as int] = p;
+      _pokemonData[entry.speciesId] = _localPokemonData(entry.speciesId);
     }
 
     final pokemon = _buildPokemon(entry.speciesId);
@@ -458,19 +505,15 @@ class _PokedexScreenState extends State<PokedexScreen>
 
     bool isCaught = _caughtMap[entry.speciesId] ?? false;
 
-    // Vizinhos — pré-carrega os dados se necessário
+    // Vizinhos — pré-carrega localmente
     final prevEntry = idx > 0 ? filtered[idx - 1] : null;
     final nextEntry = idx < filtered.length - 1 ? filtered[idx + 1] : null;
 
     if (prevEntry != null && !_pokemonData.containsKey(prevEntry.speciesId)) {
-      _api.fetchPokemonBatch([prevEntry.speciesId]).then((batch) {
-        if (mounted) for (final p in batch) _pokemonData[p['id'] as int] = p;
-      });
+      _pokemonData[prevEntry.speciesId] = _localPokemonData(prevEntry.speciesId);
     }
     if (nextEntry != null && !_pokemonData.containsKey(nextEntry.speciesId)) {
-      _api.fetchPokemonBatch([nextEntry.speciesId]).then((batch) {
-        if (mounted) for (final p in batch) _pokemonData[p['id'] as int] = p;
-      });
+      _pokemonData[nextEntry.speciesId] = _localPokemonData(nextEntry.speciesId);
     }
 
     String? _prevName, _nextName;
@@ -998,10 +1041,7 @@ class _PokemonCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (data == null) return _SkeletonCard();
 
-    final rawName = data!['name'] as String;
-    final baseName = rawName.split('-').first;
-    final displayName = baseName[0].toUpperCase() + baseName.substring(1);
-
+    final displayName = data!['name'] as String;
     final sprite = _spriteUrl(data!);
 
     final types = (data!['types'] as List<dynamic>)
