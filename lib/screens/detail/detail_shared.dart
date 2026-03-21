@@ -574,10 +574,10 @@ class SectionCard extends StatelessWidget {
         : 'Normal';
     final typeColor = TypeColors.fromType(primaryTypePt);
 
-    // Fundo do card: levemente diferente do fundo da tela
+    // Fundo do card: cor do tipo com opacidade muito baixa
     final cardBg = isDark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFF2F2F2);
+        ? typeColor.withOpacity(0.08)
+        : typeColor.withOpacity(0.06);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
