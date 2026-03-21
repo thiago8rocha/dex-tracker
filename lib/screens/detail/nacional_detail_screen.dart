@@ -468,11 +468,8 @@ class _NacionalInfoTab extends StatelessWidget {
                   children: availableGames.map((g) => Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white.withOpacity(0.1)
-                          : Colors.white.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(8)),
                     child: Text(g, style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       fontSize: 11, fontWeight: FontWeight.w500)),
                   )).toList()),

@@ -1731,15 +1731,12 @@ class AbilityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = neutralBg(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final hiddenBg   = isDark ? const Color(0xFF3A3A3A) : const Color(0xFFDDDDDD);
     final hiddenText = isDark ? const Color(0xFFAAAAAA) : const Color(0xFF666666);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(child: Wrap(
@@ -1824,15 +1821,10 @@ class _EvoChainWidgetState extends State<EvoChainWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      decoration: BoxDecoration(
-          color: neutralBg(context), borderRadius: BorderRadius.circular(10)),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: _buildWidgets(context),
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: _buildWidgets(context),
     );
   }
 
