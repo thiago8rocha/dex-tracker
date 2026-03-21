@@ -411,7 +411,7 @@ class _NacionalInfoTab extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         // ── Espécies + descrição + altura/tipo/peso ──
         SectionCard(
-          title: 'ESPÉCIES',
+          title: 'DESCRIÇÃO',
           pokemonTypes: pokemon.types,
           child: AboutHeader(
             category: category,

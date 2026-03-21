@@ -486,48 +486,71 @@ class AboutHeader extends StatelessWidget {
       const SizedBox(height: 20),
 
       // Linha: Altura | Tipo | Peso
-      // Cada coluna: label em cima, dado embaixo, sempre alinhados pelo topo
-      Row(crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Altura ──
-          Expanded(child: Column(children: [
-            Text('Altura', style: TextStyle(
-              fontSize: 11, color: secondary)),
-            const SizedBox(height: 6),
-            Text(loading ? '—' : height,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-          ])),
+      // Com 1 tipo: tudo centralizado. Com 2 tipos: alinhado pelo topo.
+      if (types.length <= 1)
+        // ── 1 tipo: tudo centralizado ──────────────────────────
+        Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Column(children: [
+              Text('Altura', style: TextStyle(fontSize: 11, color: secondary)),
+              const SizedBox(height: 6),
+              Text(loading ? '—' : height,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            ]),
+            Column(children: [
+              Text('Tipo', style: TextStyle(fontSize: 11, color: secondary)),
+              const SizedBox(height: 6),
+              if (loading)
+                const SizedBox(height: 32,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              else
+                ...types.map((t) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: TypeBadge(type: t),
+                )),
+            ]),
+            Column(children: [
+              Text('Peso', style: TextStyle(fontSize: 11, color: secondary)),
+              const SizedBox(height: 6),
+              Text(loading ? '—' : weight,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            ]),
+          ])
+      else
+        // ── 2 tipos: alinhado pelo topo, sem divisores ──────────
+        Row(crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Altura
+            Expanded(child: Column(children: [
+              Text('Altura', style: TextStyle(fontSize: 11, color: secondary)),
+              const SizedBox(height: 6),
+              Text(loading ? '—' : height,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            ])),
 
-          // Divisor vertical — altura fixa suficiente para 2 badges (36+4+36=76) + label
-          Container(width: 1, height: 96, color: Theme.of(context).dividerColor),
+            // Tipo (2 badges empilhados)
+            Expanded(child: Column(children: [
+              Text('Tipo', style: TextStyle(fontSize: 11, color: secondary)),
+              const SizedBox(height: 6),
+              if (loading)
+                const SizedBox(height: 36,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              else
+                ...types.map((t) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: TypeBadge(type: t),
+                )),
+            ])),
 
-          // ── Tipo ──
-          Expanded(child: Column(children: [
-            Text('Tipo', style: TextStyle(
-              fontSize: 11, color: secondary)),
-            const SizedBox(height: 6),
-            if (loading)
-              const SizedBox(height: 36,
-                child: CircularProgressIndicator(strokeWidth: 2))
-            else
-              ...types.map((t) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: TypeBadge(type: t),
-              )),
-          ])),
-
-          // Divisor vertical
-          Container(width: 1, height: 96, color: Theme.of(context).dividerColor),
-
-          // ── Peso ──
-          Expanded(child: Column(children: [
-            Text('Peso', style: TextStyle(
-              fontSize: 11, color: secondary)),
-            const SizedBox(height: 6),
-            Text(loading ? '—' : weight,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-          ])),
-        ]),
+            // Peso
+            Expanded(child: Column(children: [
+              Text('Peso', style: TextStyle(fontSize: 11, color: secondary)),
+              const SizedBox(height: 6),
+              Text(loading ? '—' : weight,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            ])),
+          ]),
 
       const SizedBox(height: 8),
     ]);
