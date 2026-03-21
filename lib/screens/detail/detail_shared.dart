@@ -332,8 +332,33 @@ class BilingualTerm extends StatelessWidget {
   }
 }
 
-// ─── WIDGET: BADGE DE TIPO COM ÍCONE ─────────────────────────────
-// Tamanho fixo para todos os tipos — container colorido igual ao header
+// ─── CORES DOS ÍCONES DE TIPO ─────────────────────────────────────
+// Extraídas diretamente dos ícones oficiais do Bulbapedia
+const Map<String, Color> typeIconColors = {
+  'bug':      Color.fromRGBO(158, 172,  54, 1),
+  'dark':     Color.fromRGBO(109,  91,  92, 1),
+  'dragon':   Color.fromRGBO( 99, 113, 227, 1),
+  'electric': Color.fromRGBO(250, 196,  19, 1),
+  'fairy':    Color.fromRGBO(240, 139, 241, 1),
+  'fighting': Color.fromRGBO(253, 156,  59, 1),
+  'fire':     Color.fromRGBO(231,  61,  61, 1),
+  'flying':   Color.fromRGBO(138, 189, 239, 1),
+  'ghost':    Color.fromRGBO(125,  82, 125, 1),
+  'grass':    Color.fromRGBO( 85, 171,  66, 1),
+  'ground':   Color.fromRGBO(156,  99,  56, 1),
+  'ice':      Color.fromRGBO( 88, 212, 244, 1),
+  'normal':   Color.fromRGBO(165, 166, 164, 1),
+  'poison':   Color.fromRGBO(152,  76, 206, 1),
+  'psychic':  Color.fromRGBO(239,  90, 138, 1),
+  'rock':     Color.fromRGBO(180, 176, 139, 1),
+  'steel':    Color.fromRGBO(114, 171, 191, 1),
+  'water':    Color.fromRGBO( 55, 137, 239, 1),
+};
+
+// ─── WIDGET: BADGE DE TIPO ────────────────────────────────────────
+// Estilo pill: círculo colorido com ícone à esquerda,
+// continuado por fundo escuro com texto — cor do círculo igual ao
+// container do ícone para não haver borda visível.
 
 class TypeBadge extends StatelessWidget {
   final String type;
@@ -341,33 +366,57 @@ class TypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = typeNamePt[type.toLowerCase()] ?? ptType(type);
-    final tc = TypeColors.fromType(label);
-    return Container(
-      width: 110, // tamanho fixo para todos os tipos
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: tc,
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: [BoxShadow(
-          color: Colors.black.withOpacity(0.12),
-          blurRadius: 3, offset: const Offset(0, 1))],
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-        Image.asset(
-          typeIconAsset(type),
-          width: 14, height: 14,
-          errorBuilder: (_, __, ___) => const SizedBox(width: 14, height: 14),
+    final key = type.toLowerCase();
+    final label = typeNamePt[key] ?? ptType(type);
+    final iconColor = typeIconColors[key] ?? const Color(0xFF888888);
+    const textBg   = Color(0xFF404040); // cinza escuro — igual ao badge da referência
+
+    return SizedBox(
+      width: 130,
+      height: 36,
+      child: Stack(children: [
+        // ── Fundo escuro (direita, pill) ──────────────────────
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              color: textBg,
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
         ),
-        const SizedBox(width: 5),
-        Text(label, style: TextStyle(
-          color: typeTextColor(tc),
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        )),
+        // ── Círculo colorido (esquerda, sobre o fundo escuro) ─
+        Positioned(
+          left: 0, top: 0, bottom: 0,
+          child: Container(
+            width: 36,
+            decoration: BoxDecoration(
+              color: iconColor,
+              shape: BoxShape.circle,
+            ),
+            padding: const EdgeInsets.all(5),
+            child: Image.asset(
+              typeIconAsset(type),
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const SizedBox(),
+            ),
+          ),
+        ),
+        // ── Texto ─────────────────────────────────────────────
+        Positioned(
+          left: 40, right: 6, top: 0, bottom: 0,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+        ),
       ]),
     );
   }
@@ -442,8 +491,8 @@ class AboutHeader extends StatelessWidget {
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           ])),
 
-          // Divisor vertical
-          Container(width: 1, height: 56, color: Theme.of(context).dividerColor),
+          // Divisor vertical — altura fixa suficiente para 2 badges (36+4+36=76) + label
+          Container(width: 1, height: 96, color: Theme.of(context).dividerColor),
 
           // ── Tipo ──
           Expanded(child: Column(children: [
@@ -451,7 +500,7 @@ class AboutHeader extends StatelessWidget {
               fontSize: 11, color: secondary)),
             const SizedBox(height: 6),
             if (loading)
-              const SizedBox(height: 26,
+              const SizedBox(height: 36,
                 child: CircularProgressIndicator(strokeWidth: 2))
             else
               ...types.map((t) => Padding(
@@ -461,7 +510,7 @@ class AboutHeader extends StatelessWidget {
           ])),
 
           // Divisor vertical
-          Container(width: 1, height: 56, color: Theme.of(context).dividerColor),
+          Container(width: 1, height: 96, color: Theme.of(context).dividerColor),
 
           // ── Peso ──
           Expanded(child: Column(children: [
