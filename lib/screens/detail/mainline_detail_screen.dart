@@ -37,8 +37,6 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
   late bool _caught;
   late TabController _tabController;
 
-  Map<String, dynamic>? _speciesData;
-  Map<String, dynamic>? _pokemonData;
   List<Map<String, dynamic>> _abilities = [];
   List<Map<String, dynamic>> _evoChain = [];
   List<Map<String, dynamic>> _forms = [];
@@ -92,11 +90,7 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
 
     _evoChain = svc.getEvoChain(id);
 
-    final flavorEn = svc.getFlavorEn(id);
-    _flavorTextPt = flavorEn.isNotEmpty
-        ? await translateFlavorText(flavorEn)
-        : '';
-    if (_flavorTextPt.isEmpty) _flavorTextPt = flavorEn;
+    _flavorTextPt = svc.getFlavorText(id);
 
     if (mounted) setState(() => _loading = false);
   }
@@ -131,35 +125,25 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
     if (mounted) setState(() { _movesLevel = level; _movesMT = mt; _movesTutor = tutor; _movesEgg = egg; });
   }
 
-  String get _height => _pokemonData == null ? '—'
-      : '${((_pokemonData!['height'] as int) / 10).toStringAsFixed(1)} m';
-  String get _weight => _pokemonData == null ? '—'
-      : '${((_pokemonData!['weight'] as int) / 10).toStringAsFixed(1)} kg';
-  String get _captureRate => _speciesData == null ? '—'
-      : '${_speciesData!['capture_rate'] ?? '—'}';
+  String get _height => PokedexDataService.instance.getHeight(widget.pokemon.id);
+  String get _weight => PokedexDataService.instance.getWeight(widget.pokemon.id);
+  String get _captureRate {
+    final rate = PokedexDataService.instance.getCaptureRate(widget.pokemon.id);
+    return rate > 0 ? '$rate' : '—';
+  }
 
   String get _flavorText => _flavorTextPt;
   String get _category {
-    if (_speciesData == null) return '—';
-    final genera = _speciesData!['genera'] as List<dynamic>? ?? [];
-    for (final g in genera) {
-      if ((g['language']['name'] as String) == 'pt-BR') {
-        return (g['genus'] as String).replaceAll(' Pokémon', '').trim();
-      }
-    }
-    String en = '—';
-    for (final g in genera) {
-      if ((g['language']['name'] as String) == 'en') {
-        en = (g['genus'] as String).replaceAll(' Pokémon', '').trim(); break;
-      }
-    }
+    final raw = PokedexDataService.instance.getCategory(widget.pokemon.id);
+    if (raw.isEmpty || raw == '—') return '—';
+    final cleaned = raw.replaceAll(' Pokémon', '').replaceAll(' pokémon', '').trim();
     const tr = {
       'Seed': 'Semente', 'Lizard': 'Lagarto', 'Flame': 'Chama',
       'Tiny Turtle': 'Tartaruga Pequena', 'Turtle': 'Tartaruga',
       'Shellfish': 'Crustáceo', 'Mouse': 'Camundongo', 'Bird': 'Pássaro',
       'Amphibian': 'Anfíbio', 'Dragon': 'Dragão', 'Fossil': 'Fóssil',
     };
-    return tr[en] ?? en;
+    return tr[cleaned] ?? cleaned;
   }
 
   @override

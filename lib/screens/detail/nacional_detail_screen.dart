@@ -37,8 +37,6 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
   late bool _caught;
   late TabController _tabController;
 
-  Map<String, dynamic>? _speciesData;
-  Map<String, dynamic>? _pokemonData;
   List<Map<String, dynamic>> _abilities = [];
   List<Map<String, dynamic>> _evoChain = [];
   List<Map<String, dynamic>> _forms = [];
@@ -97,11 +95,7 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
 
     _evoChain = svc.getEvoChain(id);
 
-    final flavorEn = svc.getFlavorEn(id);
-    _flavorTextPt = flavorEn.isNotEmpty
-        ? await translateFlavorText(flavorEn)
-        : '';
-    if (_flavorTextPt.isEmpty) _flavorTextPt = flavorEn;
+    _flavorTextPt = svc.getFlavorText(id);
 
     if (mounted) setState(() => _loading = false);
   }
@@ -138,29 +132,20 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
 
   // ─── ACCESSORS ───────────────────────────────────────────────
 
-  String get _height => _pokemonData == null ? '—'
-      : '${((_pokemonData!['height'] as int) / 10).toStringAsFixed(1)} m';
-  String get _weight => _pokemonData == null ? '—'
-      : '${((_pokemonData!['weight'] as int) / 10).toStringAsFixed(1)} kg';
-  String get _captureRate => _speciesData == null ? '—'
-      : '${_speciesData!['capture_rate'] ?? '—'}';
+  String get _height => PokedexDataService.instance.getHeight(widget.pokemon.id);
+  String get _weight => PokedexDataService.instance.getWeight(widget.pokemon.id);
+  String get _captureRate {
+    final rate = PokedexDataService.instance.getCaptureRate(widget.pokemon.id);
+    return rate > 0 ? '$rate' : '—';
+  }
 
   String get _flavorText => _flavorTextPt;
 
   String get _category {
-    if (_speciesData == null) return '—';
-    final genera = _speciesData!['genera'] as List<dynamic>? ?? [];
-    for (final g in genera) {
-      if ((g['language']['name'] as String) == 'pt-BR') {
-        return (g['genus'] as String).replaceAll(' Pokémon', '').replaceAll(' pokémon', '').trim();
-      }
-    }
-    String en = '—';
-    for (final g in genera) {
-      if ((g['language']['name'] as String) == 'en') {
-        en = (g['genus'] as String).replaceAll(' Pokémon', '').trim(); break;
-      }
-    }
+    final raw = PokedexDataService.instance.getCategory(widget.pokemon.id);
+    if (raw.isEmpty || raw == '—') return '—';
+    // Remove " Pokémon" do final se vier da API em EN
+    final cleaned = raw.replaceAll(' Pokémon', '').replaceAll(' pokémon', '').trim();
     const tr = {
       'Seed': 'Semente', 'Lizard': 'Lagarto', 'Flame': 'Chama',
       'Tiny Turtle': 'Tartaruga Pequena', 'Turtle': 'Tartaruga',
@@ -173,7 +158,9 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
       'Genetic': 'Genético', 'New Species': 'Nova Espécie',
       'Fossil': 'Fóssil', 'Spiral': 'Espiral', 'Formidable': 'Formidável',
     };
-    return tr[en] ?? en;
+    // Se vier PT-BR da API já está traduzido — retorna direto
+    // Se vier EN, tenta traduzir via mapa estático
+    return tr[cleaned] ?? cleaned;
   }
 
   // Mapa: pokedexId (chave do storage) → nome exibido no chip "DISPONÍVEL EM"
@@ -190,8 +177,7 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
   };
 
   List<String> get _availableGames {
-    if (_speciesData == null) return [];
-    final gen = _speciesData!['generation']?['name'] as String? ?? '';
+    final gen = PokedexDataService.instance.getGeneration(widget.pokemon.id);
 
     // Todos os jogos cobertos por cada geração
     const genToAllGames = {
