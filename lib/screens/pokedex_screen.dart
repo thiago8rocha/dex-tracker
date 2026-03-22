@@ -2261,7 +2261,7 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return DraggableScrollableSheet(
-      initialChildSize: 0.0, minChildSize: 0.0, maxChildSize: 0.85, expand: false, snap: true, snapSizes: const [0.62],
+      initialChildSize: 0.62, minChildSize: 0.5, maxChildSize: 0.85, expand: false,
       builder: (_, ctrl) => Column(children: [
         const SizedBox(height: 8),
         Container(width: 40, height: 4, decoration: BoxDecoration(
