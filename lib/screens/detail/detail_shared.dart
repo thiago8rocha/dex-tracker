@@ -1108,30 +1108,39 @@ class _StatusTabState extends State<StatusTab>
           title: 'STATUS BASE',
           pokemonTypes: p.types,
           child: Column(children: [
-            // Abas Base / Mín / Máx
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: typeColor.withOpacity(0.10),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                labelColor: typeColor,
-                unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                indicator: BoxDecoration(
-                  color: typeColor.withOpacity(0.20),
+            // Abas Base / Mín / Máx — tamanho compacto alinhado ao card
+            Align(
+              alignment: Alignment.center,
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: typeColor.withOpacity(0.10),
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: typeColor.withOpacity(0.25), width: 1),
                 ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                tabs: const [
-                  Tab(text: 'Base'),
-                  Tab(text: 'Mín'),
-                  Tab(text: 'Máx'),
-                ],
+                child: IntrinsicWidth(
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: typeColor,
+                    unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                    indicator: BoxDecoration(
+                      color: typeColor.withOpacity(0.22),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    dividerColor: Colors.transparent,
+                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.3),
+                    unselectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                    tabAlignment: TabAlignment.center,
+                    isScrollable: true,
+                    padding: const EdgeInsets.all(3),
+                    tabs: const [
+                      Tab(text: 'Base', height: 28),
+                      Tab(text: 'Mín',  height: 28),
+                      Tab(text: 'Máx',  height: 28),
+                    ],
+                  ),
+                ),
               ),
             ),
             // Barras de stat
@@ -1156,7 +1165,7 @@ class _StatusTabState extends State<StatusTab>
 
         // ── SEÇÃO RELAÇÕES DE DANO ────────────────────────────────
         SectionCard(
-          title: 'RELAÇÕES DE DANO',
+          title: 'EFETIVIDADE DE TIPOS',
           pokemonTypes: p.types,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -1202,10 +1211,16 @@ class _StatBarRow extends StatelessWidget {
   @override
   Widget build(BuildContext _) {
     return AnimatedBuilder(
-      animation: tabController,
+      animation: tabController.animation!,
       builder: (ctx, __) {
-        final idx = tabController.index;
-        final val = idx == 0 ? row.base : idx == 1 ? minVal : maxVal;
+        // Interpolação suave entre valores durante a animação
+        final anim = tabController.animation!.value;
+        final fromIdx = tabController.previousIndex;
+        final toIdx   = tabController.index;
+        int fromVal = fromIdx == 0 ? row.base : fromIdx == 1 ? minVal : maxVal;
+        int toVal   = toIdx   == 0 ? row.base : toIdx   == 1 ? minVal : maxVal;
+        final t = (anim - fromIdx).abs().clamp(0.0, 1.0);
+        final val = (fromVal + (toVal - fromVal) * t).round();
         return StatBar(label: row.label, value: val, color: row.color);
       },
     );
@@ -2084,9 +2099,10 @@ class StatBar extends StatelessWidget {
           textAlign: TextAlign.right)),
         const SizedBox(width: 8),
         Expanded(child: ClipRRect(
-          borderRadius: BorderRadius.circular(3),
+          borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: value / 255,
+            minHeight: 10,
             backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             valueColor: AlwaysStoppedAnimation<Color>(color),
             minHeight: 5,
@@ -2174,7 +2190,7 @@ Map<String, double> calculateWeaknesses(List<String> types) {
   final mults = <String, double>{};
   for (final type in types) {
     for (final entry in (tc[type.toLowerCase()] ?? {}).entries) {
-      final k = ptType(entry.key);
+      final k = entry.key; // mantém em EN — ptType() aplicado na UI
       mults[k] = (mults[k] ?? 1.0) * entry.value;
     }
   }
