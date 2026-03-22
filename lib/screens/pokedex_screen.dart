@@ -1088,8 +1088,10 @@ class _PokemonCard extends StatelessWidget {
                       child: Image.asset(
                         pokemonSpriteAsset(entry.speciesId, defaultSprite),
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.catching_pokemon, size: 40),
+                        errorBuilder: (_, error, ___) {
+                          debugPrint('SPRITE FAIL: ${pokemonSpriteAsset(entry.speciesId, defaultSprite)} — $error');
+                          return const Icon(Icons.catching_pokemon, size: 40);
+                        },
                       ),
                     ),
                   ),

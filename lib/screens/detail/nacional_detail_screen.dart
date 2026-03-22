@@ -163,50 +163,46 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
     return tr[cleaned] ?? cleaned;
   }
 
-  // Mapa: pokedexId (chave do storage) → nome exibido no chip "DISPONÍVEL EM"
-  // O pokedexId é gerado pelo getter name.toLowerCase().replaceAll(...)
-  static const Map<String, String> _pokedexIdToGameName = {
-    "lets_go_pikachu___eevee":           "Let's Go P/E",
-    "firered___leafgreen":               'FireRed / LeafGreen',
-    "sword___shield":                    'Sword / Shield',
-    "brilliant_diamond___shining_pearl": 'BD / Shining Pearl',
-    "legends:_arceus":                   'Legends: Arceus',
-    "scarlet___violet":                  'Scarlet / Violet',
-    "pokémon_go":                        'Pokémon GO',
-    "pokopia":                           'Pokopia',
+  // Mapeamento: nome do jogo no JSON → pokedexId no storage
+  // Usado para filtrar apenas as pokedexes que o usuário tem ativas
+  static const Map<String, String> _gameToPokedexId = {
+    'Red / Blue':                      'red___blue',
+    'Gold / Silver':                   'gold___silver',
+    'Ruby / Sapphire':                 'ruby___sapphire',
+    'FireRed / LeafGreen (GBA)':       'firered___leafgreen_(gba)',
+    'Emerald':                         'emerald',
+    'Diamond / Pearl':                 'diamond___pearl',
+    'Platinum':                        'platinum',
+    'HeartGold / SoulSilver':          'heartgold___soulsilver',
+    'Black / White':                   'black___white',
+    'Black 2 / White 2':               'black_2___white_2',
+    'X / Y':                           'x___y',
+    'Omega Ruby / Alpha Sapphire':     'omega_ruby___alpha_sapphire',
+    'Sun / Moon':                      'sun___moon',
+    'Ultra Sun / Ultra Moon':          'ultra_sun___ultra_moon',
+    "Let's Go Pikachu / Eevee":        'let\'s_go_pikachu___eevee',
+    'Sword / Shield':                  'sword___shield',
+    'Brilliant Diamond / Shining Pearl': 'brilliant_diamond___shining_pearl',
+    'Legends: Arceus':                 'legends_arceus',
+    'Scarlet / Violet':                'scarlet___violet',
+    'Legends: Z-A':                    'legends_z-a',
+    'FireRed / LeafGreen':             'firered___leafgreen',
+    'Pokémon GO':                      'pokémon_go',
+    'Pokopia':                         'pokopia',
   };
 
   List<String> get _availableGames {
-    final gen = PokedexDataService.instance.getGeneration(widget.pokemon.id);
+    // Dados reais do JSON — lista exata de jogos onde o pokémon aparece
+    final allGames = PokedexDataService.instance.getGames(widget.pokemon.id);
 
-    // Todos os jogos cobertos por cada geração
-    const genToAllGames = {
-      'generation-i':    ["Let's Go P/E", 'FireRed / LeafGreen', 'Sword / Shield', 'BD / Shining Pearl', 'Scarlet / Violet', 'Legends: Arceus', 'Pokémon GO', 'Pokopia'],
-      'generation-ii':   ['Sword / Shield', 'BD / Shining Pearl', 'Scarlet / Violet', 'Pokémon GO'],
-      'generation-iii':  ['FireRed / LeafGreen', 'Sword / Shield', 'BD / Shining Pearl', 'Scarlet / Violet', 'Pokémon GO'],
-      'generation-iv':   ['Sword / Shield', 'BD / Shining Pearl', 'Scarlet / Violet', 'Legends: Arceus', 'Pokémon GO'],
-      'generation-v':    ['Sword / Shield', 'Scarlet / Violet', 'Pokémon GO'],
-      'generation-vi':   ['Sword / Shield', 'Scarlet / Violet', 'Pokémon GO'],
-      'generation-vii':  ['Sword / Shield', 'Scarlet / Violet', 'Pokémon GO'],
-      'generation-viii': ['Sword / Shield', 'BD / Shining Pearl', 'Legends: Arceus', 'Pokémon GO'],
-      'generation-ix':   ['Scarlet / Violet'],
-    };
+    // Se não há filtro de pokedexes ativas, retorna tudo
+    if (_activePokedexIds == null) return allGames;
 
-    final allForGen = List<String>.from(genToAllGames[gen] ?? []);
-
-    // Se _activePokedexIds == null, todas as Pokedex estão ativas (padrão)
-    if (_activePokedexIds == null) return allForGen;
-
-    // Mapa invertido: gameName → pokedexId para filtrar
-    final nameToId = {
-      for (final e in _pokedexIdToGameName.entries) e.value: e.key,
-    };
-
-    // Filtra: mantém só os jogos cuja Pokedex está ativa
-    return allForGen.where((gameName) {
-      final id = nameToId[gameName];
-      if (id == null) return true; // não mapeado = sempre exibe
-      return _activePokedexIds!.contains(id);
+    // Filtra mantendo só os jogos cuja pokedex está ativa
+    return allGames.where((game) {
+      final dexId = _gameToPokedexId[game];
+      if (dexId == null) return true; // não mapeado = sempre exibe
+      return _activePokedexIds!.contains(dexId);
     }).toList();
   }
 
