@@ -516,16 +516,18 @@ class _PokedexScreenState extends State<PokedexScreen>
       _pokemonData[entry.speciesId] = _localPokemonData(entry.speciesId);
     }
 
-    // Busca stats da API se ainda não temos (só ao abrir detalhe)
-    final existing = _pokemonData[entry.speciesId]!;
-    if (existing['stats'] == null) {
-      final apiData = await _api.fetchPokemon(entry.speciesId);
-      if (apiData != null && mounted) {
-        _pokemonData[entry.speciesId] = {
-          ...existing,
-          'stats': apiData['stats'],
-        };
-      }
+    // Busca stats em background — não bloqueia a abertura da tela
+    if (_pokemonData[entry.speciesId]!['stats'] == null) {
+      _api.fetchPokemon(entry.speciesId).then((apiData) {
+        if (apiData != null && mounted) {
+          setState(() {
+            _pokemonData[entry.speciesId] = {
+              ..._pokemonData[entry.speciesId]!,
+              'stats': apiData['stats'],
+            };
+          });
+        }
+      });
     }
 
     final pokemon = _buildPokemon(entry.speciesId);
