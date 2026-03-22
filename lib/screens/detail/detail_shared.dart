@@ -1170,8 +1170,8 @@ class _StatusTabState extends State<StatusTab>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              if (quad.isNotEmpty)   _DamageGroup(title: 'Fraco contra',         subtitle: '4× de dano',      entries: quad),
-              if (fraq.isNotEmpty)   _DamageGroup(title: 'Fraco contra',         subtitle: '2× de dano',      entries: fraq),
+              if (quad.isNotEmpty)   _DamageGroup(title: 'Muito fraco a',         subtitle: '4× de dano',      entries: quad),
+              if (fraq.isNotEmpty)   _DamageGroup(title: 'Fraco a',              subtitle: '2× de dano',      entries: fraq),
               if (neutral.isNotEmpty) _DamageGroup(title: 'Dano normal',         subtitle: '1× de dano',      entries: neutral),
               if (half.isNotEmpty)   _DamageGroup(title: 'Resistente a',         subtitle: '1/2× de dano',    entries: half),
               if (quart.isNotEmpty)  _DamageGroup(title: 'Muito resistente a',   subtitle: '1/4× de dano',    entries: quart),
