@@ -6,14 +6,12 @@ import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/dex_bundle_service.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
-    show defaultSpriteNotifier;
+    show defaultSpriteNotifier, TypeBadge;
 import 'package:pokedex_tracker/screens/detail/nacional_detail_screen.dart';
 import 'package:pokedex_tracker/screens/detail/mainline_detail_screen.dart';
 import 'package:pokedex_tracker/screens/go/go_detail_screen.dart';
 import 'package:pokedex_tracker/screens/pokopia/pokopia_detail_screen.dart';
 import 'package:pokedex_tracker/models/pokemon.dart';
-import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
-    show defaultSpriteNotifier;
 import 'package:pokedex_tracker/theme/type_colors.dart';
 
 // ─── TIPO PT ─────────────────────────────────────────────────────
@@ -1116,7 +1114,7 @@ class _PokemonCard extends StatelessWidget {
                   Wrap(
                     alignment: WrapAlignment.center,
                     spacing: 3,
-                    children: types.map((t) => TypeBadge(type: t)).toList(),
+                    children: types.map<Widget>((t) => TypeBadge(type: t)).toList(),
                   ),
                 ],
               ),
