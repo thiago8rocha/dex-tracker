@@ -6,7 +6,7 @@ import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/dex_bundle_service.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
-    show defaultSpriteNotifier, typeNamePt, typeIconColors;
+    show defaultSpriteNotifier, typeNamePt, typeIconColors, TypeBadge;
 import 'package:pokedex_tracker/screens/detail/nacional_detail_screen.dart';
 import 'package:pokedex_tracker/screens/detail/mainline_detail_screen.dart';
 import 'package:pokedex_tracker/screens/go/go_detail_screen.dart';
@@ -803,10 +803,6 @@ class _PokedexScreenState extends State<PokedexScreen>
               onPressed: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const SettingsScreen())),
             ),
-            Builder(builder: (ctx) => IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(ctx).openEndDrawer(),
-            )),
           ],
         ],
       ),
@@ -815,8 +811,7 @@ class _PokedexScreenState extends State<PokedexScreen>
       body: Column(
         children: [
           // Filtro de jogo — aparece abaixo do AppBar
-          if (!_searchOpen) _buildGameFilterBar(),
-          if (!_searchOpen) _buildGenTypeFilterBar(),
+          if (!_searchOpen) _buildAllFiltersBar(),
           // Abas Standard / Event (só Pokopia base)
           if (_isPokopiaBase && _pokopiaTabController != null)
             _buildPokopiaTabBar(),
@@ -1269,51 +1264,91 @@ class _PokedexScreenState extends State<PokedexScreen>
 
   // ── Filtro de jogo ────────────────────────────────────────────
 
-  Widget _buildGameFilterBar() {
+  Widget _buildAllFiltersBar() {
     final scheme = Theme.of(context).colorScheme;
     final gameName = _activeGameName;
     final colors = _gameColors[gameName];
     final c1 = colors != null ? Color(colors[0]) : scheme.primary;
     final c2 = colors != null ? Color(colors[1]) : scheme.primary;
-    final gens = _gameGenerations[gameName];
-    final genLabel = gens != null ? 'Gen ${gens.first}${gens.length > 1 ? "–${gens.last}" : ""}' : '';
+
+    // Rótulo geração do jogo (a gen em que saiu, não as gens dos pokémon)
+    // _gamesByGen contém a gen de lançamento de cada jogo
+    int? launchGen;
+    for (final entry in _gamesByGen.entries) {
+      if (entry.value.any((g) => g['name'] == gameName)) {
+        launchGen = entry.key; break;
+      }
+    }
+    final genSuffix = launchGen != null ? '  Gen $launchGen' : '';
+
+    final hasGen  = _selectedGens.isNotEmpty;
+    final hasType = _filterTypes.isNotEmpty;
+
+    String genLabel = hasGen
+        ? _selectedGens.map((g) => 'Gen $g').join(', ')
+        : 'Geração';
+    if (genLabel.length > 14) genLabel = '${_selectedGens.length} gens';
+
+    String typeLabel = hasType
+        ? _filterTypes.map((t) => typeNamePt[t] ?? t).join(' + ')
+        : 'Tipo';
 
     return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(
           color: scheme.outlineVariant, width: 0.5))),
-      child: GestureDetector(
-        onTap: _showGamePicker,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [c1.withOpacity(0.15), c2.withOpacity(0.15)]),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: c1.withOpacity(0.4), width: 1),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Container(width: 10, height: 10,
+      child: Row(children: [
+        // ── Filtro de Jogo ──
+        Expanded(
+          flex: 5,
+          child: GestureDetector(
+            onTap: _showGamePicker,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [c1, c2]),
-                shape: BoxShape.circle)),
-            const SizedBox(width: 8),
-            Text(gameName,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              overflow: TextOverflow.ellipsis),
-            if (genLabel.isNotEmpty) ...[
-              const SizedBox(width: 6),
-              Text(genLabel,
-                style: TextStyle(fontSize: 10,
-                  color: scheme.onSurfaceVariant)),
-            ],
-            const SizedBox(width: 6),
-            Icon(Icons.keyboard_arrow_down, size: 16,
-              color: scheme.onSurfaceVariant),
-          ]),
+                gradient: LinearGradient(
+                  colors: [c1.withOpacity(0.15), c2.withOpacity(0.15)]),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: c1.withOpacity(0.45), width: 1)),
+              child: Row(children: [
+                Expanded(child: Text(
+                  gameName + genSuffix,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600))),
+                Icon(Icons.keyboard_arrow_down, size: 15,
+                  color: scheme.onSurfaceVariant),
+              ]),
+            ),
+          ),
         ),
-      ),
+        const SizedBox(width: 6),
+        // ── Filtro de Geração ──
+        Expanded(
+          flex: 3,
+          child: _FilterDropBtn(
+            label: genLabel, active: hasGen,
+            onTap: _showGenPicker,
+            onClear: hasGen ? () {
+              setState(() { _selectedGens.clear(); _currentPage = 0; _visibleEntries = []; });
+              _loadPage(0);
+            } : null,
+          ),
+        ),
+        const SizedBox(width: 6),
+        // ── Filtro de Tipo ──
+        Expanded(
+          flex: 3,
+          child: _FilterDropBtn(
+            label: typeLabel, active: hasType,
+            onTap: _showTypePicker,
+            onClear: hasType ? () {
+              setState(() { _filterTypes.clear(); _currentPage = 0; _visibleEntries = []; });
+              _loadPage(0);
+            } : null,
+          ),
+        ),
+      ]),
     );
   }
 
@@ -1364,36 +1399,52 @@ class _PokedexScreenState extends State<PokedexScreen>
         color: Theme.of(context).colorScheme.surface,
         border: Border(top: BorderSide(
           color: Theme.of(context).colorScheme.outlineVariant, width: 0.5))),
-      child: Row(children: items.map((item) {
-        final isActive = _navIndex == item.$1;
-        final color = isActive
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.onSurfaceVariant;
-        return Expanded(child: InkWell(
-          onTap: () {
-            if (item.$1 == 0) { setState(() => _navIndex = 0); return; }
-            if (item.$1 == 1) {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const PocketHubScreen()));
-              return;
-            }
-            if (item.$1 == 2) {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const GoHubScreen()));
-              return;
-            }
-            if (item.$1 == 3) {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const PokopiaHubScreen()));
-              return;
-            }
-          },
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(item.$2, size: 22, color: color),
-            const SizedBox(height: 2),
-            Text(item.$3, style: TextStyle(fontSize: 10,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              color: color)),
-          ]),
-        ));
-      }).toList()),
+      child: Row(children: [
+        ...items.map((item) {
+          final isActive = _navIndex == item.$1;
+          final color = isActive
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurfaceVariant;
+          return Expanded(child: InkWell(
+            onTap: () {
+              if (item.$1 == 0) { setState(() => _navIndex = 0); return; }
+              if (item.$1 == 1) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const PocketHubScreen()));
+                return;
+              }
+              if (item.$1 == 2) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const GoHubScreen()));
+                return;
+              }
+              if (item.$1 == 3) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const PokopiaHubScreen()));
+                return;
+              }
+            },
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(item.$2, size: 22, color: color),
+              const SizedBox(height: 2),
+              Text(item.$3, style: TextStyle(fontSize: 10,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                color: color)),
+            ]),
+          ));
+        }),
+        // Menu (≡) após Pokopia
+        Builder(builder: (ctx) => InkWell(
+          onTap: () => Scaffold.of(ctx).openEndDrawer(),
+          child: SizedBox(width: 56, child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.menu, size: 22,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              const SizedBox(height: 2),
+              Text('Menu', style: TextStyle(fontSize: 10,
+                color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            ],
+          )),
+        )),
+      ]),
     ));
   }
 
@@ -1915,24 +1966,26 @@ class _FilterDropBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fg = active ? scheme.primary : scheme.onSurfaceVariant;
-    final bg = active ? scheme.primary.withOpacity(0.1) : Colors.transparent;
+    final bg = active ? scheme.primary.withOpacity(0.10) : Colors.transparent;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.fromLTRB(12, 6, onClear != null ? 4 : 12, 6),
+        width: double.infinity,
+        padding: EdgeInsets.fromLTRB(10, 7, onClear != null ? 4 : 10, 7),
         decoration: BoxDecoration(
-          color: bg, borderRadius: BorderRadius.circular(6),
+          color: bg,
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(
             color: active ? scheme.primary : scheme.outlineVariant, width: 1)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(label, style: TextStyle(
-            fontSize: 12, fontWeight: FontWeight.w500, color: fg)),
-          const SizedBox(width: 4),
+        child: Row(children: [
+          Expanded(child: Text(label,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: fg))),
           if (onClear != null)
             GestureDetector(onTap: onClear,
-              child: Icon(Icons.close, size: 14, color: fg))
+              child: Icon(Icons.close, size: 13, color: fg))
           else
-            Icon(Icons.keyboard_arrow_down, size: 16, color: fg),
+            Icon(Icons.keyboard_arrow_down, size: 14, color: fg),
         ]),
       ),
     );
@@ -2183,35 +2236,29 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
         Expanded(child: GridView.builder(
           controller: ctrl, padding: const EdgeInsets.all(16),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8,
-            childAspectRatio: 2.6),
+            crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10,
+            childAspectRatio: 2.8),
           itemCount: _types.length,
           itemBuilder: (_, i) {
             final t = _types[i];
-            final label = typeNamePt[t] ?? t;
-            final color = TypeColors.fromType(label);
             final on = _sel.contains(t);
             final disabled = !on && _sel.length >= 2;
             return GestureDetector(
               onTap: disabled ? null
                   : () => setState(() => on ? _sel.remove(t) : _sel.add(t)),
               child: Opacity(opacity: disabled ? 0.35 : 1.0,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: on ? color : color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: on ? color : color.withOpacity(0.35), width: 1)),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset('assets/types/$t.png', width: 20, height: 20,
-                        errorBuilder: (_, __, ___) => const SizedBox(width: 20)),
-                      const SizedBox(width: 4),
-                      Flexible(child: Text(label, overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                          color: on ? Colors.white : color))),
-                    ]),
-                )),
+                child: Stack(children: [
+                  // TypeBadge — mesmo componente de Sobre e Golpes
+                  TypeBadge(type: t),
+                  if (on)
+                    Positioned(top: 2, right: 2,
+                      child: Container(
+                        width: 14, height: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.white, shape: BoxShape.circle,
+                          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 2)]),
+                        child: const Icon(Icons.check, size: 10, color: Colors.black87))),
+                ])),
             );
           },
         )),
