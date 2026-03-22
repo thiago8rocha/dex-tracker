@@ -1614,26 +1614,35 @@ class _PokemonCard extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 4),
-                  // Badges: cor sólida por tipo
+                  // Badges com ícone — padrão do projeto
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: types.map((type) {
+                      final typeKey = type.toLowerCase();
                       final color = TypeColors.fromType(_pt(type));
                       return Container(
                         margin: const EdgeInsets.symmetric(horizontal: 2),
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        padding: const EdgeInsets.fromLTRB(2, 1, 5, 1),
                         decoration: BoxDecoration(
                           color: color,
                           borderRadius: BorderRadius.circular(3),
                         ),
-                        child: Text(
-                          _pt(type),
-                          style: const TextStyle(
-                            fontSize: 8,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Image.asset(
+                            'assets/types/$typeKey.png',
+                            width: 12, height: 12,
+                            errorBuilder: (_, __, ___) => const SizedBox(width: 12),
                           ),
-                        ),
+                          const SizedBox(width: 2),
+                          Text(
+                            _pt(type),
+                            style: const TextStyle(
+                              fontSize: 8,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ]),
                       );
                     }).toList(),
                   ),
@@ -1786,13 +1795,38 @@ class _FilterSheetState extends State<_FilterSheet> {
           Text('Status', style: Theme.of(context).textTheme.labelMedium
               ?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.8)),
           const SizedBox(height: 8),
-          Wrap(spacing: 8, runSpacing: 6, children: [
+          Row(children: [
             for (final s in _statusOptions)
-              ChoiceChip(
-                label: Text(s[0].toUpperCase() + s.substring(1)),
-                selected: _status == s,
-                onSelected: (_) => setState(() => _status = s),
-              ),
+              Expanded(child: Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: GestureDetector(
+                  onTap: () => setState(() => _status = s),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    decoration: BoxDecoration(
+                      color: _status == s
+                          ? scheme.primary.withOpacity(0.12)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: _status == s ? scheme.primary : scheme.outlineVariant,
+                        width: 1)),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      if (_status == s) ...[
+                        Icon(Icons.check, size: 13, color: scheme.primary),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        s == 'todos' ? 'Todos'
+                            : s == 'capturados' ? 'Capturados'
+                            : 'Não capturados',
+                        style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w500,
+                          color: _status == s ? scheme.primary : scheme.onSurface)),
+                    ]),
+                  ),
+                ),
+              )),
           ]),
           const SizedBox(height: 20),
 
@@ -1827,20 +1861,39 @@ class _FilterSheetState extends State<_FilterSheet> {
             for (final s in [('numero', 'Número'), ('nome', 'Nome')])
               Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(s.$2),
-                  selected: _sort == s.$1,
-                  onSelected: (_) => setState(() => _sort = s.$1),
+                child: GestureDetector(
+                  onTap: () => setState(() => _sort = s.$1),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: _sort == s.$1
+                          ? scheme.primary.withOpacity(0.12)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: _sort == s.$1 ? scheme.primary : scheme.outlineVariant,
+                        width: 1)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (_sort == s.$1) ...[
+                        Icon(Icons.check, size: 13, color: scheme.primary),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(s.$2, style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w500,
+                        color: _sort == s.$1 ? scheme.primary : scheme.onSurface)),
+                    ]),
+                  ),
                 ),
               ),
             const Spacer(),
             GestureDetector(
               onTap: () => setState(() => _dir = _dir == 'asc' ? 'desc' : 'asc'),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                 decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: scheme.outlineVariant, width: 1),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(
@@ -2208,7 +2261,7 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return DraggableScrollableSheet(
-      initialChildSize: 0.55, minChildSize: 0.45, maxChildSize: 0.85, expand: false,
+      initialChildSize: 0.0, minChildSize: 0.0, maxChildSize: 0.85, expand: false, snap: true, snapSizes: const [0.62],
       builder: (_, ctrl) => Column(children: [
         const SizedBox(height: 8),
         Container(width: 40, height: 4, decoration: BoxDecoration(
@@ -2216,7 +2269,7 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
         const SizedBox(height: 12),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Tipo (máx. 2)', style: Theme.of(context).textTheme.titleSmall
+            Text('Selecione até dois tipos diferentes', style: Theme.of(context).textTheme.titleSmall
                 ?.copyWith(fontWeight: FontWeight.w700)),
             TextButton(onPressed: () => Navigator.pop(context, <String>{}),
               child: const Text('Limpar')),
@@ -2227,8 +2280,7 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
               child: Text('${_sel.length}/2 selecionado(s)',
                 style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)))),
         Divider(height: 1, color: scheme.outlineVariant),
-        Expanded(child: SingleChildScrollView(
-          controller: ctrl,
+        Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
           child: Wrap(
             spacing: 6,
@@ -2241,14 +2293,12 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
                     : () => setState(() => on ? _sel.remove(t) : _sel.add(t)),
                 child: Opacity(
                   opacity: disabled ? 0.35 : 1.0,
-                  child: SizedBox(
-                    width: 118,
-                    child: TypeBadge(type: t)),
+                  child: SizedBox(width: 118, child: TypeBadge(type: t)),
                 ),
               );
             }).toList(),
           ),
-        )),
+        ),
         Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: SizedBox(width: double.infinity,
             child: OutlinedButton(
