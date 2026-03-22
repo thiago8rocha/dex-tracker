@@ -266,7 +266,13 @@ class _PokedexScreenState extends State<PokedexScreen>
     if (_isNacional && _selectedGens.isNotEmpty) {
       // Filtra por gens selecionadas
       final allNac = _entriesBySection['national'] ?? [];
-      final genRanges = nationalGens.where((g) => _selectedGens.contains(g.label)).toList();
+      // _selectedGens usa números ("1","2"...) — converter para labels ("Gen I","Gen II"...)
+      final genLabels = _selectedGens.map((n) {
+        const m = {'1':'Gen I','2':'Gen II','3':'Gen III','4':'Gen IV','5':'Gen V',
+                   '6':'Gen VI','7':'Gen VII','8':'Gen VIII','9':'Gen IX'};
+        return m[n] ?? n;
+      }).toSet();
+      final genRanges = nationalGens.where((g) => genLabels.contains(g.label)).toList();
       entries = allNac.where((e) =>
         genRanges.any((g) => e.speciesId >= g.startId && e.speciesId <= g.endId)
       ).toList();
@@ -767,7 +773,7 @@ class _PokedexScreenState extends State<PokedexScreen>
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.pokedexName,
+                  Text(widget.pokedexName == 'Nacional' ? 'National Pokédex' : widget.pokedexName,
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   Text(
                     '$caught / ${_entriesBySection.values.fold(0, (s, l) => s + l.length) == 0 ? widget.totalPokemon : _entriesBySection.values.fold(0, (s, l) => s + l.length)} ${_isPokopia ? 'encontrados' : 'capturados'}',
@@ -792,6 +798,11 @@ class _PokedexScreenState extends State<PokedexScreen>
           else ...[
             IconButton(icon: const Icon(Icons.search), onPressed: () => setState(() => _searchOpen = true)),
             IconButton(icon: const Icon(Icons.filter_list), onPressed: _showFilterSheet),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen())),
+            ),
             Builder(builder: (ctx) => IconButton(
               icon: const Icon(Icons.menu),
               onPressed: () => Scaffold.of(ctx).openEndDrawer(),
@@ -805,12 +816,12 @@ class _PokedexScreenState extends State<PokedexScreen>
         children: [
           // Filtro de jogo — aparece abaixo do AppBar
           if (!_searchOpen) _buildGameFilterBar(),
+          if (!_searchOpen) _buildGenTypeFilterBar(),
           // Abas Standard / Event (só Pokopia base)
           if (_isPokopiaBase && _pokopiaTabController != null)
             _buildPokopiaTabBar(),
           // Chips de seção (jogos com DLC ou Nacional com gens)
           if (_sections.length > 1) _buildSectionChips(),
-          if (_isNacional) _buildGenChips(),
           Expanded(child: _buildBody(filtered)),
         ],
       ),
@@ -1047,19 +1058,103 @@ class _PokedexScreenState extends State<PokedexScreen>
         isPokopia: _isPokopia,
         onApply: (status, types, specialties, sort, dir) {
           setState(() {
-            _filterStatus     = status;
-            _filterTypes      = types;
+            _filterStatus      = status;
+            _filterTypes       = types;
             _filterSpecialties = specialties;
-            _sortBy           = sort;
-            _sortDir          = dir;
-            _currentPage      = 0;
-            _visibleEntries   = [];
+            _sortBy            = sort;
+            _sortDir           = dir;
+            _currentPage       = 0;
+            _visibleEntries    = [];
           });
           _loadPage(0);
           Navigator.pop(ctx);
         },
       ),
     );
+  }
+
+  // ── Barra de Geração + Tipo ──────────────────────────────────
+
+  Widget _buildGenTypeFilterBar() {
+    final scheme = Theme.of(context).colorScheme;
+    final hasGen  = _selectedGens.isNotEmpty;
+    final hasType = _filterTypes.isNotEmpty;
+
+    String genLabel = hasGen
+        ? _selectedGens.map((g) => 'Gen $g').join(', ')
+        : 'Geração';
+    if (genLabel.length > 20) genLabel = '${_selectedGens.length} gerações';
+
+    String typeLabel = hasType
+        ? _filterTypes.map((t) => typeNamePt[t] ?? t).join(' + ')
+        : 'Tipo';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(
+          color: scheme.outlineVariant, width: 0.5))),
+      child: Row(children: [
+        _FilterDropBtn(
+          label: genLabel, active: hasGen,
+          onTap: _showGenPicker,
+          onClear: hasGen ? () {
+            setState(() { _selectedGens.clear(); _currentPage = 0; _visibleEntries = []; });
+            _loadPage(0);
+          } : null,
+        ),
+        const SizedBox(width: 8),
+        _FilterDropBtn(
+          label: typeLabel, active: hasType,
+          onTap: _showTypePicker,
+          onClear: hasType ? () {
+            setState(() { _filterTypes.clear(); _currentPage = 0; _visibleEntries = []; });
+            _loadPage(0);
+          } : null,
+        ),
+      ]),
+    );
+  }
+
+  void _showGenPicker() async {
+    // Gerações disponíveis para o jogo atual
+    final gameName = _activeGameName;
+    final availableInts = _gameGenerations[gameName] ?? [1,2,3,4,5,6,7,8,9];
+    final result = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => _GenDropSheet(
+        available: availableInts.map((g) => g.toString()).toSet(),
+        selected: Set.from(_selectedGens),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _selectedGens.clear();
+      _selectedGens.addAll(result);
+      _currentPage = 0;
+      _visibleEntries = [];
+    });
+    _loadPage(0);
+  }
+
+  void _showTypePicker() async {
+    final result = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => _TypeDropSheet(selected: Set.from(_filterTypes)),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _filterTypes = result;
+      _currentPage = 0;
+      _visibleEntries = [];
+    });
+    _loadPage(0);
   }
   // ── Dados de jogos (para filtro) ────────────────────────────
   static const _gameGenerations = {
@@ -1806,7 +1901,95 @@ const _allSpecialties = [
   'Search', 'Storage', 'Teleport', 'Trade', 'Transform', 'Water', 'Yawn',
 ];
 
+// ─── FILTER DROP BUTTON ──────────────────────────────────────────
+
+class _FilterDropBtn extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+  const _FilterDropBtn({required this.label, required this.active,
+    required this.onTap, this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final fg = active ? scheme.primary : scheme.onSurfaceVariant;
+    final bg = active ? scheme.primary.withOpacity(0.1) : Colors.transparent;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(12, 6, onClear != null ? 4 : 12, 6),
+        decoration: BoxDecoration(
+          color: bg, borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: active ? scheme.primary : scheme.outlineVariant, width: 1)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(label, style: TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w500, color: fg)),
+          const SizedBox(width: 4),
+          if (onClear != null)
+            GestureDetector(onTap: onClear,
+              child: Icon(Icons.close, size: 14, color: fg))
+          else
+            Icon(Icons.keyboard_arrow_down, size: 16, color: fg),
+        ]),
+      ),
+    );
+  }
+}
+
 // ─── GAME PICKER SHEET ───────────────────────────────────────────
+
+// Agrupamento de jogos por geração (a gen em que o jogo foi lançado)
+const _gamesByGen = <int, List<Map<String, dynamic>>>{
+  1: [
+    {'name': 'Red / Blue',            'c1': 0xFFE53935, 'c2': 0xFF1565C0},
+    {'name': 'Yellow',                'c1': 0xFFFDD835, 'c2': 0xFFFF8F00},
+  ],
+  2: [
+    {'name': 'Gold / Silver',         'c1': 0xFFFFCA28, 'c2': 0xFFB0BEC5},
+    {'name': 'Crystal',               'c1': 0xFF29B6F6, 'c2': 0xFFE1F5FE},
+  ],
+  3: [
+    {'name': 'Ruby / Sapphire',       'c1': 0xFFE53935, 'c2': 0xFF1E88E5},
+    {'name': 'FireRed / LeafGreen (GBA)', 'c1': 0xFFEF5350, 'c2': 0xFF43A047},
+    {'name': 'Emerald',               'c1': 0xFF43A047, 'c2': 0xFF00BCD4},
+  ],
+  4: [
+    {'name': 'Diamond / Pearl',       'c1': 0xFF90CAF9, 'c2': 0xFFF48FB1},
+    {'name': 'Platinum',              'c1': 0xFF78909C, 'c2': 0xFFCFD8DC},
+    {'name': 'HeartGold / SoulSilver','c1': 0xFFFFCA28, 'c2': 0xFFB0BEC5},
+  ],
+  5: [
+    {'name': 'Black / White',         'c1': 0xFF424242, 'c2': 0xFFBDBDBD},
+    {'name': 'Black 2 / White 2',     'c1': 0xFF1A237E, 'c2': 0xFFE0E0E0},
+  ],
+  6: [
+    {'name': 'X / Y',                 'c1': 0xFF1565C0, 'c2': 0xFFE53935},
+    {'name': 'Omega Ruby / Alpha Sapphire', 'c1': 0xFFE53935, 'c2': 0xFF1E88E5},
+  ],
+  7: [
+    {'name': 'Sun / Moon',            'c1': 0xFFFF8F00, 'c2': 0xFF7B1FA2},
+    {'name': 'Ultra Sun / Ultra Moon','c1': 0xFFFF6F00, 'c2': 0xFF4A148C},
+    {'name': "Let's Go Pikachu / Eevee", 'c1': 0xFFFDD835, 'c2': 0xFF8D6E63},
+  ],
+  8: [
+    {'name': 'Sword / Shield',        'c1': 0xFF42A5F5, 'c2': 0xFFEF5350},
+    {'name': 'Brilliant Diamond / Shining Pearl', 'c1': 0xFF42A5F5, 'c2': 0xFFEC407A},
+    {'name': 'Legends: Arceus',       'c1': 0xFFFFCA28, 'c2': 0xFFFFFDE7},
+  ],
+  9: [
+    {'name': 'Scarlet / Violet',      'c1': 0xFFEF6C00, 'c2': 0xFF7B1FA2},
+    {'name': 'Legends: Z-A',          'c1': 0xFF546E7A, 'c2': 0xFFFFD54F},
+    {'name': 'FireRed / LeafGreen',   'c1': 0xFFEF5350, 'c2': 0xFF43A047},
+  ],
+};
+
+const _specialGames = <Map<String, dynamic>>[
+  {'name': 'Nacional',   'c1': 0xFFE8524A, 'c2': 0xFFB71C1C},
+  {'name': 'Pokémon GO', 'c1': 0xFF4285F4, 'c2': 0xFF0D47A1},
+];
 
 class _GamePickerSheet extends StatelessWidget {
   final List<String> games;
@@ -1820,8 +2003,40 @@ class _GamePickerSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final opacity = isDark ? 0.45 : 0.28;
+
+    Widget gameCard(Map<String, dynamic> g) {
+      final name = g['name'] as String;
+      final c1 = Color(g['c1'] as int);
+      final c2 = Color(g['c2'] as int);
+      final isSelected = name == selected;
+      return GestureDetector(
+        onTap: () => Navigator.pop(context, name),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              colors: [c1.withOpacity(opacity), c2.withOpacity(opacity)]),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? scheme.primary : scheme.outlineVariant,
+              width: isSelected ? 2 : 1)),
+          child: Row(children: [
+            Expanded(child: Text(name,
+              style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600,
+                color: isSelected ? scheme.primary : scheme.onSurface))),
+            if (isSelected)
+              Icon(Icons.check_circle, size: 16, color: scheme.primary),
+          ]),
+        ),
+      );
+    }
+
     return DraggableScrollableSheet(
-      initialChildSize: 0.65, minChildSize: 0.4, maxChildSize: 0.92, expand: false,
+      initialChildSize: 0.75, minChildSize: 0.5, maxChildSize: 0.95, expand: false,
       builder: (_, ctrl) => Column(children: [
         const SizedBox(height: 8),
         Container(width: 40, height: 4, decoration: BoxDecoration(
@@ -1829,43 +2044,182 @@ class _GamePickerSheet extends StatelessWidget {
         const SizedBox(height: 12),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text('Selecionar Jogo',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700))),
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700))),
         const SizedBox(height: 8),
         Divider(height: 1, color: scheme.outlineVariant),
-        Expanded(child: ListView.builder(
-          controller: ctrl,
-          itemCount: games.length,
+        Expanded(child: ListView(controller: ctrl, padding: const EdgeInsets.all(12),
+          children: [
+            // Jogos especiais (Nacional + GO)
+            ...(_specialGames.map((g) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: gameCard(g)))),
+            const SizedBox(height: 4),
+            // Grupos por geração
+            ..._gamesByGen.entries.map((entry) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 6),
+                  child: Text('Geração ${entry.key}',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                      color: scheme.onSurfaceVariant, letterSpacing: 0.5))),
+                ...entry.value.map((g) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: gameCard(g))),
+              ],
+            )),
+          ],
+        )),
+      ]),
+    );
+  }
+}
+
+// ─── GEN PICKER SHEET ────────────────────────────────────────────
+
+class _GenDropSheet extends StatefulWidget {
+  final Set<String> available;
+  final Set<String> selected;
+  const _GenDropSheet({required this.available, required this.selected});
+  @override State<_GenDropSheet> createState() => _GenDropSheetState();
+}
+
+class _GenDropSheetState extends State<_GenDropSheet> {
+  late Set<String> _sel;
+  @override void initState() { super.initState(); _sel = Set.from(widget.selected); }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final gens = widget.available.map(int.parse).toList()..sort();
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const SizedBox(height: 8),
+        Container(width: 40, height: 4, decoration: BoxDecoration(
+          color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 12),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('Geração', style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
+            TextButton(onPressed: () => Navigator.pop(context, <String>{}),
+              child: const Text('Limpar')),
+          ])),
+        Divider(height: 1, color: scheme.outlineVariant),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Wrap(spacing: 8, runSpacing: 8,
+            children: gens.map((g) {
+              final gs = g.toString();
+              final on = _sel.contains(gs);
+              return GestureDetector(
+                onTap: () => setState(() => on ? _sel.remove(gs) : _sel.add(gs)),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: on ? scheme.primary : scheme.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: on ? scheme.primary : scheme.outlineVariant)),
+                  child: Text('Geração $g', style: TextStyle(fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: on ? scheme.onPrimary : scheme.onSurface))),
+              );
+            }).toList()),
+        ),
+        const SizedBox(height: 16),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SizedBox(width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(context, _sel),
+              child: const Text('Aplicar')))),
+        const SizedBox(height: 16),
+      ]),
+    );
+  }
+}
+
+// ─── TYPE PICKER SHEET ────────────────────────────────────────────
+
+class _TypeDropSheet extends StatefulWidget {
+  final Set<String> selected;
+  const _TypeDropSheet({required this.selected});
+  @override State<_TypeDropSheet> createState() => _TypeDropSheetState();
+}
+
+class _TypeDropSheetState extends State<_TypeDropSheet> {
+  late Set<String> _sel;
+  @override void initState() { super.initState(); _sel = Set.from(widget.selected); }
+
+  static const _types = ['normal','fire','water','electric','grass','ice',
+    'fighting','poison','ground','flying','psychic','bug',
+    'rock','ghost','dragon','dark','steel','fairy'];
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return DraggableScrollableSheet(
+      initialChildSize: 0.65, minChildSize: 0.5, maxChildSize: 0.9, expand: false,
+      builder: (_, ctrl) => Column(children: [
+        const SizedBox(height: 8),
+        Container(width: 40, height: 4, decoration: BoxDecoration(
+          color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 12),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('Tipo (máx. 2)', style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
+            TextButton(onPressed: () => Navigator.pop(context, <String>{}),
+              child: const Text('Limpar')),
+          ])),
+        if (_sel.isNotEmpty)
+          Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Align(alignment: Alignment.centerLeft,
+              child: Text('${_sel.length}/2 selecionado(s)',
+                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)))),
+        Divider(height: 1, color: scheme.outlineVariant),
+        Expanded(child: GridView.builder(
+          controller: ctrl, padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8,
+            childAspectRatio: 2.6),
+          itemCount: _types.length,
           itemBuilder: (_, i) {
-            final name = games[i];
-            final colors = gameColors[name];
-            final c1 = colors != null ? Color(colors[0]) : scheme.primary;
-            final c2 = colors != null ? Color(colors[1]) : scheme.primary;
-            final gens = gameGenerations[name];
-            final genStr = gens != null
-                ? 'Gen ${gens.first}${gens.length > 1 ? "–${gens.last}" : ""}'
-                : '';
-            final isSelected = name == selected;
-            return ListTile(
-              leading: Container(
-                width: 32, height: 32,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    colors: [c1.withOpacity(0.9), c2.withOpacity(0.9)]),
-                  borderRadius: BorderRadius.circular(6)),
-              ),
-              title: Text(name, style: TextStyle(
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? scheme.primary : null)),
-              subtitle: genStr.isNotEmpty
-                  ? Text(genStr, style: const TextStyle(fontSize: 11)) : null,
-              trailing: isSelected
-                  ? Icon(Icons.check, color: scheme.primary, size: 18) : null,
-              onTap: () => Navigator.pop(context, name),
+            final t = _types[i];
+            final label = typeNamePt[t] ?? t;
+            final color = TypeColors.fromType(label);
+            final on = _sel.contains(t);
+            final disabled = !on && _sel.length >= 2;
+            return GestureDetector(
+              onTap: disabled ? null
+                  : () => setState(() => on ? _sel.remove(t) : _sel.add(t)),
+              child: Opacity(opacity: disabled ? 0.35 : 1.0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: on ? color : color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: on ? color : color.withOpacity(0.35), width: 1)),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset('assets/types/$t.png', width: 20, height: 20,
+                        errorBuilder: (_, __, ___) => const SizedBox(width: 20)),
+                      const SizedBox(width: 4),
+                      Flexible(child: Text(label, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                          color: on ? Colors.white : color))),
+                    ]),
+                )),
             );
           },
         )),
+        Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: SizedBox(width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(context, _sel),
+              child: const Text('Aplicar')))),
       ]),
     );
   }
