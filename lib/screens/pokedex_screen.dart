@@ -2200,7 +2200,7 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return DraggableScrollableSheet(
-      initialChildSize: 0.65, minChildSize: 0.5, maxChildSize: 0.9, expand: false,
+      initialChildSize: 0.55, minChildSize: 0.45, maxChildSize: 0.85, expand: false,
       builder: (_, ctrl) => Column(children: [
         const SizedBox(height: 8),
         Container(width: 40, height: 4, decoration: BoxDecoration(
@@ -2219,35 +2219,36 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
               child: Text('${_sel.length}/2 selecionado(s)',
                 style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)))),
         Divider(height: 1, color: scheme.outlineVariant),
-        Expanded(child: GridView.builder(
-          controller: ctrl, padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2, crossAxisSpacing: 6, mainAxisSpacing: 6,
-            childAspectRatio: 3.0),
-          itemCount: _types.length,
-          itemBuilder: (_, i) {
-            final t = _types[i];
-            final on = _sel.contains(t);
-            final disabled = !on && _sel.length >= 2;
-            return GestureDetector(
-              onTap: disabled ? null
-                  : () => setState(() => on ? _sel.remove(t) : _sel.add(t)),
-              child: Opacity(opacity: disabled ? 0.35 : 1.0,
-                child: Stack(children: [
-                  // TypeBadge — mesmo componente de Sobre e Golpes
-                  TypeBadge(type: t),
-                  if (on)
-                    Positioned(top: 2, right: 2,
-                      child: Container(
-                        width: 14, height: 14,
-                        decoration: BoxDecoration(
-                          color: Colors.white, shape: BoxShape.circle,
-                          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 2)]),
-                        child: const Icon(Icons.check, size: 10, color: Colors.black87))),
-                ])),
-            );
-          },
-        )),
+        // TypeBadge tem 130×32px — 3 por linha com espaço mínimo
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _types.map((t) {
+              final on = _sel.contains(t);
+              final disabled = !on && _sel.length >= 2;
+              return GestureDetector(
+                onTap: disabled ? null
+                    : () => setState(() => on ? _sel.remove(t) : _sel.add(t)),
+                child: Opacity(
+                  opacity: disabled ? 0.35 : 1.0,
+                  child: Stack(children: [
+                    TypeBadge(type: t),
+                    if (on)
+                      Positioned(top: 2, right: 2,
+                        child: Container(
+                          width: 14, height: 14,
+                          decoration: BoxDecoration(
+                            color: Colors.white, shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 2)]),
+                          child: const Icon(Icons.check, size: 10, color: Colors.black87))),
+                  ]),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
         Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: SizedBox(width: double.infinity,
             child: FilledButton(
