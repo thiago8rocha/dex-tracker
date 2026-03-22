@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pokedex_tracker/theme/app_theme.dart';
 import 'package:pokedex_tracker/screens/home_screen.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
-import 'package:pokedex_tracker/services/pokedex_silent_refresh_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
     show initBilingualMode, initDefaultSprite;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Aumentar cache de imagens: 256MB e 1000 entradas
+  // Evita re-decodificação de sprites ao navegar entre pokedexes
+  PaintingBinding.instance.imageCache.maximumSize      = 1000;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 256 * 1024 * 1024;
+
   // Limpar cache antigo do PokemonCacheService (prefixo pkcache_)
   // que causava OutOfMemoryError ao ser carregado pelo SharedPreferences.
-  // Executado uma única vez — detectado pela ausência da chave sentinela.
   await _clearLegacyCacheIfNeeded();
 
   final savedThemeId = await StorageService().getThemeId();
@@ -26,20 +30,13 @@ void main() async {
   await PokedexDataService.instance.load();
 
   runApp(const PokedexTrackerApp());
-
-  // Verificação silenciosa em background — sem impacto visual
-  // Roda 1x por semana, aplica correções na próxima abertura do app
-  PokedexSilentRefreshService.instance.startInBackground();
 }
 
-/// Remove todas as chaves do PokemonCacheService (pkcache_*) do SharedPreferences.
-/// Esses dados foram armazenados em versões anteriores e causam OOM na inicialização.
 Future<void> _clearLegacyCacheIfNeeded() async {
   const sentinelKey = 'legacy_cache_cleared_v1';
   final prefs = await SharedPreferences.getInstance();
   if (prefs.getBool(sentinelKey) == true) return;
 
-  // Remover todas as chaves do cache antigo
   final legacyKeys = prefs.getKeys()
       .where((k) => k.startsWith('pkcache_'))
       .toList();

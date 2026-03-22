@@ -1,13 +1,10 @@
 import 'dart:math' as math;
-import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pokedex_tracker/services/pokeapi_service.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/dex_bundle_service.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
-import 'package:pokedex_tracker/services/sprite_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
     show defaultSpriteNotifier;
 import 'package:pokedex_tracker/screens/detail/nacional_detail_screen.dart';
@@ -71,9 +68,6 @@ class _PokedexScreenState extends State<PokedexScreen>
   // Capturados: speciesId → bool
   final Map<int, bool> _caughtMap = {};
 
-  // Subscription ao stream de sprites baixados
-  StreamSubscription<(int, String)>? _spriteSubscription;
-
   bool _loadingIds = true;
   bool _loadingPage = false;
   String? _error;
@@ -111,7 +105,6 @@ class _PokedexScreenState extends State<PokedexScreen>
 
   @override
   void dispose() {
-    _spriteSubscription?.cancel();
     _searchController.dispose();
     _pokopiaTabController?.dispose();
     super.dispose();
@@ -236,20 +229,6 @@ class _PokedexScreenState extends State<PokedexScreen>
 
       _entriesBySection = bySection;
 
-      // ── Sprites: prefetch pixel da dex atual + artwork em background ──
-      final allIds = _allFilteredEntries().map((e) => e.speciesId).toList();
-
-      // Listener: quando um artwork chega, força rebuild do card correspondente
-      _spriteSubscription?.cancel();
-      _spriteSubscription = SpriteService.instance.onDownloaded.listen((event) {
-        final (id, type) = event;
-        if (type == 'artwork' && mounted) {
-          setState(() => _pokemonData.remove(id));
-        }
-      });
-
-      // Artwork da dex atual em background (prioridade), depois o restante
-      SpriteService.instance.prefetchDexWithFallback(allIds);
 
       // Carrega status de captura
       final allSpeciesIds = _allFilteredEntries().map((e) => e.speciesId).toList();
@@ -403,16 +382,12 @@ class _PokedexScreenState extends State<PokedexScreen>
 
   Future<void> _loadPage(int page) async {
     if (_loadingPage) return;
-    setState(() => _loadingPage = true);
 
     final filtered = _allFilteredEntries();
     final start = page * _pageSize;
-    if (start >= filtered.length) {
-      setState(() => _loadingPage = false);
-      return;
-    }
+    if (start >= filtered.length) return;
 
-    // Preenche _pokemonData localmente para todos os entries visíveis
+    // Preenche _pokemonData — operação síncrona, sem I/O
     final toFill = filtered
         .skip(start)
         .take(_pageSize)
@@ -424,13 +399,29 @@ class _PokedexScreenState extends State<PokedexScreen>
       _pokemonData[id] = _localPokemonData(id);
     }
 
+    // Pré-decodifica as imagens antes de montar a grid
+    // Evita o jank de 2-3s ao abrir pela primeira vez
+    if (toFill.isNotEmpty && mounted) {
+      final spriteType = defaultSpriteNotifier.value;
+      await Future.wait(
+        toFill.map((id) {
+          final path = _assetPathFor(id, spriteType);
+          return precacheImage(AssetImage(path), context)
+              .catchError((_) {});
+        }),
+      );
+    }
+
     if (!mounted) return;
     setState(() {
       _currentPage = page;
       _visibleEntries = filtered.take((page + 1) * _pageSize).toList();
       _loadingPage = false;
+      _loadingIds  = false;
     });
   }
+
+  String _assetPathFor(int id, String type) => pokemonSpriteAsset(id, type);
 
   // ─── CAPTURA ──────────────────────────────────────────────────────
 
@@ -1019,9 +1010,19 @@ class _PokedexScreenState extends State<PokedexScreen>
   }
 }
 
+// Retorna o caminho do asset de sprite para um pokémon
+String pokemonSpriteAsset(int id, String type) {
+  switch (type) {
+    case 'pixel':   return 'assets/sprites/pixel/$id.webp';
+    case 'home':    return 'assets/sprites/home/$id.webp';
+    case 'artwork':
+    default:        return 'assets/sprites/artwork/$id.webp';
+  }
+}
+
 // ─── CARD DE POKÉMON ─────────────────────────────────────────────
 
-class _PokemonCard extends StatefulWidget {
+class _PokemonCard extends StatelessWidget {
   final _Entry entry;
   final Map<String, dynamic>? data;
   final bool caught;
@@ -1039,78 +1040,11 @@ class _PokemonCard extends StatefulWidget {
   });
 
   @override
-  State<_PokemonCard> createState() => _PokemonCardState();
-}
-
-class _PokemonCardState extends State<_PokemonCard> {
-  File? _localArtwork;  // artwork cacheado
-  File? _localPixelFallback;  // pixel para silhueta
-
-  @override
-  void initState() {
-    super.initState();
-    _checkLocalSprite();
-    // Escuta novos downloads para atualizar este card
-    SpriteService.instance.onDownloaded.listen((event) {
-      final (id, type) = event;
-      if (type == 'artwork' && id == widget.entry.speciesId && mounted) {
-        _checkLocalSprite();
-      }
-    });
-  }
-
-  Future<void> _checkLocalSprite() async {
-    final artwork = await SpriteService.instance.getCached(widget.entry.speciesId, 'artwork');
-    final pixel   = await SpriteService.instance.getCached(widget.entry.speciesId, 'pixel');
-    if (mounted) {
-      setState(() {
-        _localArtwork = artwork;
-        _localPixelFallback = pixel;
-      });
-    }
-  }
-
-  String? _spriteUrl(Map<String, dynamic> sprites) {
-    final s = sprites['sprites'] as Map<String, dynamic>? ?? {};
-    switch (widget.defaultSprite) {
-      case 'pixel':
-        return s['front_default'] as String?;
-      case 'home':
-        return (s['other']?['home']?['front_default'] as String?)
-            ?? (s['other']?['official-artwork']?['front_default'] as String?)
-            ?? s['front_default'] as String?;
-      case 'artwork':
-      default:
-        return (s['other']?['official-artwork']?['front_default'] as String?)
-            ?? s['front_default'] as String?;
-    }
-  }
-
-  Widget _placeholder(Color color) {
-    // Silhueta: pixel sprite escurecido se disponível, senão ícone simples
-    if (_localPixelFallback != null) {
-      return ColorFiltered(
-        colorFilter: const ColorFilter.matrix([
-          -1, 0, 0, 0, 30,   // R: inverte e escurece
-           0,-1, 0, 0, 30,   // G
-           0, 0,-1, 0, 30,   // B
-           0, 0, 0, 1,  0,   // A: mantém transparência
-        ]),
-        child: Image(
-          image: FileImage(_localPixelFallback!),
-          fit: BoxFit.contain,
-        ),
-      );
-    }
-    return Icon(Icons.catching_pokemon, size: 28, color: color.withOpacity(0.4));
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (widget.data == null) return _SkeletonCard();
+    if (data == null) return _SkeletonCard();
 
-    final displayName = widget.data!['name'] as String;
-    final types = (widget.data!['types'] as List<dynamic>)
+    final displayName = data!['name'] as String;
+    final types = (data!['types'] as List<dynamic>)
         .map((t) => t['type']['name'] as String)
         .toList();
 
@@ -1118,35 +1052,26 @@ class _PokemonCardState extends State<_PokemonCard> {
     final color2 = types.length > 1 ? TypeColors.fromType(_pt(types[1])) : color1;
 
     final displayNumber =
-        '#${widget.entry.entryNumber.toString().padLeft(3, '0')}';
-
-    // Sprite: artwork local se disponível, senão silhueta (pixel escurecido)
-    final Widget spriteWidget = _localArtwork != null
-        ? Image(
-            image: FileImage(_localArtwork!),
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => _placeholder(color1),
-          )
-        : _placeholder(color1);
+        '#${entry.entryNumber.toString().padLeft(3, '0')}';
 
     return GestureDetector(
-      onTap: widget.onTap,
-      onLongPress: widget.onLongPress,
+      onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: widget.caught
+            colors: caught
                 ? [color1.withOpacity(0.45), color2.withOpacity(0.30)]
                 : [color1.withOpacity(0.22), color2.withOpacity(0.14)],
           ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: widget.caught
+            color: caught
                 ? color1.withOpacity(0.65)
                 : color1.withOpacity(0.30),
-            width: widget.caught ? 1.5 : 0.8,
+            width: caught ? 1.5 : 0.8,
           ),
         ),
         child: Stack(
@@ -1158,8 +1083,16 @@ class _PokemonCardState extends State<_PokemonCard> {
                 children: [
                   Expanded(
                     child: Opacity(
-                      opacity: widget.caught ? 1.0 : 0.5,
-                      child: spriteWidget,
+                      opacity: caught ? 1.0 : 0.5,
+                      child: Image.asset(
+                        pokemonSpriteAsset(entry.speciesId, defaultSprite),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.catching_pokemon,
+                          size: 28,
+                          color: color1.withOpacity(0.4),
+                        ),
+                      ),
                     ),
                   ),
                   Text(
@@ -1179,34 +1112,16 @@ class _PokemonCardState extends State<_PokemonCard> {
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 4),
-                  // Badges: cor sólida por tipo
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: types.map((type) {
-                      final color = TypeColors.fromType(_pt(type));
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Text(
-                          _pt(type),
-                          style: const TextStyle(
-                            fontSize: 8,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                  const SizedBox(height: 3),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 3,
+                    children: types.map((t) => TypeBadge(type: t)).toList(),
                   ),
                 ],
               ),
             ),
-            if (widget.caught)
+            if (caught)
               Positioned(
                 top: 5,
                 right: 5,
