@@ -103,7 +103,6 @@ class _PokedexScreenState extends State<PokedexScreen>
 
   String get _pokedexDisplayTitle {
     final name = widget.pokedexName;
-    // Normalizar nome do jogo para exibição
     final display = name == 'Nacional' ? 'National'
         : name == 'Pokémon GO' ? 'GO'
         : name;
@@ -1212,7 +1211,10 @@ class _PokedexScreenState extends State<PokedexScreen>
   // Filtro de jogo — estado
   String? _selectedGameName; // null = jogo atual do widget
 
-  String get _activeGameName => _selectedGameName ?? widget.pokedexName;
+  String get _activeGameName {
+    final n = _selectedGameName ?? widget.pokedexName;
+    return n == 'Nacional' ? 'National' : n;
+  }
 
   static final List<String> _allGameNames = [
     'National', 'Pokémon GO',
@@ -1856,7 +1858,10 @@ class _FilterSheetState extends State<_FilterSheet> {
           // ── Aplicar ──────────────────────────────────────────────
           SizedBox(
             width: double.infinity,
-            child: FilledButton(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              ),
               onPressed: () => widget.onApply(_status, _types, _specialties, _sort, _dir),
               child: const Text('Aplicar'),
             ),
@@ -2171,7 +2176,10 @@ class _GenDropSheetState extends State<_GenDropSheet> {
         const SizedBox(height: 16),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
           child: SizedBox(width: double.infinity,
-            child: FilledButton(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              ),
               onPressed: () => Navigator.pop(context, _sel),
               child: const Text('Aplicar')))),
         const SizedBox(height: 16),
@@ -2219,8 +2227,8 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
               child: Text('${_sel.length}/2 selecionado(s)',
                 style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)))),
         Divider(height: 1, color: scheme.outlineVariant),
-        // TypeBadge tem 130×32px — 3 por linha com espaço mínimo
-        Padding(
+        Expanded(child: SingleChildScrollView(
+          controller: ctrl,
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
           child: Wrap(
             spacing: 6,
@@ -2233,25 +2241,20 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
                     : () => setState(() => on ? _sel.remove(t) : _sel.add(t)),
                 child: Opacity(
                   opacity: disabled ? 0.35 : 1.0,
-                  child: Stack(children: [
-                    TypeBadge(type: t),
-                    if (on)
-                      Positioned(top: 2, right: 2,
-                        child: Container(
-                          width: 14, height: 14,
-                          decoration: BoxDecoration(
-                            color: Colors.white, shape: BoxShape.circle,
-                            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 2)]),
-                          child: const Icon(Icons.check, size: 10, color: Colors.black87))),
-                  ]),
+                  child: SizedBox(
+                    width: 118,
+                    child: TypeBadge(type: t)),
                 ),
               );
             }).toList(),
           ),
-        ),
-        Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        )),
+        Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: SizedBox(width: double.infinity,
-            child: FilledButton(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              ),
               onPressed: () => Navigator.pop(context, _sel),
               child: const Text('Aplicar')))),
       ]),
