@@ -2260,54 +2260,57 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return DraggableScrollableSheet(
-      initialChildSize: 0.62, minChildSize: 0.5, maxChildSize: 0.85, expand: false,
-      builder: (_, ctrl) => Column(children: [
-        const SizedBox(height: 8),
-        Container(width: 40, height: 4, decoration: BoxDecoration(
-          color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(height: 12),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Selecione até dois tipos diferentes', style: Theme.of(context).textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700)),
-            TextButton(onPressed: () => Navigator.pop(context, <String>{}),
-              child: const Text('Limpar')),
-          ])),
-        if (_sel.isNotEmpty)
-          Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: Align(alignment: Alignment.centerLeft,
-              child: Text('${_sel.length}/2 selecionado(s)',
-                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)))),
-        Divider(height: 1, color: scheme.outlineVariant),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: _types.map((t) {
-              final on = _sel.contains(t);
-              final disabled = !on && _sel.length >= 2;
-              return GestureDetector(
-                onTap: disabled ? null
-                    : () => setState(() => on ? _sel.remove(t) : _sel.add(t)),
-                child: Opacity(
-                  opacity: disabled ? 0.35 : 1.0,
-                  child: SizedBox(width: 118, child: TypeBadge(type: t)),
-                ),
-              );
-            }).toList(),
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 8),
+          Container(width: 40, height: 4, decoration: BoxDecoration(
+            color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 12),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('Selecione até dois tipos diferentes',
+                style: Theme.of(context).textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+              TextButton(onPressed: () => Navigator.pop(context, <String>{}),
+                child: const Text('Limpar')),
+            ])),
+          if (_sel.isNotEmpty)
+            Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Align(alignment: Alignment.centerLeft,
+                child: Text('${_sel.length}/2 selecionado(s)',
+                  style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)))),
+          Divider(height: 1, color: scheme.outlineVariant),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _types.map((t) {
+                final on = _sel.contains(t);
+                final disabled = !on && _sel.length >= 2;
+                return GestureDetector(
+                  onTap: disabled ? null
+                      : () => setState(() => on ? _sel.remove(t) : _sel.add(t)),
+                  child: Opacity(
+                    opacity: disabled ? 0.35 : 1.0,
+                    child: SizedBox(width: 118, child: TypeBadge(type: t)),
+                  ),
+                );
+              }).toList(),
+            ),
           ),
-        ),
-        Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: SizedBox(width: double.infinity,
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-              ),
-              onPressed: () => Navigator.pop(context, _sel),
-              child: const Text('Aplicar')))),
-      ]),
+          Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: SizedBox(width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                onPressed: () => Navigator.pop(context, _sel),
+                child: const Text('Aplicar')))),
+        ]),
+      ),
     );
   }
 }
