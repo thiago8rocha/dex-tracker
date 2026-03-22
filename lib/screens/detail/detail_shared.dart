@@ -1084,12 +1084,12 @@ class _StatusTabState extends State<StatusTab>
         : Theme.of(context).colorScheme.primary;
 
     // Grupos de dano
-    final quad   = wk.entries.where((e) => e.value == 4.0).toList();
-    final fraq   = wk.entries.where((e) => e.value == 2.0).toList();
-    final half   = wk.entries.where((e) => e.value == 0.5).toList();
-    final quart  = wk.entries.where((e) => e.value == 0.25).toList();
-    final imun   = wk.entries.where((e) => e.value == 0.0).toList();
-
+    final quad    = wk.entries.where((e) => e.value == 4.0).toList()..sort((a,b) => a.key.compareTo(b.key));
+    final fraq    = wk.entries.where((e) => e.value == 2.0).toList()..sort((a,b) => a.key.compareTo(b.key));
+    final neutral = wk.entries.where((e) => e.value == 1.0).toList()..sort((a,b) => a.key.compareTo(b.key));
+    final half    = wk.entries.where((e) => e.value == 0.5).toList()..sort((a,b) => a.key.compareTo(b.key));
+    final quart   = wk.entries.where((e) => e.value == 0.25).toList()..sort((a,b) => a.key.compareTo(b.key));
+    final imun    = wk.entries.where((e) => e.value == 0.0).toList()..sort((a,b) => a.key.compareTo(b.key));
     final stats = [
       _StatRow('HP',           p.baseHp,        const Color(0xFF5a9e5a), isHp: true),
       _StatRow('Ataque',       p.baseAttack,     const Color(0xFFE24B4A)),
@@ -1172,7 +1172,7 @@ class _StatusTabState extends State<StatusTab>
             children: [
               if (quad.isNotEmpty)   _DamageGroup(title: 'Fraco contra',         subtitle: '4× de dano',      entries: quad),
               if (fraq.isNotEmpty)   _DamageGroup(title: 'Fraco contra',         subtitle: '2× de dano',      entries: fraq),
-              if (normal.isNotEmpty) _DamageGroup(title: 'Dano normal',          subtitle: '1× de dano',      entries: normal),
+              if (neutral.isNotEmpty) _DamageGroup(title: 'Dano normal',         subtitle: '1× de dano',      entries: neutral),
               if (half.isNotEmpty)   _DamageGroup(title: 'Resistente a',         subtitle: '1/2× de dano',    entries: half),
               if (quart.isNotEmpty)  _DamageGroup(title: 'Muito resistente a',   subtitle: '1/4× de dano',    entries: quart),
               if (imun.isNotEmpty)   _DamageGroup(title: 'Imune a',              subtitle: '0× de dano',      entries: imun),
