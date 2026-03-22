@@ -793,13 +793,21 @@ class _DetailHeaderState extends State<DetailHeader> {
                     const SizedBox(height: 8),
                     // Sprite
                     Expanded(
-                      child: Image.network(
-                        _spriteUrl,
-                        fit: BoxFit.contain,
-                        filterQuality: _isPixel ? FilterQuality.none : FilterQuality.medium,
-                        errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
-                      ),
+                      child: _spriteUrl.startsWith('assets/')
+                          ? Image.asset(
+                              _spriteUrl,
+                              fit: BoxFit.contain,
+                              filterQuality: _isPixel ? FilterQuality.none : FilterQuality.medium,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
+                            )
+                          : Image.network(
+                              _spriteUrl,
+                              fit: BoxFit.contain,
+                              filterQuality: _isPixel ? FilterQuality.none : FilterQuality.medium,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
+                            ),
                     ),
                     const SizedBox(height: 6),
                     // Linha inferior: prev (esq) | nome atual (centro) | next (dir)

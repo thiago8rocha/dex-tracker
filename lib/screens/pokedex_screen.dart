@@ -100,6 +100,15 @@ class _PokedexScreenState extends State<PokedexScreen>
   final TextEditingController _searchController = TextEditingController();
 
   bool get _isNacional => widget.pokedexId == 'nacional';
+
+  String get _pokedexDisplayTitle {
+    final name = widget.pokedexName;
+    // Normalizar nome do jogo para exibição
+    final display = name == 'Nacional' ? 'National'
+        : name == 'Pokémon GO' ? 'GO'
+        : name;
+    return 'Pokédex - $display';
+  }
   bool get _isPokopia  => widget.pokedexId == 'pokopia' || widget.pokedexId == 'pokopia_event';
   bool get _isPokopiaBase => widget.pokedexId == 'pokopia';
 
@@ -384,13 +393,14 @@ class _PokedexScreenState extends State<PokedexScreen>
   }
 
   /// Monta a URL do sprite a partir do ID e do tipo preferido.
+  /// Retorna o path do asset local para o sprite do pokémon.
+  /// Shiny ainda vem da rede pois não está bundlado localmente.
   String _buildSpriteUrl(int id, String type) {
-    const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
     switch (type) {
-      case 'pixel': return '$base/$id.png';
-      case 'home':  return '$base/other/home/$id.png';
+      case 'pixel':   return 'assets/sprites/pixel/$id.webp';
+      case 'home':    return 'assets/sprites/home/$id.webp';
       case 'artwork':
-      default:      return '$base/other/official-artwork/$id.png';
+      default:        return 'assets/sprites/artwork/$id.webp';
     }
   }
 
@@ -773,7 +783,7 @@ class _PokedexScreenState extends State<PokedexScreen>
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Pokédex',
+                  Text(_pokedexDisplayTitle,
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   Text(
                     '$caught / ${_entriesBySection.values.fold(0, (s, l) => s + l.length) == 0 ? widget.totalPokemon : _entriesBySection.values.fold(0, (s, l) => s + l.length)} ${_isPokopia ? 'encontrados' : 'capturados'}',
@@ -1167,12 +1177,12 @@ class _PokedexScreenState extends State<PokedexScreen>
     'Scarlet / Violet': [1,2,3,4,5,6,7,8,9],
     'Legends: Z-A': [1,2,3,4,5,6,7,8,9],
     'FireRed / LeafGreen': [1],
-    'Nacional': [1,2,3,4,5,6,7,8,9],
+    'National': [1,2,3,4,5,6,7,8,9],
     'Pokémon GO': [1,2,3,4,5,6,7,8,9],
   };
 
   static const _gameColors = {
-    'Nacional':                             [0xFFE8524A, 0xFFB71C1C],
+    'National':                             [0xFFE8524A, 0xFFB71C1C],
     'Pokémon GO':                           [0xFF4285F4, 0xFF0D47A1],
     'Red / Blue':                           [0xFFE53935, 0xFF1565C0],
     'Yellow':                               [0xFFFDD835, 0xFFFF8F00],
@@ -1205,7 +1215,7 @@ class _PokedexScreenState extends State<PokedexScreen>
   String get _activeGameName => _selectedGameName ?? widget.pokedexName;
 
   static final List<String> _allGameNames = [
-    'Nacional', 'Pokémon GO',
+    'National', 'Pokémon GO',
     'Red / Blue', 'Yellow',
     'Gold / Silver', 'Crystal',
     'Ruby / Sapphire', 'FireRed / LeafGreen (GBA)', 'Emerald',
@@ -1220,7 +1230,7 @@ class _PokedexScreenState extends State<PokedexScreen>
   ];
 
   static final Map<String, String> _gameToPokedexId = {
-    'Nacional':                           'nacional',
+    'National':                           'nacional',
     'Pokémon GO':                         'pokémon_go',
     'Red / Blue':                         'red___blue',
     'Yellow':                             'yellow',
@@ -1248,7 +1258,7 @@ class _PokedexScreenState extends State<PokedexScreen>
   };
 
   static final Map<String, int> _gameTotal = {
-    'Nacional': 1025, 'Pokémon GO': 941,
+    'National': 1025, 'Pokémon GO': 941,
     'Red / Blue': 151, 'Yellow': 151,
     'Gold / Silver': 251, 'Crystal': 251,
     'Ruby / Sapphire': 386, 'FireRed / LeafGreen (GBA)': 386, 'Emerald': 386,
@@ -2016,7 +2026,7 @@ const _gamesByGen = <int, List<Map<String, dynamic>>>{
 };
 
 const _specialGames = <Map<String, dynamic>>[
-  {'name': 'Nacional',   'c1': 0xFFE8524A, 'c2': 0xFFB71C1C},
+  {'name': 'National',   'c1': 0xFFE8524A, 'c2': 0xFFB71C1C},
   {'name': 'Pokémon GO', 'c1': 0xFF4285F4, 'c2': 0xFF0D47A1},
 ];
 
