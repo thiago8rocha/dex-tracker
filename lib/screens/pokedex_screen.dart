@@ -1504,8 +1504,6 @@ class _FilterSheetState extends State<_FilterSheet> {
       ),
     );
   }
-}
-
   // ── Dados de jogos (para filtro) ────────────────────────────
   static const _gameGenerations = {
     'Red / Blue': [1], 'Yellow': [1],
