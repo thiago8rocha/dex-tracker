@@ -1039,97 +1039,248 @@ class _HeaderIconButton extends StatelessWidget {
 
 // ─── ABA STATUS (compartilhada) ──────────────────────────────────
 
-class StatusTab extends StatelessWidget {
+class StatusTab extends StatefulWidget {
   final Pokemon pokemon;
   const StatusTab({super.key, required this.pokemon});
 
   @override
-  Widget build(BuildContext context) {
-    final wk = _calculateWeaknesses(pokemon.types);
-    final fraq = wk.entries.where((e) => e.value > 1.0).toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final resist = wk.entries.where((e) => e.value > 0 && e.value < 1.0).toList()
-      ..sort((a, b) => a.value.compareTo(b.value));
-    final imun = wk.entries.where((e) => e.value == 0.0).toList();
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        secTitle(context, 'STATUS BASE'),
-        StatBar(label: 'HP',           value: pokemon.baseHp,        color: const Color(0xFF5a9e5a)),
-        StatBar(label: 'Ataque',       value: pokemon.baseAttack,    color: const Color(0xFFE24B4A)),
-        StatBar(label: 'Defesa',       value: pokemon.baseDefense,   color: const Color(0xFF378ADD)),
-        StatBar(label: 'At. Especial', value: pokemon.baseSpAttack,  color: const Color(0xFF9C27B0)),
-        StatBar(label: 'Def. Especial',value: pokemon.baseSpDefense, color: const Color(0xFF378ADD)),
-        StatBar(label: 'Velocidade',   value: pokemon.baseSpeed,     color: const Color(0xFFEF9F27)),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text('Total: ${pokemon.totalStats}',
-            style: TextStyle(fontSize: 11,
-              color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        ),
-        const SizedBox(height: 16),
-        secTitle(context, 'FRAQUEZAS E RESISTÊNCIAS'),
-        if (fraq.isNotEmpty) ...[
-          _wkLabel(context, 'Fraquezas'),
-          const SizedBox(height: 6),
-          TypeChipRow(entries: fraq, style: 'weakness'),
-          const SizedBox(height: 10),
-        ],
-        if (resist.isNotEmpty) ...[
-          _wkLabel(context, 'Resistências'),
-          const SizedBox(height: 6),
-          TypeChipRow(entries: resist, style: 'resist'),
-          const SizedBox(height: 10),
-        ],
-        if (imun.isNotEmpty) ...[
-          _wkLabel(context, 'Imunidades'),
-          const SizedBox(height: 6),
-          TypeChipRow(entries: imun, style: 'immune'),
-        ],
-      ]),
-    );
-  }
-
-  Widget _wkLabel(BuildContext ctx, String label) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Text(label, style: TextStyle(
-      fontSize: 11, fontWeight: FontWeight.w500,
-      color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-    )),
-  );
+  State<StatusTab> createState() => _StatusTabState();
 }
 
-class TypeChipRow extends StatelessWidget {
-  final List<MapEntry<String, double>> entries;
-  final String style;
-  const TypeChipRow({super.key, required this.entries, required this.style});
+class _StatusTabState extends State<StatusTab>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
-  String _mult(double v) {
-    if (v == 0) return '×0';
-    if (v == 4) return '×4';
-    if (v == 2) return '×2';
-    if (v == 0.5) return '×½';
-    if (v == 0.25) return '×¼';
-    return '×${v.toStringAsFixed(1)}';
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  // ── Fórmulas oficiais de min/max (nível 100) ──────────────────
+  // Mín: sem EVs, sem IVs, nature negativa
+  // Máx: 252 EVs, 31 IVs, nature positiva
+  int _minStat(int base, bool isHp) {
+    if (isHp) return ((2 * base * 100) ~/ 100) + 100 + 10; // mín HP nivel 100 sem EV/IV
+    return (((2 * base * 100) ~/ 100) + 5) * 9 ~/ 10;
+  }
+  int _maxStat(int base, bool isHp) {
+    if (isHp) return ((2 * base + 31 + 63) * 100 ~/ 100) + 100 + 10;
+    return ((((2 * base + 31 + 63) * 100 ~/ 100) + 5) * 11 + 9) ~/ 10;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(spacing: 6, runSpacing: 6, children: entries.map((e) {
-      final tc = TypeColors.fromType(e.key);
-      final opacity = style == 'weakness' ? 1.0 : style == 'resist' ? 0.7 : 0.55;
-      final bg = tc.withOpacity(opacity);
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
-        child: Text('${e.key} ${_mult(e.value)}',
-          style: TextStyle(color: typeTextColor(bg), fontSize: 11, fontWeight: FontWeight.w600)),
-      );
-    }).toList());
+    final p  = widget.pokemon;
+    final wk = _calculateWeaknesses(p.types);
+    final typeColor = p.types.isNotEmpty
+        ? TypeColors.fromType(ptType(p.types[0]))
+        : Theme.of(context).colorScheme.primary;
+
+    // Grupos de dano
+    final quad   = wk.entries.where((e) => e.value == 4.0).toList();
+    final fraq   = wk.entries.where((e) => e.value == 2.0).toList();
+    final half   = wk.entries.where((e) => e.value == 0.5).toList();
+    final quart  = wk.entries.where((e) => e.value == 0.25).toList();
+    final imun   = wk.entries.where((e) => e.value == 0.0).toList();
+
+    final stats = [
+      _StatRow('HP',           p.baseHp,        const Color(0xFF5a9e5a), isHp: true),
+      _StatRow('Ataque',       p.baseAttack,     const Color(0xFFE24B4A)),
+      _StatRow('Defesa',       p.baseDefense,    const Color(0xFF378ADD)),
+      _StatRow('At. Especial', p.baseSpAttack,   const Color(0xFF9C27B0)),
+      _StatRow('Def. Especial',p.baseSpDefense,  const Color(0xFF378ADD)),
+      _StatRow('Velocidade',   p.baseSpeed,      const Color(0xFFEF9F27)),
+    ];
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+
+        // ── SEÇÃO STATUS ──────────────────────────────────────────
+        SectionCard(
+          title: 'STATUS BASE',
+          pokemonTypes: p.types,
+          child: Column(children: [
+            // Abas Base / Mín / Máx
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: typeColor.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                labelColor: typeColor,
+                unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                indicator: BoxDecoration(
+                  color: typeColor.withOpacity(0.20),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                tabs: const [
+                  Tab(text: 'Base'),
+                  Tab(text: 'Mín'),
+                  Tab(text: 'Máx'),
+                ],
+              ),
+            ),
+            // Barras de stat
+            ...stats.map((s) => _StatBarRow(
+              context: context,
+              row: s,
+              tabController: _tabController,
+              minVal: _minStat(s.base, s.isHp),
+              maxVal: _maxStat(s.base, s.isHp),
+            )),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text('Total: ${p.totalStats}',
+                style: TextStyle(fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            ),
+          ]),
+        ),
+
+        const SizedBox(height: 20),
+
+        // ── SEÇÃO RELAÇÕES DE DANO ────────────────────────────────
+        SectionCard(
+          title: 'RELAÇÕES DE DANO',
+          pokemonTypes: p.types,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (quad.isNotEmpty)   _DamageGroup(label: 'Fraqueza ×4',    entries: quad,  opacity: 1.0),
+              if (fraq.isNotEmpty)   _DamageGroup(label: 'Fraqueza ×2',    entries: fraq,  opacity: 0.9),
+              if (half.isNotEmpty)   _DamageGroup(label: 'Resistência ×½', entries: half,  opacity: 0.75),
+              if (quart.isNotEmpty)  _DamageGroup(label: 'Resistência ×¼', entries: quart, opacity: 0.6),
+              if (imun.isNotEmpty)   _DamageGroup(label: 'Imunidade ×0',   entries: imun,  opacity: 0.45),
+            ],
+          ),
+        ),
+      ]),
+    );
   }
 }
 
+// Dado de uma linha de stat
+class _StatRow {
+  final String label;
+  final int base;
+  final Color color;
+  final bool isHp;
+  const _StatRow(this.label, this.base, this.color, {this.isHp = false});
+}
+
+// Linha de stat com animação de aba
+class _StatBarRow extends StatelessWidget {
+  final BuildContext context;
+  final _StatRow row;
+  final TabController tabController;
+  final int minVal;
+  final int maxVal;
+
+  const _StatBarRow({
+    required this.context,
+    required this.row,
+    required this.tabController,
+    required this.minVal,
+    required this.maxVal,
+  });
+
+  @override
+  Widget build(BuildContext _) {
+    return AnimatedBuilder(
+      animation: tabController,
+      builder: (ctx, __) {
+        final idx = tabController.index;
+        final val = idx == 0 ? row.base : idx == 1 ? minVal : maxVal;
+        return StatBar(label: row.label, value: val, color: row.color);
+      },
+    );
+  }
+}
+
+// Grupo de tipos por relação de dano (estilo do exemplo)
+class _DamageGroup extends StatelessWidget {
+  final String label;
+  final List<MapEntry<String, double>> entries;
+  final double opacity;
+
+  const _DamageGroup({
+    super.key,
+    required this.label,
+    required this.entries,
+    required this.opacity,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            alignment: WrapAlignment.center,
+            children: entries.map((e) {
+              final tc = TypeColors.fromType(ptType(e.key));
+              final bg = tc.withOpacity(opacity);
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      typeIconAsset(e.key),
+                      width: 14,
+                      height: 14,
+                      color: typeTextColor(bg),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      ptType(e.key),
+                      style: TextStyle(
+                        color: typeTextColor(bg),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
 // ─── ABA FORMAS (compartilhada) ──────────────────────────────────
 
 class FormsTab extends StatelessWidget {
