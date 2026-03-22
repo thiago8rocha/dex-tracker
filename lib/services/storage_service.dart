@@ -194,4 +194,18 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_disclaimerKey, true);
   }
+
+  // ─── ÚLTIMA POKEDEX ACESSADA ─────────────────────────────────────
+
+  static const String _lastPokedexKey = 'last_pokedex_id';
+
+  Future<String?> getLastPokedexId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_lastPokedexKey);
+  }
+
+  Future<void> setLastPokedexId(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastPokedexKey, id);
+  }
 }
