@@ -773,7 +773,7 @@ class _PokedexScreenState extends State<PokedexScreen>
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.pokedexName == 'Nacional' ? 'National Pokédex' : widget.pokedexName,
+                  Text('Pokédex',
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   Text(
                     '$caught / ${_entriesBySection.values.fold(0, (s, l) => s + l.length) == 0 ? widget.totalPokemon : _entriesBySection.values.fold(0, (s, l) => s + l.length)} ${_isPokopia ? 'encontrados' : 'capturados'}',
@@ -1399,52 +1399,50 @@ class _PokedexScreenState extends State<PokedexScreen>
         color: Theme.of(context).colorScheme.surface,
         border: Border(top: BorderSide(
           color: Theme.of(context).colorScheme.outlineVariant, width: 0.5))),
-      child: Row(children: [
-        ...items.map((item) {
-          final isActive = _navIndex == item.$1;
-          final color = isActive
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.onSurfaceVariant;
-          return Expanded(child: InkWell(
-            onTap: () {
-              if (item.$1 == 0) { setState(() => _navIndex = 0); return; }
-              if (item.$1 == 1) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const PocketHubScreen()));
-                return;
-              }
-              if (item.$1 == 2) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const GoHubScreen()));
-                return;
-              }
-              if (item.$1 == 3) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const PokopiaHubScreen()));
-                return;
-              }
-            },
+      child: Builder(builder: (ctx) {
+        final menuColor = Theme.of(context).colorScheme.onSurfaceVariant;
+        return Row(children: [
+          ...items.map((item) {
+            final isActive = _navIndex == item.$1;
+            final color = isActive
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurfaceVariant;
+            return Expanded(child: InkWell(
+              onTap: () {
+                if (item.$1 == 0) { setState(() => _navIndex = 0); return; }
+                if (item.$1 == 1) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PocketHubScreen()));
+                  return;
+                }
+                if (item.$1 == 2) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const GoHubScreen()));
+                  return;
+                }
+                if (item.$1 == 3) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PokopiaHubScreen()));
+                  return;
+                }
+              },
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(item.$2, size: 22, color: color),
+                const SizedBox(height: 2),
+                Text(item.$3, style: TextStyle(fontSize: 10,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                  color: color)),
+              ]),
+            ));
+          }),
+          // Menu (≡) após Pokopia — mesmo Expanded para alinhar igual
+          Expanded(child: InkWell(
+            onTap: () => Scaffold.of(ctx).openEndDrawer(),
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(item.$2, size: 22, color: color),
+              Icon(Icons.menu, size: 22, color: menuColor),
               const SizedBox(height: 2),
-              Text(item.$3, style: TextStyle(fontSize: 10,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color: color)),
+              Text('Menu', style: TextStyle(fontSize: 10, color: menuColor)),
             ]),
-          ));
-        }),
-        // Menu (≡) após Pokopia
-        Builder(builder: (ctx) => InkWell(
-          onTap: () => Scaffold.of(ctx).openEndDrawer(),
-          child: SizedBox(width: 56, child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.menu, size: 22,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
-              const SizedBox(height: 2),
-              Text('Menu', style: TextStyle(fontSize: 10,
-                color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            ],
           )),
-        )),
-      ]),
+        ]);
+      }),
     ));
   }
 
@@ -1807,29 +1805,7 @@ class _FilterSheetState extends State<_FilterSheet> {
             const SizedBox(height: 20),
           ],
 
-          // ── Tipo (só não-Pokopia) ────────────────────────────────
-          if (!widget.isPokopia) ...[
-            Row(children: [
-              Expanded(child: Text('Tipo',
-                style: Theme.of(context).textTheme.labelMedium
-                    ?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.8))),
-              if (_types.isNotEmpty)
-                GestureDetector(
-                  onTap: () => setState(() => _types = {}),
-                  child: Text('Limpar',
-                    style: TextStyle(fontSize: 12, color: scheme.primary)),
-                ),
-            ]),
-            const SizedBox(height: 4),
-            Text('Selecione até 2 tipos',
-              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
-            const SizedBox(height: 10),
-            Wrap(spacing: 6, runSpacing: 6, children: [
-              for (final e in _typesPt.entries)
-                _buildTypeChip(e.key, e.value),
-            ]),
-            const SizedBox(height: 20),
-          ],
+
 
           // ── Ordenar por ──────────────────────────────────────────
           Text('Ordenar por', style: Theme.of(context).textTheme.labelMedium
@@ -2236,8 +2212,8 @@ class _TypeDropSheetState extends State<_TypeDropSheet> {
         Expanded(child: GridView.builder(
           controller: ctrl, padding: const EdgeInsets.all(16),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10,
-            childAspectRatio: 2.8),
+            crossAxisCount: 2, crossAxisSpacing: 6, mainAxisSpacing: 6,
+            childAspectRatio: 3.0),
           itemCount: _types.length,
           itemBuilder: (_, i) {
             final t = _types[i];
