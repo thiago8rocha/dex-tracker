@@ -469,17 +469,27 @@ class _PokedexScreenState extends State<PokedexScreen>
     final pixelShinyUrl  = '$base/shiny/$speciesId.png';
     final homeShinyUrl   = '$base/other/home/shiny/$speciesId.png';
 
-    // Stats: zeros pois não estão no bundle (só usados na tela de detalhe que tem sua própria fonte)
+    // Stats — lidos da API se disponíveis, senão zero
+    final rawStats = data['stats'] as List<dynamic>?;
+    int statVal(String name) {
+      if (rawStats == null) return 0;
+      final s = rawStats.firstWhere(
+        (s) => s['stat']['name'] == name,
+        orElse: () => null,
+      );
+      return (s?['base_stat'] as int?) ?? 0;
+    }
+
     return Pokemon(
       id:                  speciesId,
       name:                displayName,
       types:               types,
-      baseHp:              0,
-      baseAttack:          0,
-      baseDefense:         0,
-      baseSpAttack:        0,
-      baseSpDefense:       0,
-      baseSpeed:           0,
+      baseHp:              statVal('hp'),
+      baseAttack:          statVal('attack'),
+      baseDefense:         statVal('defense'),
+      baseSpAttack:        statVal('special-attack'),
+      baseSpDefense:       statVal('special-defense'),
+      baseSpeed:           statVal('speed'),
       spriteUrl:           spriteType == 'pixel' ? pixelUrl : spriteType == 'home' ? homeUrl : artworkUrl,
       spriteShinyUrl:      shinyUrl,
       spritePixelUrl:      pixelUrl,
@@ -501,9 +511,21 @@ class _PokedexScreenState extends State<PokedexScreen>
     if (idx < 0 || idx >= filtered.length) return;
     final entry = filtered[idx];
 
-    // Garante que o Pokémon atual está carregado localmente
+    // Garante dados locais básicos
     if (!_pokemonData.containsKey(entry.speciesId)) {
       _pokemonData[entry.speciesId] = _localPokemonData(entry.speciesId);
+    }
+
+    // Busca stats da API se ainda não temos (só ao abrir detalhe)
+    final existing = _pokemonData[entry.speciesId]!;
+    if (existing['stats'] == null) {
+      final apiData = await _api.fetchPokemon(entry.speciesId);
+      if (apiData != null && mounted) {
+        _pokemonData[entry.speciesId] = {
+          ...existing,
+          'stats': apiData['stats'],
+        };
+      }
     }
 
     final pokemon = _buildPokemon(entry.speciesId);
