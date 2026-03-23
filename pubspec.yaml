@@ -58,6 +58,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/pocket/boosters/
     - assets/pokopia/specialties/
     - assets/pokopia/habitats/
     - assets/pokopia/habitats/event/

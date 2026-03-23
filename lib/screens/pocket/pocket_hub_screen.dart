@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/services/tcg_pocket_service.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_card_list_screen.dart';
 
+// ─── Assets locais dos boosters ──────────────────────────────────
+// Localização: assets/pocket/boosters/{setId}.png
+// Use o script download_pocket_boosters.py para baixar todos os arquivos.
+// Promos: P-A.png e P-B.png (logos dos sets de promo)
+
+// Sets que usam tratamento especial de imagem (logo em vez de booster vertical)
+const Set<String> _kPromoSets = {'P-A', 'P-B'};
+
 class PocketHubScreen extends StatefulWidget {
   const PocketHubScreen({super.key});
 
@@ -76,19 +84,17 @@ class _SetBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final meta   = kPocketSetMeta[set.id];
-    final color1 = Color(meta?.color1 ?? 0xFF7038F8);
-    final color2 = Color(meta?.color2 ?? 0xFF303030);
-
-    // Imagem da primeira carta do set — é sempre a carta de capa do booster
-    final packImageUrl = set.packCardImageUrl;
+    final meta     = kPocketSetMeta[set.id];
+    final color1   = Color(meta?.color1 ?? 0xFF1A1A2E);
+    final color2   = Color(meta?.color2 ?? 0xFF16213E);
+    final isPromo  = _kPromoSets.contains(set.id);
+    final assetPath = 'assets/pocket/boosters/${set.id}.png';
 
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(
         builder: (_) => PocketCardListScreen(setId: set.id, setName: set.name),
       )),
       child: Container(
-        // borderRadius: 4 — padrão retangular do projeto
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(4),
           gradient: LinearGradient(
@@ -101,66 +107,60 @@ class _SetBox extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // ── Imagem da carta de capa do booster ──────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(0, 42, 0, 0),
-                child: Image.network(
-                  packImageUrl,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
-                  loadingBuilder: (_, child, p) =>
-                      p == null ? child : const SizedBox.shrink(),
-                  errorBuilder: (_, __, ___) => Center(
-                    child: Icon(Icons.style_outlined, size: 40,
-                        color: Colors.white.withOpacity(0.25)),
-                  ),
-                ),
-              ),
+              // ── Imagem de fundo ──────────────────────────────────
+              isPromo
+                  ? _PromoBackground(assetPath: assetPath, color1: color1, color2: color2)
+                  : _BoosterBackground(assetPath: assetPath),
 
-              // ── Gradiente escurecendo o topo para o texto ────────
-              Positioned(
-                top: 0, left: 0, right: 0, height: 60,
+              // ── Overlay gradiente para legibilidade do texto ─────
+              Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.0, 0.38, 0.65, 1.0],
                       colors: [
-                        Colors.black.withOpacity(0.55),
-                        Colors.transparent,
+                        Colors.black.withOpacity(0.72),
+                        Colors.black.withOpacity(0.05),
+                        Colors.black.withOpacity(0.20),
+                        Colors.black.withOpacity(0.65),
                       ],
                     ),
                   ),
                 ),
               ),
 
-              // ── Cabeçalho: ID + Nome sem nenhuma caixa/container ──
+              // ── ID + Nome ─────────────────────────────────────────
               Positioned(
-                top: 9, left: 10, right: 10,
+                top: 10, left: 10, right: 10,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ID — pequeno e semitransparente
                     Text(
                       set.id,
                       style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white70,
-                        letterSpacing: 0.8,
-                        shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 0.6,
+                        shadows: [
+                          Shadow(color: Colors.black, blurRadius: 6),
+                          Shadow(color: Colors.black, blurRadius: 12),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 1),
-                    // Nome — destaque total
+                    const SizedBox(height: 3),
                     Text(
                       set.name,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
                         height: 1.2,
                         shadows: [
-                          Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1)),
+                          Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1)),
+                          Shadow(color: Colors.black, blurRadius: 10),
                         ],
                       ),
                       maxLines: 2,
@@ -170,6 +170,62 @@ class _SetBox extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Background de booster normal (vertical, zoom para cortar borda) ─
+
+class _BoosterBackground extends StatelessWidget {
+  final String assetPath;
+  const _BoosterBackground({required this.assetPath});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: Image.asset(
+        assetPath,
+        fit: BoxFit.cover,
+        alignment: const Alignment(0.0, -0.55),
+        scale: 0.72,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      ),
+    );
+  }
+}
+
+// ─── Background de Promo (logo horizontal — foco no centro, zoom alto) ─
+
+class _PromoBackground extends StatelessWidget {
+  final String   assetPath;
+  final Color    color1;
+  final Color    color2;
+  const _PromoBackground({
+    required this.assetPath,
+    required this.color1,
+    required this.color2,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      // Zoom muito alto para recortar tudo exceto o emblema central
+      // O logo das promos é horizontal — scale baixo + center = só o ícone
+      child: OverflowBox(
+        maxWidth: double.infinity,
+        maxHeight: double.infinity,
+        child: FractionallySizedBox(
+          // 280% do tamanho da caixa — recorta completamente as bordas do logo
+          widthFactor: 2.8,
+          heightFactor: 2.8,
+          child: Image.asset(
+            assetPath,
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
           ),
         ),
       ),
