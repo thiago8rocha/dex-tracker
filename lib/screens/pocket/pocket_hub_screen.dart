@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/services/tcg_pocket_service.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_card_list_screen.dart';
 
-// ─── HUB SCREEN ───────────────────────────────────────────────────
-
 class PocketHubScreen extends StatefulWidget {
   const PocketHubScreen({super.key});
 
@@ -13,6 +11,8 @@ class PocketHubScreen extends StatefulWidget {
 
 class _PocketHubScreenState extends State<PocketHubScreen> {
   List<PocketSet> _sets = [];
+  // Mapa setId → URL da imagem do booster (carregada em background)
+  final Map<String, String?> _boosterArt = {};
   bool    _loading = true;
   String? _error;
 
@@ -23,12 +23,24 @@ class _PocketHubScreenState extends State<PocketHubScreen> {
   }
 
   Future<void> _loadSets() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() { _loading = true; _error = null; _boosterArt.clear(); });
     try {
       final sets = await TcgPocketService.fetchSeries();
-      if (mounted) setState(() { _sets = sets; _loading = false; });
+      if (!mounted) return;
+      setState(() { _sets = sets; _loading = false; });
+      _loadBoosterArts(sets);
     } catch (_) {
       if (mounted) setState(() { _error = 'Erro ao carregar coleções'; _loading = false; });
+    }
+  }
+
+  Future<void> _loadBoosterArts(List<PocketSet> sets) async {
+    for (final s in sets) {
+      final full = await TcgPocketService.fetchSet(s.id);
+      if (!mounted) return;
+      // Preferência: artwork do booster → logo do set
+      final art = full?.firstBoosterArtwork ?? full?.logoImageUrl;
+      if (mounted) setState(() => _boosterArt[s.id] = art);
     }
   }
 
@@ -44,32 +56,29 @@ class _PocketHubScreenState extends State<PocketHubScreen> {
           ? const _HubSkeleton()
           : _error != null
               ? _ErrorView(message: _error!, onRetry: _loadSets)
-              : _SetGrid(sets: _sets),
+              : _SetGrid(sets: _sets, boosterArt: _boosterArt),
     );
   }
 }
 
-// ─── Grid de coleções ─────────────────────────────────────────────
+// ─── Grid ─────────────────────────────────────────────────────────
 
 class _SetGrid extends StatelessWidget {
-  final List<PocketSet> sets;
-  const _SetGrid({required this.sets});
+  final List<PocketSet>      sets;
+  final Map<String, String?> boosterArt;
+  const _SetGrid({required this.sets, required this.boosterArt});
 
   @override
   Widget build(BuildContext context) {
-    if (sets.isEmpty) {
-      return const Center(child: Text('Nenhuma coleção encontrada'));
-    }
+    if (sets.isEmpty) return const Center(child: Text('Nenhuma coleção encontrada'));
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount:   2,
-        childAspectRatio: 0.85,
-        crossAxisSpacing: 12,
-        mainAxisSpacing:  12,
+        crossAxisCount: 2, childAspectRatio: 0.82,
+        crossAxisSpacing: 12, mainAxisSpacing: 12,
       ),
       itemCount: sets.length,
-      itemBuilder: (context, i) => _SetBox(set: sets[i]),
+      itemBuilder: (_, i) => _SetBox(set: sets[i], imageUrl: boosterArt[sets[i].id]),
     );
   }
 }
@@ -78,7 +87,8 @@ class _SetGrid extends StatelessWidget {
 
 class _SetBox extends StatelessWidget {
   final PocketSet set;
-  const _SetBox({required this.set});
+  final String?   imageUrl;
+  const _SetBox({required this.set, this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -87,98 +97,90 @@ class _SetBox extends StatelessWidget {
     final color2 = Color(meta?.color2 ?? 0xFFF08030);
 
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PocketCardListScreen(
-            setId:   set.id,
-            setName: set.name,
-          ),
-        ),
-      ),
+      onTap: () => Navigator.push(context, MaterialPageRoute(
+        builder: (_) => PocketCardListScreen(setId: set.id, setName: set.name),
+      )),
       child: Container(
+        // borderRadius: 4 — padrão retangular do projeto
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(4),
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end:   Alignment.bottomRight,
-            colors: [
-              color1.withOpacity(0.85),
-              color2.withOpacity(0.85),
-            ],
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+            colors: [color1, color2],
           ),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Stack(
-            fit: StackFit.expand,
+          borderRadius: BorderRadius.circular(4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Imagem do booster (fundo) ──
-              Positioned.fill(
-                child: Image.network(
-                  TcgPocketService.boosterImageUrl(set.id),
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
-                  loadingBuilder: (_, child, progress) =>
-                      progress == null ? child : const SizedBox.shrink(),
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-
-              // ── Gradiente escurecendo a base para o texto ──
-              Positioned(
-                left: 0, right: 0, bottom: 0,
-                height: 72,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end:   Alignment.topCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.75),
-                        Colors.transparent,
-                      ],
+              // ── Cabeçalho: ID e nome em destaque ──────────────
+              Container(
+                padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
+                color: Colors.black.withOpacity(0.38),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ID pequeno acima
+                    Text(
+                      set.id,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white70,
+                        letterSpacing: 0.8,
+                      ),
                     ),
-                  ),
-                ),
-              ),
-
-              // ── ID da coleção (canto superior esquerdo) ──
-              Positioned(
-                top: 8, left: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.45),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    set.id,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
+                    const SizedBox(height: 3),
+                    // Nome em destaque
+                    Text(
+                      set.name,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1.2,
+                        shadows: [
+                          Shadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 1)),
+                        ],
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
+                  ],
                 ),
               ),
 
-              // ── Nome da coleção (rodapé) ──
-              Positioned(
-                left: 10, right: 10, bottom: 10,
-                child: Text(
-                  set.name,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    shadows: [
-                      Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
-                    ],
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+              // ── Imagem do pacote booster ───────────────────────
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Fundo de degradê
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                          colors: [color1.withOpacity(0.5), color2.withOpacity(0.5)],
+                        ),
+                      ),
+                    ),
+                    // Imagem
+                    if (imageUrl != null)
+                      Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Image.network(
+                          imageUrl!,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (_, child, p) =>
+                              p == null ? child : const SizedBox.shrink(),
+                          errorBuilder: (_, __, ___) =>
+                              _FallbackIcon(color: Colors.white),
+                        ),
+                      )
+                    else
+                      _FallbackIcon(color: Colors.white),
+                  ],
                 ),
               ),
             ],
@@ -187,6 +189,14 @@ class _SetBox extends StatelessWidget {
       ),
     );
   }
+}
+
+class _FallbackIcon extends StatelessWidget {
+  final Color color;
+  const _FallbackIcon({required this.color});
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Icon(Icons.style_outlined, size: 40, color: color.withOpacity(0.3)));
 }
 
 // ─── Skeleton ────────────────────────────────────────────────────
@@ -220,14 +230,14 @@ class _HubSkeletonState extends State<_HubSkeleton>
       builder: (_, __) => GridView.builder(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, childAspectRatio: 0.85,
+          crossAxisCount: 2, childAspectRatio: 0.82,
           crossAxisSpacing: 12, mainAxisSpacing: 12,
         ),
         itemCount: 8,
         itemBuilder: (_, __) => Container(
           decoration: BoxDecoration(
             color: scheme.onSurface.withOpacity(_anim.value * 0.12),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(4),
           ),
         ),
       ),
@@ -242,23 +252,18 @@ class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
-          const SizedBox(height: 12),
-          Text(message),
-          const SizedBox(height: 16),
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
-            onPressed: onRetry,
-            child: const Text('Tentar novamente'),
-          ),
-        ],
+  Widget build(BuildContext context) => Center(
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
+      const SizedBox(height: 12),
+      Text(message),
+      const SizedBox(height: 16),
+      OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
+        onPressed: onRetry,
+        child: const Text('Tentar novamente'),
       ),
-    );
-  }
+    ]),
+  );
 }
