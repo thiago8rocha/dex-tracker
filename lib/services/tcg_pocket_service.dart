@@ -251,9 +251,8 @@ class TcgPocketService {
     } catch (_) { return null; }
   }
 
-  /// Busca detalhes de uma carta.
-  /// [cardId] no formato "A1-1" → monta /sets/A1/1
-  /// Aceita também setId + localId como named params opcionais.
+  /// Busca detalhes de uma carta pelo setId + localId.
+  /// Tenta os dois formatos: com zeros ("001") e sem ("1").
   static Future<PocketCardDetail?> fetchCard(
     String cardId, {
     String? setId,
@@ -261,36 +260,37 @@ class TcgPocketService {
   }) async {
     if (_cardCache.containsKey(cardId)) return _cardCache[cardId];
     try {
-      // Determinar setId e localId: preferir params, senão extrair do cardId
       String resolvedSet   = setId   ?? '';
       String resolvedLocal = localId ?? '';
+
+      // Se não foram passados, extrai do cardId formato "A1-001"
       if (resolvedSet.isEmpty || resolvedLocal.isEmpty) {
-        // cardId formato "A1-1" → set="A1", local="1"
         final dashIdx = cardId.lastIndexOf('-');
         if (dashIdx > 0) {
           resolvedSet   = cardId.substring(0, dashIdx);
           resolvedLocal = cardId.substring(dashIdx + 1);
         }
       }
+
       if (resolvedSet.isEmpty || resolvedLocal.isEmpty) return null;
-      // Remover zeros à esquerda do localId: "001" → "1", "012" → "12"
-      final localNum = int.tryParse(resolvedLocal);
-      final cleanLocal = localNum != null ? localNum.toString() : resolvedLocal;
-      final url = '$_kBase/sets/$resolvedSet/$cleanLocal';
-      // ignore: avoid_print
-      print('[TcgPocket] fetchCard → $url');
-      final res = await http.get(Uri.parse(url)).timeout(_timeout);
-      if (res.statusCode != 200) {
-        // ignore: avoid_print
-        print('[TcgPocket] fetchCard $url → HTTP ${res.statusCode}');
-        return null;
+
+      // Tenta primeiro com localId original, depois sem zeros
+      final urls = <String>{};
+      urls.add('$_kBase/sets/$resolvedSet/$resolvedLocal');
+      final n = int.tryParse(resolvedLocal);
+      if (n != null) urls.add('$_kBase/sets/$resolvedSet/$n');
+
+      for (final url in urls) {
+        final res = await http.get(Uri.parse(url)).timeout(_timeout);
+        if (res.statusCode == 200) {
+          final card = PocketCardDetail.fromJson(
+              jsonDecode(res.body) as Map<String, dynamic>);
+          _cardCache[cardId] = card;
+          return card;
+        }
       }
-      final card = PocketCardDetail.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
-      _cardCache[cardId] = card;
-      return card;
-    } catch (e, st) {
-      // ignore: avoid_print
-      print('[TcgPocket] fetchCard error: $e');
+      return null;
+    } catch (_) {
       return null;
     }
   }
