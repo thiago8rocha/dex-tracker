@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/services/tcg_pocket_service.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_card_list_screen.dart';
 
-// Sets que usam logo ao invés de booster vertical
 const Set<String> _kPromoSets = {'P-A', 'P-B'};
 
 class PocketHubScreen extends StatefulWidget {
@@ -108,25 +107,20 @@ class _SetBox extends StatelessWidget {
               else
                 _BoosterBackground(assetPath: assetPath),
 
-              // ── Overlay para suavizar a imagem (deixá-la sutil) ──
-              // + escurece topo (texto) e base (corta borda do pacote)
+              // ── Overlay: topo escuro para texto + base para cortar ──
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      stops: const [0.0, 0.30, 0.55, 0.80, 1.0],
+                      stops: const [0.0, 0.32, 0.58, 0.80, 1.0],
                       colors: [
-                        // Topo — fundo escuro para o texto
-                        Colors.black.withOpacity(0.68),
-                        // Transição para a imagem
-                        Colors.black.withOpacity(0.10),
-                        // Centro — overlay sutil que aclara/suaviza
-                        Colors.black.withOpacity(0.28),
-                        // Base — escurece para cortar o nome do booster
-                        Colors.black.withOpacity(0.55),
-                        Colors.black.withOpacity(0.75),
+                        Colors.black.withOpacity(0.72),
+                        Colors.black.withOpacity(0.08),
+                        Colors.black.withOpacity(0.22),
+                        Colors.black.withOpacity(0.50),
+                        Colors.black.withOpacity(0.78),
                       ],
                     ),
                   ),
@@ -179,7 +173,10 @@ class _SetBox extends StatelessWidget {
   }
 }
 
-// ─── Booster vertical: zoom alto + alinhamento para cortar borda ──
+// ─── Booster vertical ─────────────────────────────────────────────
+// Estratégia: BoxFit.cover preenche a caixa inteira.
+// Transform.scale centralizado amplia DEPOIS do clip — zoom real sem
+// deslocar a imagem para fora, cortando simetricamente em todos os lados.
 
 class _BoosterBackground extends StatelessWidget {
   final String assetPath;
@@ -187,24 +184,29 @@ class _BoosterBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // scale baixo = imagem renderizada maior = mais zoom
-    // alignment negativo em Y = puxa imagem para cima, corta base
     return Positioned.fill(
-      child: Image.asset(
-        assetPath,
-        fit: BoxFit.cover,
-        alignment: const Alignment(0.0, -0.85),
-        scale: 0.52, // era 0.72 — mais zoom para sumir com a borda do topo
-        // Opacidade reduzida para imagem mais sutil
-        opacity: const AlwaysStoppedAnimation(0.55),
-        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      child: Opacity(
+        opacity: 0.55, // sutil — imagem de fundo, não destaque
+        child: Transform.scale(
+          // 1.55 = 55% de zoom a mais em torno do centro
+          // corta ~22% em cada borda — elimina o topo e a base do pacote
+          scale: 1.55,
+          alignment: Alignment.center,
+          child: Image.asset(
+            assetPath,
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
+        ),
       ),
     );
   }
 }
 
-// ─── Promo: logo transparente centralizado sobre o degradê ────────
-// PNG com canal alpha — renderiza sobre o gradiente, centralizado e grande
+// ─── Promo: logo com fundo sólido, BoxFit.cover centralizado ──────
+// As imagens das promos já foram pré-processadas (fundo opaco, recortadas)
+// então funcionam como qualquer outro PNG sem transparência.
 
 class _PromoBackground extends StatelessWidget {
   final String assetPath;
@@ -213,27 +215,13 @@ class _PromoBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
-      child: Padding(
-        // Padding negativo simulado via OverflowBox — amplia para fora
-        padding: EdgeInsets.zero,
-        child: OverflowBox(
-          maxWidth: double.infinity,
-          maxHeight: double.infinity,
-          // widthFactor > 1 = a imagem ocupa mais que 100% da caixa
-          // como o logo é horizontal (622x274), 1.6x preenche bem a caixa
-          // e recorta as bordas laterais deixando só o emblema central
-          child: FractionallySizedBox(
-            widthFactor: 1.6,
-            heightFactor: 1.6,
-            child: Image.asset(
-              assetPath,
-              fit: BoxFit.contain,
-              alignment: Alignment.center,
-              // Opacidade sutil — logo transparente sobre o gradiente de cor
-              opacity: const AlwaysStoppedAnimation(0.50),
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            ),
-          ),
+      child: Opacity(
+        opacity: 0.55,
+        child: Image.asset(
+          assetPath,
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
         ),
       ),
     );
