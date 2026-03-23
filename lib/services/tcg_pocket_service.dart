@@ -129,17 +129,23 @@ class PocketCardDetail {
   final String? imageUrlHigh; final String? rarity; final String? category;
   final int? hp; final List<String> types; final String? stage;
   final String? evolveFrom; final String? description;
+  final String? descriptionPt;
   final List<PocketAttack> attacks; final List<PocketAbility> abilities;
   final String? weaknessType; final int? weaknessValue; final int? retreat;
   final String? trainerEffect; final String? trainerType;
+  // Traduções PT obtidas via endpoint /pt/
+  final String? namePt;
+  final Map<String, String> attackNamesPt; // localId do ataque → nome PT
 
   const PocketCardDetail({
     required this.id, required this.localId, required this.name,
     this.imageUrlHigh, this.rarity, this.category, this.hp,
     required this.types, this.stage, this.evolveFrom, this.description,
+    this.descriptionPt,
     required this.attacks, required this.abilities,
     this.weaknessType, this.weaknessValue, this.retreat,
     this.trainerEffect, this.trainerType,
+    this.namePt, this.attackNamesPt = const {},
   });
 
   factory PocketCardDetail.fromJson(Map<String, dynamic> json) {
@@ -317,6 +323,59 @@ class TcgPocketService {
       return null;
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Busca tradução PT de uma carta para nome e ataques.
+  /// Retorna Map com 'name' e 'attack_N' (índice do ataque).
+  static Future<Map<String, String>> fetchCardPt(
+    String cardId, {
+    String? setId,
+    String? localId,
+  }) async {
+    try {
+      String resolvedSet   = setId   ?? '';
+      String resolvedLocal = localId ?? '';
+      if (resolvedSet.isEmpty || resolvedLocal.isEmpty) {
+        final dashIdx = cardId.lastIndexOf('-');
+        if (dashIdx > 0) {
+          resolvedSet   = cardId.substring(0, dashIdx);
+          resolvedLocal = cardId.substring(dashIdx + 1);
+        }
+      }
+      final n            = int.tryParse(resolvedLocal);
+      final localNoZeros = n != null ? n.toString() : resolvedLocal;
+      final cardIdClean  = resolvedSet.isNotEmpty
+          ? '$resolvedSet-$localNoZeros' : cardId;
+
+      const ptBase = 'https://api.tcgdex.net/v2/pt';
+      final urls = <String>[
+        '$ptBase/cards/$cardIdClean',
+        '$ptBase/cards/$cardId',
+        if (resolvedSet.isNotEmpty) '$ptBase/sets/$resolvedSet/$localNoZeros',
+      ];
+
+      for (final url in urls) {
+        final res = await http
+            .get(Uri.parse(url), headers: _headers)
+            .timeout(_timeout);
+        if (res.statusCode == 200) {
+          final json = jsonDecode(res.body) as Map<String, dynamic>;
+          final result = <String, String>{};
+          if (json['name'] != null) result['name'] = json['name'].toString();
+          if (json['description'] != null) result['description'] = json['description'].toString();
+          final attacks = (json['attacks'] as List<dynamic>?) ?? [];
+          for (int i = 0; i < attacks.length; i++) {
+            final a = attacks[i] as Map<String, dynamic>?;
+            if (a?['name'] != null) result['attack_$i'] = a!['name'].toString();
+            if (a?['effect'] != null) result['attackEffect_$i'] = a!['effect'].toString();
+          }
+          return result;
+        }
+      }
+      return {};
+    } catch (_) {
+      return {};
     }
   }
 

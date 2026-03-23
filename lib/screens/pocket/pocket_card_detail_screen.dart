@@ -17,42 +17,37 @@ class PocketCardDetailScreen extends StatefulWidget {
 }
 
 class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
-  PocketCardDetail? _detail;
-  bool _loadingDetail = true;
-  String? _fetchError;
+  PocketCardDetail?    _detail;
+  bool                 _loadingDetail = true;
+  Map<String, String>  _pt            = {};
 
   @override
   void initState() {
     super.initState();
-    _fetchDetail();
+    _fetchAll();
   }
 
-  Future<void> _fetchDetail() async {
+  Future<void> _fetchAll() async {
     try {
-      // Extrair localId da imageUrlLow que já funciona na lista
-      // Ex: "https://assets.tcgdex.net/en/tcgp/A1/1/low.webp" → localId="1"
-      String? localFromUrl;
       final imgUrl = widget.card.imageUrlLow;
+      String localId = widget.card.localId;
       if (imgUrl != null) {
         final parts = imgUrl.split('/');
-        // Estrutura: .../tcgp/{setId}/{localId}/low.webp
-        // low.webp é o último, localId é o penúltimo
-        if (parts.length >= 2) {
-          localFromUrl = parts[parts.length - 2]; // ex: "1"
-        }
+        if (parts.length >= 2) localId = parts[parts.length - 2];
       }
 
-      final localId = localFromUrl ?? widget.card.localId;
+      final results = await Future.wait([
+        TcgPocketService.fetchCard(widget.card.id, setId: widget.setId, localId: localId),
+        TcgPocketService.fetchCardPt(widget.card.id, setId: widget.setId, localId: localId),
+      ]);
 
-      final d = await TcgPocketService.fetchCard(
-        widget.card.id, setId: widget.setId, localId: localId,
-      );
-      if (mounted) setState(() { _detail = d; _loadingDetail = false; });
-    } catch (e) {
       if (mounted) setState(() {
+        _detail        = results[0] as PocketCardDetail?;
+        _pt            = results[1] as Map<String, String>;
         _loadingDetail = false;
-        _fetchError = e.toString();
       });
+    } catch (_) {
+      if (mounted) setState(() => _loadingDetail = false);
     }
   }
 
@@ -62,6 +57,27 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
     return low.replaceAll('/low.webp', '/high.webp');
   }
 
+  // Nome do Pokémon: PT se disponível, senão EN
+  String get _displayName => _pt['name'] ?? widget.card.name;
+
+  // Descrição: PT se disponível, senão EN
+  String? get _displayDescription {
+    final pt = _pt['description'];
+    if (pt != null && pt.isNotEmpty) return pt;
+    return _detail?.description;
+  }
+
+  // Nome do ataque: PT se disponível, senão EN
+  String _attackName(int i, PocketAttack atk) =>
+      _pt['attack_$i'] ?? atk.name;
+
+  // Efeito do ataque: PT se disponível, senão EN
+  String? _attackEffect(int i, PocketAttack atk) {
+    final pt = _pt['attackEffect_$i'];
+    if (pt != null && pt.isNotEmpty) return pt;
+    return atk.effect;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -69,7 +85,7 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.card.name),
+        title: Text(_displayName),
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
@@ -93,11 +109,12 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
                           ? Image.network(
                               _highUrl!,
                               fit: BoxFit.cover,
-                              loadingBuilder: (_, child, p) =>
-                                  p == null ? child : Container(
-                                    color: scheme.surfaceContainerHigh,
-                                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                                  ),
+                              loadingBuilder: (_, child, p) => p == null
+                                  ? child
+                                  : Container(
+                                      color: scheme.surfaceContainerHigh,
+                                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                    ),
                               errorBuilder: (_, __, ___) => Container(
                                 color: scheme.surfaceContainerHigh,
                                 child: Icon(Icons.style_outlined, size: 48,
@@ -121,18 +138,32 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  // ── Nome ────────────────────────────────────────
-                  Text(widget.card.name,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                  // ── Nome + ícone(s) de tipo ───────────────────
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _displayName,
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      if (_detail != null && _detail!.types.isNotEmpty)
+                        ...(_detail!.types.map((t) => Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: _EnergyIcon(type: t, size: 26),
+                        ))),
+                    ],
+                  ),
                   const SizedBox(height: 4),
 
-                  // ── Set name ────────────────────────────────────
+                  // ── Nome do set ───────────────────────────────
                   Text(
                     kPocketSetMeta[widget.setId]?.namePt ?? widget.setId,
                     style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
                   ),
 
-                  // ── Raridade ────────────────────────────────────
+                  // ── Raridade ──────────────────────────────────
                   if (widget.card.rarity != null) ...[
                     const SizedBox(height: 8),
                     Row(children: [
@@ -145,71 +176,59 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
 
                   const SizedBox(height: 16),
 
-                  // ── Tabela de stats ─────────────────────────────
-                  _buildStatsTable(context, scheme, isDark),
+                  // ── Tabela stats ──────────────────────────────
+                  _buildStatsTable(scheme, isDark),
 
                   const SizedBox(height: 16),
 
-                  // ── Loading extras ──────────────────────────────
+                  // ── Loading ───────────────────────────────────
                   if (_loadingDetail)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(bottom: 12),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         SizedBox(width: 14, height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2,
-                              color: scheme.onSurfaceVariant)),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: scheme.onSurfaceVariant)),
                         const SizedBox(width: 8),
                         Text('Carregando detalhes...',
-                            style: TextStyle(fontSize: 12,
-                                color: scheme.onSurfaceVariant)),
+                            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                       ]),
                     ),
-                  if (!_loadingDetail && _fetchError != null)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(8),
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'Erro: ${_fetchError ?? ""}',
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                    ),
 
-                  // ── Descrição ───────────────────────────────────
-                  if (_detail?.description != null &&
-                      _detail!.description!.isNotEmpty) ...[
-                    Text(_detail!.description!,
+                  // ── Descrição do Pokédex ──────────────────────
+                  if (_displayDescription != null && _displayDescription!.isNotEmpty) ...[
+                    Text('Descrição do Pokédex',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                          color: scheme.onSurfaceVariant)),
+                    const SizedBox(height: 6),
+                    Text(
+                      _displayDescription!,
                       style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic,
-                          color: scheme.onSurfaceVariant, height: 1.5)),
+                          color: scheme.onSurfaceVariant, height: 1.5),
+                    ),
                     const SizedBox(height: 16),
                   ],
 
-                  // ── Habilidades ─────────────────────────────────
+                  // ── Habilidades ───────────────────────────────
                   if (_detail != null && _detail!.abilities.isNotEmpty) ...[
-                    _buildSectionTitle('Habilidades', scheme),
-                    const SizedBox(height: 8),
-                    ..._detail!.abilities.map((a) => _buildAbilityCard(a, scheme)),
-                    const SizedBox(height: 8),
+                    _buildAbilities(scheme),
+                    const SizedBox(height: 16),
                   ],
 
-                  // ── Ataques ─────────────────────────────────────
+                  // ── Ataques ───────────────────────────────────
                   if (_detail != null && _detail!.attacks.isNotEmpty) ...[
-                    _buildSectionTitle('Ataques', scheme),
-                    const SizedBox(height: 8),
-                    _buildAttacksTable(_detail!.attacks, scheme, isDark),
-                    const SizedBox(height: 8),
+                    _buildAttacks(scheme, isDark),
+                    const SizedBox(height: 16),
                   ],
 
-                  // ── Trainer ─────────────────────────────────────
+                  // ── Trainer ───────────────────────────────────
                   if (_detail != null &&
                       _detail!.category == 'Trainer' &&
                       _detail!.trainerEffect != null &&
                       _detail!.trainerEffect!.isNotEmpty) ...[
-                    _buildSectionTitle(_trainerLabel(_detail!.trainerType), scheme),
+                    Text(_trainerLabel(_detail!.trainerType),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                          color: scheme.onSurfaceVariant)),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -232,20 +251,40 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
     );
   }
 
-  // ── Stats table ────────────────────────────────────────────────
-  Widget _buildStatsTable(BuildContext ctx, ColorScheme scheme, bool isDark) {
-    final cells = <_Cell>[];
-    cells.add(_Cell(label: 'Número', value: '#${widget.card.localId}'));
-
-    if (_detail?.stage != null) {
+  // ── Tabela de stats ──────────────────────────────────────────
+  Widget _buildStatsTable(ColorScheme scheme, bool isDark) {
+    final cells = <_Cell>[
+      _Cell(label: 'Número', value: '#${widget.card.localId}'),
+    ];
+    if (_detail?.stage != null)
       cells.add(_Cell(label: 'Evolução', value: _stageLabel(_detail!.stage!)));
-    }
-    if (_detail?.hp != null) {
+    if (_detail?.hp != null)
       cells.add(_Cell(label: 'HP', value: '${_detail!.hp}'));
-    }
+
+    // Fraqueza: ícone + valor
+    Widget? weakWidget;
     if (_detail?.weaknessType != null) {
-      final v = _detail!.weaknessValue != null ? '+${_detail!.weaknessValue}' : '';
-      cells.add(_Cell(label: 'Fraqueza', value: '${_detail!.weaknessType}$v'));
+      final val = _detail!.weaknessValue != null ? '+${_detail!.weaknessValue}' : '';
+      weakWidget = Row(mainAxisSize: MainAxisSize.min, children: [
+        _EnergyIcon(type: _detail!.weaknessType!, size: 20),
+        const SizedBox(width: 4),
+        Text(val, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+      ]);
+    }
+
+    // Recuo: ícones Colorless
+    Widget? retreatWidget;
+    if (_detail?.retreat != null && _detail!.retreat! > 0) {
+      retreatWidget = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(_detail!.retreat!.clamp(0, 5), (_) => Padding(
+          padding: const EdgeInsets.only(right: 3),
+          child: _EnergyIcon(type: 'Colorless', size: 16),
+        )),
+      );
+    } else if (_detail?.retreat == 0) {
+      retreatWidget = const Text('0',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700));
     }
 
     return Container(
@@ -254,142 +293,161 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: scheme.outlineVariant, width: 0.5),
       ),
-      child: Row(
-        children: cells.map((c) {
-          final isLast = c == cells.last;
-          return Expanded(
-            child: Container(
-              decoration: !isLast
-                  ? BoxDecoration(border: Border(
-                      right: BorderSide(color: scheme.outlineVariant, width: 0.5)))
-                  : null,
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(c.value, style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w700),
-                  textAlign: TextAlign.center,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 2),
-                Text(c.label, style: TextStyle(
-                    fontSize: 10, color: scheme.onSurfaceVariant),
-                  textAlign: TextAlign.center),
-              ]),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  // ── Habilidade ────────────────────────────────────────────────
-  Widget _buildAbilityCard(PocketAbility a, ColorScheme scheme) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.purple.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.purple.withOpacity(0.25)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.purple.shade600,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(a.type ?? 'Habilidade',
-              style: const TextStyle(color: Colors.white,
-                  fontSize: 10, fontWeight: FontWeight.w700)),
-          ),
-          const SizedBox(width: 8),
-          Expanded(child: Text(a.name,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
-        ]),
-        if (a.effect != null && a.effect!.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text(a.effect!, style: TextStyle(fontSize: 13, height: 1.4,
-              color: scheme.onSurface.withOpacity(0.8))),
-        ],
-      ]),
-    );
-  }
-
-  // ── Ataques ───────────────────────────────────────────────────
-  Widget _buildAttacksTable(
-      List<PocketAttack> attacks, ColorScheme scheme, bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? scheme.surfaceContainerHigh : scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: scheme.outlineVariant, width: 0.5),
-      ),
-      child: Column(children: [
-        for (int i = 0; i < attacks.length; i++) ...[
-          if (i > 0) Divider(height: 1, color: scheme.outlineVariant),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                // Energia
-                if (attacks[i].cost.isNotEmpty) ...[
-                  ...attacks[i].cost.map((c) => Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: _energyIcon(c),
-                  )),
-                  const SizedBox(width: 6),
-                ],
-                // Nome
-                Expanded(child: Text(attacks[i].name,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
-                // Dano
-                if (attacks[i].damage != null && attacks[i].damage!.isNotEmpty)
-                  Text(attacks[i].damage!,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              ]),
-              // Efeito
-              if (attacks[i].effect != null && attacks[i].effect!.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(attacks[i].effect!, style: TextStyle(fontSize: 12, height: 1.4,
-                    color: scheme.onSurface.withOpacity(0.7))),
+      child: Column(
+        children: [
+          // Linha 1: células de texto
+          IntrinsicHeight(
+            child: Row(children: [
+              for (int i = 0; i < cells.length; i++) ...[
+                if (i > 0) VerticalDivider(width: 1, thickness: 0.5, color: scheme.outlineVariant),
+                Expanded(child: _buildStatCell(
+                  label: cells[i].label,
+                  value: cells[i].value,
+                  scheme: scheme,
+                )),
               ],
             ]),
           ),
+          // Linha 2: fraqueza + recuo (se disponíveis)
+          if (weakWidget != null || retreatWidget != null) ...[
+            Divider(height: 1, thickness: 0.5, color: scheme.outlineVariant),
+            IntrinsicHeight(
+              child: Row(children: [
+                if (weakWidget != null) ...[
+                  Expanded(child: _buildStatCellWidget(
+                      label: 'Fraqueza', widget: weakWidget, scheme: scheme)),
+                ],
+                if (weakWidget != null && retreatWidget != null)
+                  VerticalDivider(width: 1, thickness: 0.5, color: scheme.outlineVariant),
+                if (retreatWidget != null)
+                  Expanded(child: _buildStatCellWidget(
+                      label: 'Recuo', widget: retreatWidget, scheme: scheme)),
+              ]),
+            ),
+          ],
         ],
-      ]),
-    );
-  }
-
-  Widget _energyIcon(String type) {
-    const colors = {
-      'Fire': Color(0xFFF08030), 'Water': Color(0xFF6890F0),
-      'Grass': Color(0xFF78C850), 'Electric': Color(0xFFF8D030),
-      'Lightning': Color(0xFFF8D030), 'Psychic': Color(0xFFF85888),
-      'Fighting': Color(0xFFC03028), 'Darkness': Color(0xFF705848),
-      'Dark': Color(0xFF705848), 'Metal': Color(0xFFB8B8D0),
-      'Steel': Color(0xFFB8B8D0), 'Colorless': Color(0xFFA8A878),
-      'Dragon': Color(0xFF7038F8),
-    };
-    final color = colors[type] ?? const Color(0xFFA8A878);
-    return Container(
-      width: 20, height: 20,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      child: ClipOval(
-        child: Image.asset('assets/types/${type.toLowerCase()}.png',
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Center(
-            child: Text(type.isNotEmpty ? type[0] : '?',
-              style: const TextStyle(color: Colors.white, fontSize: 10,
-                  fontWeight: FontWeight.w800))),
-        ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title, ColorScheme scheme) {
-    return Text(title, style: TextStyle(fontSize: 13,
-        fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant));
+  Widget _buildStatCell({
+    required String label, required String value, required ColorScheme scheme}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+            color: scheme.onSurface)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+          textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ]),
+    );
+  }
+
+  Widget _buildStatCellWidget({
+    required String label, required Widget widget, required ColorScheme scheme}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+            color: scheme.onSurface)),
+        const SizedBox(height: 4),
+        widget,
+      ]),
+    );
+  }
+
+  // ── Habilidades ──────────────────────────────────────────────
+  Widget _buildAbilities(ColorScheme scheme) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Habilidade${_detail!.abilities.length > 1 ? 's' : ''}',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+              color: scheme.onSurfaceVariant)),
+      const SizedBox(height: 8),
+      ..._detail!.abilities.map((a) => Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.purple.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.purple.withOpacity(0.25)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(color: Colors.purple.shade600,
+                  borderRadius: BorderRadius.circular(4)),
+              child: Text(a.type ?? 'Habilidade',
+                  style: const TextStyle(color: Colors.white,
+                      fontSize: 10, fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(a.name, style: const TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w700))),
+          ]),
+          if (a.effect != null && a.effect!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(a.effect!, style: TextStyle(fontSize: 13, height: 1.4,
+                color: scheme.onSurface.withOpacity(0.8))),
+          ],
+        ]),
+      )),
+    ]);
+  }
+
+  // ── Ataques ──────────────────────────────────────────────────
+  Widget _buildAttacks(ColorScheme scheme, bool isDark) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Ataques', style: TextStyle(fontSize: 13,
+          fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
+      const SizedBox(height: 8),
+      Container(
+        decoration: BoxDecoration(
+          color: isDark ? scheme.surfaceContainerHigh : scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: scheme.outlineVariant, width: 0.5),
+        ),
+        child: Column(children: [
+          for (int i = 0; i < _detail!.attacks.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: scheme.outlineVariant),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  // Ícones de energia do custo
+                  if (_detail!.attacks[i].cost.isNotEmpty) ...[
+                    ..._detail!.attacks[i].cost.map((c) => Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: _EnergyIcon(type: c, size: 20),
+                    )),
+                    const SizedBox(width: 6),
+                  ],
+                  // Nome (PT ou EN)
+                  Expanded(child: Text(_attackName(i, _detail!.attacks[i]),
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w700))),
+                  // Dano
+                  if (_detail!.attacks[i].damage != null &&
+                      _detail!.attacks[i].damage!.isNotEmpty)
+                    Text(_detail!.attacks[i].damage!,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w800)),
+                ]),
+                // Efeito (PT ou EN)
+                if (_attackEffect(i, _detail!.attacks[i]) != null &&
+                    _attackEffect(i, _detail!.attacks[i])!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(_attackEffect(i, _detail!.attacks[i])!,
+                      style: TextStyle(fontSize: 12, height: 1.4,
+                          color: scheme.onSurface.withOpacity(0.7))),
+                ],
+              ]),
+            ),
+          ],
+        ]),
+      ),
+    ]);
   }
 
   String _stageLabel(String s) {
@@ -409,6 +467,67 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
       case 'tool':      return 'Ferramenta';
       default:          return t ?? 'Efeito';
     }
+  }
+}
+
+// ── Ícone de energia (TCG) ────────────────────────────────────────
+// Usa assets/types/ — mesmo mapeamento do resto do app
+
+class _EnergyIcon extends StatelessWidget {
+  final String type;
+  final double size;
+
+  // TCG usa nomes diferentes do main game:
+  // Lightning = Electric, Darkness = Dark, Metal = Steel
+  static const Map<String, String> _assetMap = {
+    'Grass': 'grass',       'Fire': 'fire',         'Water': 'water',
+    'Lightning': 'electric','Psychic': 'psychic',   'Fighting': 'fighting',
+    'Darkness': 'dark',     'Metal': 'steel',       'Fairy': 'fairy',
+    'Dragon': 'dragon',     'Colorless': 'normal',
+    // aliases
+    'Electric': 'electric', 'Dark': 'dark', 'Steel': 'steel',
+    'Normal': 'normal',     'Bug': 'bug',   'Rock': 'rock',
+    'Ghost': 'ghost',       'Ice': 'ice',   'Poison': 'poison',
+    'Ground': 'ground',     'Flying': 'flying',
+  };
+
+  static const Map<String, Color> _colors = {
+    'Grass': Color(0xFF78C850),       'Fire': Color(0xFFF08030),
+    'Water': Color(0xFF6890F0),       'Lightning': Color(0xFFF8D030),
+    'Psychic': Color(0xFFF85888),     'Fighting': Color(0xFFC03028),
+    'Darkness': Color(0xFF705848),    'Metal': Color(0xFFB8B8D0),
+    'Fairy': Color(0xFFEE99AC),       'Dragon': Color(0xFF7038F8),
+    'Colorless': Color(0xFFA8A878),
+    'Electric': Color(0xFFF8D030),    'Dark': Color(0xFF705848),
+    'Steel': Color(0xFFB8B8D0),       'Normal': Color(0xFFA8A878),
+  };
+
+  const _EnergyIcon({required this.type, this.size = 22});
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = _assetMap[type] ?? 'normal';
+    final color = _colors[type] ?? const Color(0xFFA8A878);
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      child: ClipOval(
+        child: Image.asset(
+          'assets/types/$asset.png',
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Center(
+            child: Text(
+              type.isNotEmpty ? type[0] : '?',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: size * 0.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
