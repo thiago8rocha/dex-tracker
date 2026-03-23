@@ -146,6 +146,7 @@ class _MoveDetailScreenState extends State<MoveDetailScreen> {
 
   // ── Helpers ───────────────────────────────────────────────────
   String _flavorText() {
+    if (widget.entry.flavor.isNotEmpty) return widget.entry.flavor;
     final flavors = _detail?['flavor_text_entries'] as List<dynamic>? ?? [];
     String pt = '', en = '';
     for (final e in flavors) {
@@ -160,6 +161,7 @@ class _MoveDetailScreenState extends State<MoveDetailScreen> {
 
   String _effectText() {
     final effects = _detail?['effect_entries'] as List<dynamic>? ?? [];
+    if (widget.entry.effect.isNotEmpty) return widget.entry.effect;
     for (final e in effects) {
       if ((e['language']['name'] as String) == 'en') {
         return (e['effect'] as String? ?? '').replaceAll('\n', ' ').trim();

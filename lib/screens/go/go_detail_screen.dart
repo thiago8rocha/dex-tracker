@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:pokedex_tracker/models/pokemon.dart';
+import 'package:pokedex_tracker/services/pokedex_data_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart';
 
 // ─── POKÉMON REGIONAIS NO GO ──────────────────────────────────────
@@ -97,36 +99,27 @@ class _GoDetailScreenState extends State<GoDetailScreen>
   void dispose() { _tabController.dispose(); super.dispose(); }
 
   Future<void> _loadForms() async {
+    // Usar forms_map.json local — sem rede
     try {
-      final r = await http.get(Uri.parse('$kApiBase/pokemon-species/${widget.pokemon.id}'));
-      if (r.statusCode == 200 && mounted) {
-        final species = json.decode(r.body) as Map<String, dynamic>;
-        final varieties = species['varieties'] as List<dynamic>? ?? [];
-        final forms = <Map<String, dynamic>>[];
-        for (final v in varieties) {
-          final url  = v['pokemon']['url'] as String;
-          final name = v['pokemon']['name'] as String;
-          try {
-            final rf = await http.get(Uri.parse(url));
-            if (rf.statusCode == 200) {
-              final fd    = json.decode(rf.body) as Map<String, dynamic>;
-              final types = (fd['types'] as List<dynamic>)
-                  .map((t) => t['type']['name'] as String).toList();
-              // Shadow e formas de evento também aparecem aqui como varieties
-              forms.add({
-                'name': name,
-                'id': fd['id'] as int,
-                'types': types,
-                'isDefault': v['is_default'] as bool,
-                'game': null,
-              });
-            }
-          } catch (_) {}
-        }
-        if (mounted) setState(() { _forms = forms; _loading = false; });
-      } else {
-        if (mounted) setState(() => _loading = false);
+      final raw     = await rootBundle.loadString('assets/data/forms_map.json');
+      final map     = json.decode(raw) as Map<String, dynamic>;
+      final id      = widget.pokemon.id.toString();
+      final entries = map[id] as List<dynamic>? ?? [];
+      final forms   = <Map<String, dynamic>>[];
+      for (final v in entries) {
+        final m     = v as Map<String, dynamic>;
+        final pid   = m['id'] as int;
+        final name  = m['name'] as String;
+        final svc   = PokedexDataService.instance;
+        final types = svc.getTypes(pid).isNotEmpty
+            ? svc.getTypes(pid)
+            : svc.getTypes(widget.pokemon.id);
+        forms.add({
+          'name': name, 'id': pid, 'types': types,
+          'isDefault': m['isDefault'] as bool? ?? false, 'game': null,
+        });
       }
+      if (mounted) setState(() { _forms = forms; _loading = false; });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:pokedex_tracker/services/pokedex_data_service.dart';
 
 // ─── MODELOS ─────────────────────────────────────────────────────
 
@@ -95,21 +97,18 @@ class _GoCpCalculatorScreenState extends State<GoCpCalculatorScreen>
     super.dispose();
   }
 
-  // ── Carrega lista da PokeAPI para autocomplete ────────────────
+  // ── Carrega lista do pokedex_data local ──────────────────────
   Future<void> _loadPokemonList() async {
     try {
-      final r = await http.get(
-        Uri.parse('https://pokeapi.co/api/v2/pokemon?limit=1025&offset=0'));
-      if (r.statusCode == 200 && mounted) {
-        final d = json.decode(r.body) as Map<String, dynamic>;
-        final list = (d['results'] as List<dynamic>).map((e) {
-          final name = e['name'] as String;
-          final url  = e['url'] as String;
-          final id   = int.tryParse(url.split('/').reversed.skip(1).first) ?? 0;
-          return {'name': name, 'id': id};
-        }).toList();
-        if (mounted) setState(() => _allPokemon = list);
-      }
+      final raw  = await rootBundle.loadString('assets/data/pokemon_names.json');
+      final map  = json.decode(raw) as Map<String, dynamic>;
+      final list = map.entries.map((e) {
+        final id   = int.tryParse(e.key) ?? 0;
+        final name = (e.value as String).toLowerCase().replaceAll(' ', '-');
+        return {'name': name, 'id': id};
+      }).toList();
+      list.sort((a, b) => (a['id'] as int).compareTo(b['id'] as int));
+      if (mounted) setState(() => _allPokemon = list);
     } catch (_) {}
   }
 
@@ -156,9 +155,28 @@ class _GoCpCalculatorScreenState extends State<GoCpCalculatorScreen>
         _level, _ivAtk, _ivDef, _ivHp);
   }
 
-  // ── Busca stats GO de um Pokémon ──────────────────────────────
+  // ── Busca stats GO do pokemon_stats.json local ───────────────
+  static Map<String, dynamic>? _statsMapData;
   Future<_PokemonGoData?> _fetchGoData(int id, String name) async {
     if (_cache.containsKey(id)) return _cache[id];
+    try {
+      // Carregar pokemon_stats.json uma vez
+      _statsMapData ??= json.decode(
+          await rootBundle.loadString('assets/data/pokemon_stats.json'))
+          as Map<String, dynamic>;
+      final s = _statsMapData![id.toString()] as Map<String, dynamic>?;
+      if (s != null) {
+        final data = _PokemonGoData(
+          id: id, name: name,
+          goAtk: (s['go_atk'] as num).toInt(),
+          goDef: (s['go_def'] as num).toInt(),
+          goSta: (s['go_sta'] as num).toInt(),
+        );
+        _cache[id] = data;
+        return data;
+      }
+    } catch (_) {}
+    // Fallback: API
     try {
       final r = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon/$id'));
       if (r.statusCode == 200) {
@@ -176,7 +194,6 @@ class _GoCpCalculatorScreenState extends State<GoCpCalculatorScreen>
             case 'speed':           spd   = base; break;
           }
         }
-        // Conversão para stats GO (escala Niantic ~×2 com SpeedMod)
         final speedMod = 1 + (spd - 75) / 500;
         final goAtk = ((7 * (atk >= spatk ? atk : spatk) + (atk < spatk ? atk : spatk)) / 8 * speedMod * 2).round().clamp(1, 999);
         final goDef = ((5 * (def >= spdef ? def : spdef) + 3 * (def < spdef ? def : spdef)) / 8 * speedMod * 2).round().clamp(1, 999);
@@ -201,33 +218,30 @@ class _GoCpCalculatorScreenState extends State<GoCpCalculatorScreen>
       return;
     }
 
-    // Evoluções via chain
+    // Evoluções via pokedex_data.json local (sem rede)
+    final evoChain = PokedexDataService.instance.getEvoChain(pid);
     final evos = <_EvoTarget>[];
-    try {
-      final rs = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon-species/$pid'));
-      if (rs.statusCode == 200) {
-        final sd = json.decode(rs.body) as Map<String, dynamic>;
-        final rc = await http.get(Uri.parse(sd['evolution_chain']['url'] as String));
-        if (rc.statusCode == 200) {
-          final chain = json.decode(rc.body) as Map<String, dynamic>;
-          _collectDirectEvos(chain['chain'] as Map<String, dynamic>, name, evos);
-        }
-      }
-    } catch (_) {}
+    bool foundCurrent = false;
+    for (final step in evoChain) {
+      final stepName = (step['name'] as String).toLowerCase();
+      if (foundCurrent) evos.add(_EvoTarget(name: stepName));
+      if (stepName == name.toLowerCase()) foundCurrent = true;
+    }
 
-    // Buscar stats GO de cada evolução
     final evosWithData = <_EvoTarget>[];
     for (final evo in evos) {
-      try {
-        final re = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon/${evo.name}'));
-        if (re.statusCode == 200) {
-          final eid = (json.decode(re.body)['id'] as num).toInt();
-          final eData = await _fetchGoData(eid, evo.name);
-          evosWithData.add(_EvoTarget(name: evo.name, data: eData));
-          continue;
-        }
-      } catch (_) {}
-      evosWithData.add(_EvoTarget(name: evo.name));
+      // Encontrar ID pelo nome no evoChain
+      final chain = evoChain.firstWhere(
+        (e) => (e['name'] as String).toLowerCase() == evo.name,
+        orElse: () => <String, dynamic>{},
+      );
+      final eid   = (chain['id'] as int?) ?? 0;
+      if (eid > 0) {
+        final eData = await _fetchGoData(eid, evo.name);
+        evosWithData.add(_EvoTarget(name: evo.name, data: eData));
+      } else {
+        evosWithData.add(_EvoTarget(name: evo.name));
+      }
     }
 
     if (mounted) setState(() {

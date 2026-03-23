@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:pokedex_tracker/theme/type_colors.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
@@ -15,11 +16,14 @@ import 'package:pokedex_tracker/screens/menu/move_detail_screen.dart';
 class MoveEntry {
   final String nameEn;
   final String url;
-  String typeEn   = '';
-  String category = '';
-  int?   power;
-  int?   accuracy;
-  int?   pp;
+  String    typeEn     = '';
+  String    category   = '';
+  int?      power;
+  int?      accuracy;
+  int?      pp;
+  String    effect     = '';
+  String    flavor     = '';
+  List<int> pokemonIds = [];
   MoveEntry({required this.nameEn, required this.url});
 }
 
@@ -120,21 +124,71 @@ class _MovesListScreenState extends State<MovesListScreen> {
   Future<void> _loadMoves() async {
     setState(() { _loading = true; _allMoves = []; _filtered = []; });
 
+    // Tentar carregar do move_map.json local (instantâneo, sem rede)
+    final localMap = await _tryLoadMoveMap();
+    if (localMap != null) {
+      await _loadFromMoveMap(localMap);
+    } else {
+      await _loadFromApi();
+    }
+  }
+
+  // Carrega move_map.json uma vez e cacheia
+  static Map<String, dynamic>? _moveMapData;
+  Future<Map<String, dynamic>?> _tryLoadMoveMap() async {
+    if (_moveMapData != null) return _moveMapData;
+    try {
+      final raw = await rootBundle.loadString('assets/data/move_map.json');
+      _moveMapData = jsonDecode(raw) as Map<String, dynamic>;
+      return _moveMapData;
+    } catch (_) { return null; }
+  }
+
+  Future<void> _loadFromMoveMap(Map<String, dynamic> localMap) async {
+    // Obter IDs do jogo ativo
+    final gameIds = await _getGameIds();
+
+    final entries = <MoveEntry>[];
+    for (final kv in localMap.entries) {
+      final nameEn    = kv.key;
+      final data      = kv.value as Map<String, dynamic>;
+      final allPoke   = (data['pokemon'] as List<dynamic>).cast<int>();
+      final gamePoke  = gameIds.isEmpty
+          ? allPoke
+          : allPoke.where((id) => gameIds.contains(id)).toList();
+      if (gamePoke.isEmpty && gameIds.isNotEmpty) continue;
+
+      final e = MoveEntry(nameEn: nameEn, url: '$kApiBase/move/$nameEn');
+      e.typeEn     = data['type']   as String? ?? '';
+      e.category   = data['cat']    as String? ?? '';
+      e.power      = data['power']  as int?;
+      e.accuracy   = data['acc']    as int?;
+      e.pp         = data['pp']     as int?;
+      e.effect     = data['effect'] as String? ?? '';
+      e.flavor     = data['flavor'] as String? ?? '';
+      e.pokemonIds = gamePoke;
+      entries.add(e);
+    }
+    entries.sort((a, b) => translateMove(a.nameEn).compareTo(translateMove(b.nameEn)));
+    if (mounted) setState(() { _allMoves = entries; _applyFilters(); _loading = false; });
+  }
+
+  Future<Set<int>> _getGameIds() async {
     final sections = PokeApiService.pokedexSections[_activeGameId] ?? [];
-    final allIds   = <int>{};
+    final ids = <int>{};
     for (final s in sections) {
       final entries = await DexBundleService.instance.loadSection(s.apiName);
-      if (entries != null) {
-        for (final e in entries) allIds.add(e['speciesId']!);
-      }
+      if (entries != null) for (final e in entries) ids.add(e['speciesId']!);
     }
-    if (allIds.isEmpty && _activeGameId == 'nacional') {
-      for (int i = 1; i <= 1025; i++) allIds.add(i);
-    }
+    return ids;
+  }
 
+  // Fallback via API quando move_map.json não existe
+  Future<void> _loadFromApi() async {
+    final gameIds = await _getGameIds();
+    final ids = gameIds.isEmpty
+        ? List.generate(1025, (i) => i + 1) : gameIds.toList()..sort();
     final moveMap = <String, MoveEntry>{};
-    final ids     = allIds.toList()..sort();
-
     for (int i = 0; i < ids.length; i += 15) {
       if (!mounted) return;
       final batch = ids.skip(i).take(15).toList();
@@ -144,50 +198,42 @@ class _MovesListScreenState extends State<MovesListScreen> {
               .timeout(const Duration(seconds: 8));
           if (res.statusCode != 200) return;
           final data  = jsonDecode(res.body) as Map<String, dynamic>;
-          final moves = data['moves'] as List<dynamic>? ?? [];
-          for (final m in moves) {
+          for (final m in data['moves'] as List<dynamic>? ?? []) {
             final nameEn = m['move']['name'] as String;
             final url    = m['move']['url'] as String;
             if (!moveMap.containsKey(nameEn)) {
-              final entry = MoveEntry(nameEn: nameEn, url: url);
-              // Aplicar do cache do warmup imediatamente se disponível
-              _applyCache(entry);
-              moveMap[nameEn] = entry;
+              final e = MoveEntry(nameEn: nameEn, url: url);
+              _applyCacheToEntry(e);
+              moveMap[nameEn] = e;
             }
           }
         } catch (_) {}
       }));
-
       if (mounted) setState(() {
         _allMoves = _sortedMoves(moveMap);
         _applyFilters();
         _loading = false;
       });
     }
-
-    // Preencher entradas sem tipo ainda (cache pode ter chegado depois)
-    _fillMissingDetails(moveMap);
+    _fillMissingFromApi(moveMap.values.toList());
   }
 
-  void _applyCache(MoveEntry entry) {
-    final d = _detailCache[entry.url];
+  void _applyCacheToEntry(MoveEntry e) {
+    final d = _detailCache[e.url];
     if (d == null) return;
-    entry.typeEn   = d['type']?['name'] as String? ?? '';
-    entry.category = d['damage_class']?['name'] as String? ?? '';
-    entry.power    = d['power'] as int?;
-    entry.accuracy = d['accuracy'] as int?;
-    entry.pp       = d['pp'] as int?;
+    e.typeEn   = d['type']?['name'] as String? ?? '';
+    e.category = d['damage_class']?['name'] as String? ?? '';
+    e.power    = d['power'] as int?;
+    e.accuracy = d['accuracy'] as int?;
+    e.pp       = d['pp'] as int?;
   }
 
-  // Para moves sem tipo após a carga inicial, busca em background
-  Future<void> _fillMissingDetails(Map<String, MoveEntry> map) async {
-    final missing = map.values.where((e) => e.typeEn.isEmpty).toList();
+  Future<void> _fillMissingFromApi(List<MoveEntry> moves) async {
+    final missing = moves.where((m) => m.typeEn.isEmpty).toList();
     for (int i = 0; i < missing.length; i += 20) {
       if (!mounted) return;
-      final batch = missing.skip(i).take(20).toList();
-      await Future.wait(batch.map((e) => _loadDetail(e.url)));
-      // Re-aplicar cache após cada batch
-      for (final e in _allMoves) _applyCache(e);
+      await Future.wait(missing.skip(i).take(20).map((e) => _loadDetail(e.url)));
+      for (final e in _allMoves) _applyCacheToEntry(e);
       if (mounted) setState(() {});
       await Future.delayed(const Duration(milliseconds: 50));
     }
