@@ -19,6 +19,7 @@ class PocketCardDetailScreen extends StatefulWidget {
 class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
   PocketCardDetail? _detail;
   bool _loadingDetail = true;
+  String? _fetchError;
 
   @override
   void initState() {
@@ -28,34 +29,34 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
 
   Future<void> _fetchDetail() async {
     try {
-      final localId0 = widget.card.localId;
-      final n        = int.tryParse(localId0);
-      final localId1 = n != null ? n.toString() : localId0;
-
-      PocketCardDetail? detail;
-
-      detail = await TcgPocketService.fetchCard(
-        widget.card.id,
-        setId: widget.setId,
-        localId: localId0,
-      );
-
-      if (detail == null && localId0 != localId1) {
-        detail = await TcgPocketService.fetchCard(
-          '${widget.setId}-$localId1',
-          setId: widget.setId,
-          localId: localId1,
-        );
+      // Extrair localId da imageUrlLow que já funciona na lista
+      // Ex: "https://assets.tcgdex.net/en/tcgp/A1/1/low.webp" → localId="1"
+      String? localFromUrl;
+      final imgUrl = widget.card.imageUrlLow;
+      if (imgUrl != null) {
+        final parts = imgUrl.split('/');
+        // Estrutura: .../tcgp/{setId}/{localId}/low.webp
+        // low.webp é o último, localId é o penúltimo
+        if (parts.length >= 2) {
+          localFromUrl = parts[parts.length - 2]; // ex: "1"
+        }
       }
 
-      if (mounted) setState(() { _detail = detail; _loadingDetail = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loadingDetail = false);
+      final localId = localFromUrl ?? widget.card.localId;
+
+      final d = await TcgPocketService.fetchCard(
+        widget.card.id, setId: widget.setId, localId: localId,
+      );
+      if (mounted) setState(() { _detail = d; _loadingDetail = false; });
+    } catch (e) {
+      if (mounted) setState(() {
+        _loadingDetail = false;
+        _fetchError = e.toString();
+      });
     }
   }
 
-  // Imagem alta qualidade: troca /low.webp → /high.webp
-  String? get _highImageUrl {
+  String? get _highUrl {
     final low = widget.card.imageUrlLow;
     if (low == null) return null;
     return low.replaceAll('/low.webp', '/high.webp');
@@ -64,7 +65,7 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark  = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -77,44 +78,63 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
 
-            // ── Imagem da carta ──────────────────────────────────
-            _CardHero(imageUrl: _highImageUrl ?? widget.card.imageUrlLow),
+            // ── Imagem ────────────────────────────────────────────
+            Container(
+              color: scheme.surfaceContainerLow,
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 240),
+                  child: AspectRatio(
+                    aspectRatio: 0.714,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: _highUrl != null
+                          ? Image.network(
+                              _highUrl!,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (_, child, p) =>
+                                  p == null ? child : Container(
+                                    color: scheme.surfaceContainerHigh,
+                                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                  ),
+                              errorBuilder: (_, __, ___) => Container(
+                                color: scheme.surfaceContainerHigh,
+                                child: Icon(Icons.style_outlined, size: 48,
+                                    color: scheme.onSurfaceVariant.withOpacity(0.3)),
+                              ),
+                            )
+                          : Container(
+                              color: scheme.surfaceContainerHigh,
+                              child: Icon(Icons.style_outlined, size: 48,
+                                  color: scheme.onSurfaceVariant.withOpacity(0.3)),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  // ── Nome + tipo(s) ─────────────────────────────
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          widget.card.name,
-                          style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      if (_detail != null && _detail!.types.isNotEmpty)
-                        ..._detail!.types.map<Widget>((t) => Padding(
-                          padding: const EdgeInsets.only(left: 6),
-                          child: _TypeIcon(typeName: t, size: 26),
-                        )),
-                    ],
-                  ),
+                  // ── Nome ────────────────────────────────────────
+                  Text(widget.card.name,
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
 
-                  // ── Set name ──────────────────────────────────
+                  // ── Set name ────────────────────────────────────
                   Text(
                     kPocketSetMeta[widget.setId]?.namePt ?? widget.setId,
                     style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
                   ),
 
-                  // ── Raridade ──────────────────────────────────
+                  // ── Raridade ────────────────────────────────────
                   if (widget.card.rarity != null) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Row(children: [
                       PocketRarityBadge(rarity: widget.card.rarity!, expanded: true),
                       const SizedBox(width: 6),
@@ -122,53 +142,86 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
                           style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                     ]),
                   ],
+
                   const SizedBox(height: 16),
 
-                  // ── Tabela de stats ───────────────────────────
-                  _StatsTable(
-                    localId: widget.card.localId,
-                    detail: _detail,
-                    loading: _loadingDetail,
-                    scheme: scheme,
-                    isDark: isDark,
-                  ),
+                  // ── Tabela de stats ─────────────────────────────
+                  _buildStatsTable(context, scheme, isDark),
+
                   const SizedBox(height: 16),
 
-                  // ── Descrição ─────────────────────────────────
+                  // ── Loading extras ──────────────────────────────
+                  if (_loadingDetail)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        SizedBox(width: 14, height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2,
+                              color: scheme.onSurfaceVariant)),
+                        const SizedBox(width: 8),
+                        Text('Carregando detalhes...',
+                            style: TextStyle(fontSize: 12,
+                                color: scheme.onSurfaceVariant)),
+                      ]),
+                    ),
+                  if (!_loadingDetail && _fetchError != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Erro: ${_fetchError ?? ""}',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+
+                  // ── Descrição ───────────────────────────────────
                   if (_detail?.description != null &&
                       _detail!.description!.isNotEmpty) ...[
-                    Text(
-                      _detail!.description!,
-                      style: TextStyle(
-                        fontSize: 13, fontStyle: FontStyle.italic,
-                        color: scheme.onSurfaceVariant, height: 1.5),
-                    ),
+                    Text(_detail!.description!,
+                      style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic,
+                          color: scheme.onSurfaceVariant, height: 1.5)),
                     const SizedBox(height: 16),
                   ],
 
-                  // ── Habilidades ───────────────────────────────
+                  // ── Habilidades ─────────────────────────────────
                   if (_detail != null && _detail!.abilities.isNotEmpty) ...[
-                    _AbilitiesSection(abilities: _detail!.abilities, scheme: scheme),
-                    const SizedBox(height: 16),
+                    _buildSectionTitle('Habilidades', scheme),
+                    const SizedBox(height: 8),
+                    ..._detail!.abilities.map((a) => _buildAbilityCard(a, scheme)),
+                    const SizedBox(height: 8),
                   ],
 
-                  // ── Ataques ───────────────────────────────────
+                  // ── Ataques ─────────────────────────────────────
                   if (_detail != null && _detail!.attacks.isNotEmpty) ...[
-                    _AttacksSection(attacks: _detail!.attacks, scheme: scheme, isDark: isDark),
-                    const SizedBox(height: 16),
+                    _buildSectionTitle('Ataques', scheme),
+                    const SizedBox(height: 8),
+                    _buildAttacksTable(_detail!.attacks, scheme, isDark),
+                    const SizedBox(height: 8),
                   ],
 
-                  // ── Efeito Trainer ────────────────────────────
+                  // ── Trainer ─────────────────────────────────────
                   if (_detail != null &&
                       _detail!.category == 'Trainer' &&
                       _detail!.trainerEffect != null &&
                       _detail!.trainerEffect!.isNotEmpty) ...[
-                    _TrainerSection(
-                      effect: _detail!.trainerEffect!,
-                      trainerType: _detail!.trainerType,
-                      scheme: scheme,
+                    _buildSectionTitle(_trainerLabel(_detail!.trainerType), scheme),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.teal.withOpacity(0.3)),
+                      ),
+                      child: Text(_detail!.trainerEffect!,
+                          style: TextStyle(fontSize: 13, height: 1.5,
+                              color: scheme.onSurface.withOpacity(0.85))),
                     ),
-                    const SizedBox(height: 16),
                   ],
                 ],
               ),
@@ -178,507 +231,189 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
       ),
     );
   }
-}
 
-// ─── Imagem da carta (topo, full-width com padding lateral) ──────
+  // ── Stats table ────────────────────────────────────────────────
+  Widget _buildStatsTable(BuildContext ctx, ColorScheme scheme, bool isDark) {
+    final cells = <_Cell>[];
+    cells.add(_Cell(label: 'Número', value: '#${widget.card.localId}'));
 
-class _CardHero extends StatelessWidget {
-  final String? imageUrl;
-  const _CardHero({this.imageUrl});
+    if (_detail?.stage != null) {
+      cells.add(_Cell(label: 'Evolução', value: _stageLabel(_detail!.stage!)));
+    }
+    if (_detail?.hp != null) {
+      cells.add(_Cell(label: 'HP', value: '${_detail!.hp}'));
+    }
+    if (_detail?.weaknessType != null) {
+      final v = _detail!.weaknessValue != null ? '+${_detail!.weaknessValue}' : '';
+      cells.add(_Cell(label: 'Fraqueza', value: '${_detail!.weaknessType}$v'));
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Container(
-      color: scheme.surfaceContainerLow,
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 240),
-          child: AspectRatio(
-            aspectRatio: 0.714, // proporção carta TCG
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: imageUrl != null
-                    ? Image.network(
-                        imageUrl!,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (_, child, p) => p == null
-                            ? child
-                            : Container(
-                                color: scheme.surfaceContainerHigh,
-                                child: const Center(
-                                    child: CircularProgressIndicator(strokeWidth: 2)),
-                              ),
-                        errorBuilder: (_, __, ___) => Container(
-                          color: scheme.surfaceContainerHigh,
-                          child: Icon(Icons.style_outlined, size: 64,
-                              color: scheme.onSurfaceVariant.withOpacity(0.3)),
-                        ),
-                      )
-                    : Container(
-                        color: scheme.surfaceContainerHigh,
-                        child: Icon(Icons.style_outlined, size: 64,
-                            color: scheme.onSurfaceVariant.withOpacity(0.3)),
-                      ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Ícone circular de tipo ───────────────────────────────────────
-
-class _TypeIcon extends StatelessWidget {
-  final String typeName;
-  final double size;
-  const _TypeIcon({required this.typeName, this.size = 24});
-
-  static const Map<String, Color> _colors = {
-    'Normal': Color(0xFFA8A878), 'Fire': Color(0xFFF08030),
-    'Water': Color(0xFF6890F0), 'Grass': Color(0xFF78C850),
-    'Electric': Color(0xFFF8D030), 'Lightning': Color(0xFFF8D030),
-    'Ice': Color(0xFF98D8D8), 'Fighting': Color(0xFFC03028),
-    'Poison': Color(0xFFA040A0), 'Ground': Color(0xFFE0C068),
-    'Flying': Color(0xFFA890F0), 'Psychic': Color(0xFFF85888),
-    'Bug': Color(0xFFA8B820), 'Rock': Color(0xFFB8A038),
-    'Ghost': Color(0xFF705898), 'Dragon': Color(0xFF7038F8),
-    'Dark': Color(0xFF705848), 'Darkness': Color(0xFF705848),
-    'Steel': Color(0xFFB8B8D0), 'Metal': Color(0xFFB8B8D0),
-    'Fairy': Color(0xFFEE99AC), 'Colorless': Color(0xFFA8A878),
-  };
-
-  static const Map<String, String> _namePt = {
-    'Fire': 'Fogo', 'Water': 'Água', 'Grass': 'Planta',
-    'Electric': 'Elétrico', 'Lightning': 'Elétrico', 'Ice': 'Gelo',
-    'Fighting': 'Lutador', 'Poison': 'Veneno', 'Ground': 'Terra',
-    'Flying': 'Voador', 'Psychic': 'Psíquico', 'Bug': 'Inseto',
-    'Rock': 'Pedra', 'Ghost': 'Fantasma', 'Dragon': 'Dragão',
-    'Dark': 'Sombrio', 'Darkness': 'Sombrio', 'Steel': 'Aço',
-    'Metal': 'Aço', 'Fairy': 'Fada', 'Colorless': 'Incolor', 'Normal': 'Normal',
-  };
-
-  String get labelPt => _namePt[typeName] ?? typeName;
-  Color  get color    => _colors[typeName] ?? const Color(0xFFA8A878);
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: labelPt,
-      child: Container(
-        width: size, height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        child: ClipOval(
-          child: Image.asset(
-            'assets/types/${typeName.toLowerCase()}.png',
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Center(
-              child: Text(typeName.substring(0, 1),
-                style: const TextStyle(color: Colors.white,
-                    fontSize: 10, fontWeight: FontWeight.w800)),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Tabela de stats estilo referência ────────────────────────────
-
-class _StatsTable extends StatelessWidget {
-  final String           localId;
-  final PocketCardDetail? detail;
-  final bool             loading;
-  final ColorScheme      scheme;
-  final bool             isDark;
-
-  const _StatsTable({
-    required this.localId,
-    required this.detail,
-    required this.loading,
-    required this.scheme,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? scheme.surfaceContainerHigh : scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: scheme.outlineVariant, width: 0.5),
       ),
-      child: loading && detail == null
-          ? const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: SizedBox(
-                width: 16, height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2))),
-            )
-          : Column(
-              children: [
-                // Linha 1: Número | Estágio | HP | Tipo
-                IntrinsicHeight(
-                  child: Row(
-                    children: [
-                      _StatCell(
-                        label: 'Número',
-                        value: '#$localId',
-                        scheme: scheme,
-                      ),
-                      if (detail?.stage != null) ...[
-                        _Divider(scheme: scheme),
-                        _StatCell(
-                          label: 'Evolução',
-                          value: _stageLabel(detail!.stage!),
-                          scheme: scheme,
-                        ),
-                      ],
-                      if (detail?.hp != null) ...[
-                        _Divider(scheme: scheme),
-                        _StatCell(
-                          label: 'HP',
-                          value: '${detail!.hp}',
-                          scheme: scheme,
-                        ),
-                      ],
-                      if (detail != null && detail!.types.isNotEmpty) ...[
-                        _Divider(scheme: scheme),
-                        _StatCell(
-                          label: 'Tipo',
-                          valueWidget: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: detail!.types.map<Widget>((t) => Padding(
-                              padding: const EdgeInsets.only(right: 4),
-                              child: _TypeIcon(typeName: t, size: 20),
-                            )).toList(),
-                          ),
-                          scheme: scheme,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-
-                // Linha 2: Fraqueza | Recuo (se disponíveis)
-                if (detail?.weaknessType != null || detail?.retreat != null) ...[
-                  Divider(height: 1, color: scheme.outlineVariant),
-                  IntrinsicHeight(
-                    child: Row(
-                      children: [
-                        if (detail?.weaknessType != null)
-                          _StatCell(
-                            label: 'Fraqueza',
-                            valueWidget: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _TypeIcon(typeName: detail!.weaknessType!, size: 20),
-                                const SizedBox(width: 4),
-                                Text(
-                                  detail!.weaknessValue != null
-                                      ? '+${detail!.weaknessValue}'
-                                      : '',
-                                  style: const TextStyle(
-                                      fontSize: 13, fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                            scheme: scheme,
-                          ),
-                        if (detail?.weaknessType != null && detail?.retreat != null)
-                          _Divider(scheme: scheme),
-                        if (detail?.retreat != null)
-                          _StatCell(
-                            label: 'Recuo',
-                            valueWidget: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: List.generate(
-                                detail!.retreat!.clamp(0, 5),
-                                (_) => const Padding(
-                                  padding: EdgeInsets.only(right: 2),
-                                  child: _TypeIcon(typeName: 'Colorless', size: 16),
-                                ),
-                              ),
-                            ),
-                            scheme: scheme,
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
+      child: Row(
+        children: cells.map((c) {
+          final isLast = c == cells.last;
+          return Expanded(
+            child: Container(
+              decoration: !isLast
+                  ? BoxDecoration(border: Border(
+                      right: BorderSide(color: scheme.outlineVariant, width: 0.5)))
+                  : null,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(c.value, style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700),
+                  textAlign: TextAlign.center,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Text(c.label, style: TextStyle(
+                    fontSize: 10, color: scheme.onSurfaceVariant),
+                  textAlign: TextAlign.center),
+              ]),
             ),
-    );
-  }
-
-  String _stageLabel(String stage) {
-    switch (stage.toLowerCase()) {
-      case 'basic':  return 'Básico';
-      case 'stage1': return 'Estágio 1';
-      case 'stage2': return 'Estágio 2';
-      default:       return stage;
-    }
-  }
-}
-
-class _StatCell extends StatelessWidget {
-  final String       label;
-  final String?      value;
-  final Widget?      valueWidget;
-  final ColorScheme  scheme;
-
-  const _StatCell({
-    required this.label,
-    required this.scheme,
-    this.value,
-    this.valueWidget,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (valueWidget != null)
-              valueWidget!
-            else
-              Text(value ?? '', style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 3),
-            Text(label, style: TextStyle(
-                fontSize: 10, color: scheme.onSurfaceVariant)),
-          ],
-        ),
+          );
+        }).toList(),
       ),
     );
   }
-}
 
-class _Divider extends StatelessWidget {
-  final ColorScheme scheme;
-  const _Divider({required this.scheme});
-
-  @override
-  Widget build(BuildContext context) {
-    return VerticalDivider(
-      width: 1, thickness: 0.5, color: scheme.outlineVariant);
-  }
-}
-
-// ─── Habilidades ─────────────────────────────────────────────────
-
-class _AbilitiesSection extends StatelessWidget {
-  final List<PocketAbility> abilities;
-  final ColorScheme         scheme;
-  const _AbilitiesSection({required this.abilities, required this.scheme});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Habilidade${abilities.length > 1 ? 's' : ''}',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                color: scheme.onSurfaceVariant)),
-        const SizedBox(height: 8),
-        ...abilities.map<Widget>((a) => Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.purple.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.purple.withOpacity(0.25), width: 1),
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                    color: Colors.purple.shade600,
-                    borderRadius: BorderRadius.circular(4)),
-                child: Text(a.type ?? 'Habilidade',
-                    style: const TextStyle(color: Colors.white,
-                        fontSize: 10, fontWeight: FontWeight.w700)),
-              ),
-              const SizedBox(width: 8),
-              Expanded(child: Text(a.name, style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w700))),
-            ]),
-            if (a.effect != null && a.effect!.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(a.effect!, style: TextStyle(
-                  fontSize: 13, color: scheme.onSurface.withOpacity(0.8), height: 1.4)),
-            ],
-          ]),
-        )),
-      ],
-    );
-  }
-}
-
-// ─── Ataques ──────────────────────────────────────────────────────
-
-class _AttacksSection extends StatelessWidget {
-  final List<PocketAttack> attacks;
-  final ColorScheme        scheme;
-  final bool               isDark;
-  const _AttacksSection({required this.attacks, required this.scheme, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Ataques', style: TextStyle(fontSize: 13,
-            fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: isDark ? scheme.surfaceContainerHigh : scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: scheme.outlineVariant, width: 0.5),
-          ),
-          child: Column(
-            children: [
-              for (int i = 0; i < attacks.length; i++) ...[
-                _AttackRow(attack: attacks[i], scheme: scheme),
-                if (i < attacks.length - 1)
-                  Divider(height: 1, color: scheme.outlineVariant),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AttackRow extends StatelessWidget {
-  final PocketAttack attack;
-  final ColorScheme  scheme;
-  const _AttackRow({required this.attack, required this.scheme});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+  // ── Habilidade ────────────────────────────────────────────────
+  Widget _buildAbilityCard(PocketAbility a, ColorScheme scheme) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.purple.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.purple.withOpacity(0.25)),
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          // Custo de energia
-          if (attack.cost.isNotEmpty) ...[
-            ...attack.cost.map<Widget>((c) => Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: _EnergyCostIcon(type: c),
-            )),
-            const SizedBox(width: 8),
-          ],
-          // Nome
-          Expanded(child: Text(attack.name,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.purple.shade600,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(a.type ?? 'Habilidade',
+              style: const TextStyle(color: Colors.white,
+                  fontSize: 10, fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Text(a.name,
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
-          // Dano
-          if (attack.damage != null && attack.damage!.isNotEmpty)
-            Text(attack.damage!, style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w800)),
         ]),
-        // Efeito
-        if (attack.effect != null && attack.effect!.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(attack.effect!, style: TextStyle(
-              fontSize: 12, color: scheme.onSurface.withOpacity(0.7), height: 1.4)),
+        if (a.effect != null && a.effect!.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(a.effect!, style: TextStyle(fontSize: 13, height: 1.4,
+              color: scheme.onSurface.withOpacity(0.8))),
         ],
       ]),
     );
   }
-}
 
-class _EnergyCostIcon extends StatelessWidget {
-  final String type;
-  const _EnergyCostIcon({required this.type});
+  // ── Ataques ───────────────────────────────────────────────────
+  Widget _buildAttacksTable(
+      List<PocketAttack> attacks, ColorScheme scheme, bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerHigh : scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: scheme.outlineVariant, width: 0.5),
+      ),
+      child: Column(children: [
+        for (int i = 0; i < attacks.length; i++) ...[
+          if (i > 0) Divider(height: 1, color: scheme.outlineVariant),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                // Energia
+                if (attacks[i].cost.isNotEmpty) ...[
+                  ...attacks[i].cost.map((c) => Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: _energyIcon(c),
+                  )),
+                  const SizedBox(width: 6),
+                ],
+                // Nome
+                Expanded(child: Text(attacks[i].name,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
+                // Dano
+                if (attacks[i].damage != null && attacks[i].damage!.isNotEmpty)
+                  Text(attacks[i].damage!,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              ]),
+              // Efeito
+              if (attacks[i].effect != null && attacks[i].effect!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(attacks[i].effect!, style: TextStyle(fontSize: 12, height: 1.4,
+                    color: scheme.onSurface.withOpacity(0.7))),
+              ],
+            ]),
+          ),
+        ],
+      ]),
+    );
+  }
 
-  static const Map<String, Color> _colors = {
-    'Fire': Color(0xFFF08030), 'Water': Color(0xFF6890F0),
-    'Grass': Color(0xFF78C850), 'Electric': Color(0xFFF8D030),
-    'Lightning': Color(0xFFF8D030), 'Psychic': Color(0xFFF85888),
-    'Fighting': Color(0xFFC03028), 'Darkness': Color(0xFF705848),
-    'Dark': Color(0xFF705848), 'Metal': Color(0xFFB8B8D0),
-    'Steel': Color(0xFFB8B8D0), 'Colorless': Color(0xFFA8A878),
-    'Dragon': Color(0xFF7038F8),
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _colors[type] ?? const Color(0xFFA8A878);
+  Widget _energyIcon(String type) {
+    const colors = {
+      'Fire': Color(0xFFF08030), 'Water': Color(0xFF6890F0),
+      'Grass': Color(0xFF78C850), 'Electric': Color(0xFFF8D030),
+      'Lightning': Color(0xFFF8D030), 'Psychic': Color(0xFFF85888),
+      'Fighting': Color(0xFFC03028), 'Darkness': Color(0xFF705848),
+      'Dark': Color(0xFF705848), 'Metal': Color(0xFFB8B8D0),
+      'Steel': Color(0xFFB8B8D0), 'Colorless': Color(0xFFA8A878),
+      'Dragon': Color(0xFF7038F8),
+    };
+    final color = colors[type] ?? const Color(0xFFA8A878);
     return Container(
       width: 20, height: 20,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withOpacity(0.5), width: 0.5)),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       child: ClipOval(
         child: Image.asset('assets/types/${type.toLowerCase()}.png',
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => Center(
-            child: Text(type.substring(0, 1),
-              style: const TextStyle(color: Colors.white,
-                  fontSize: 10, fontWeight: FontWeight.w800)))),
+            child: Text(type.isNotEmpty ? type[0] : '?',
+              style: const TextStyle(color: Colors.white, fontSize: 10,
+                  fontWeight: FontWeight.w800))),
+        ),
       ),
     );
   }
+
+  Widget _buildSectionTitle(String title, ColorScheme scheme) {
+    return Text(title, style: TextStyle(fontSize: 13,
+        fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant));
+  }
+
+  String _stageLabel(String s) {
+    switch (s.toLowerCase()) {
+      case 'basic':  return 'Básico';
+      case 'stage1': return 'Estágio 1';
+      case 'stage2': return 'Estágio 2';
+      default:       return s;
+    }
+  }
+
+  String _trainerLabel(String? t) {
+    switch (t?.toLowerCase()) {
+      case 'item':      return 'Item';
+      case 'supporter': return 'Suporte';
+      case 'stadium':   return 'Estádio';
+      case 'tool':      return 'Ferramenta';
+      default:          return t ?? 'Efeito';
+    }
+  }
 }
 
-// ─── Efeito Trainer ───────────────────────────────────────────────
-
-class _TrainerSection extends StatelessWidget {
-  final String  effect;
-  final String? trainerType;
-  final ColorScheme scheme;
-  const _TrainerSection({required this.effect, this.trainerType, required this.scheme});
-
-  @override
-  Widget build(BuildContext context) {
-    String label;
-    switch (trainerType?.toLowerCase()) {
-      case 'item':      label = 'Item'; break;
-      case 'supporter': label = 'Suporte'; break;
-      case 'stadium':   label = 'Estádio'; break;
-      case 'tool':      label = 'Ferramenta'; break;
-      default:          label = trainerType ?? 'Efeito';
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: TextStyle(fontSize: 13,
-            fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.teal.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.teal.withOpacity(0.25), width: 1),
-          ),
-          child: Text(effect, style: TextStyle(
-              fontSize: 13, color: scheme.onSurface.withOpacity(0.85), height: 1.5)),
-        ),
-      ],
-    );
-  }
+class _Cell {
+  final String label;
+  final String value;
+  const _Cell({required this.label, required this.value});
 }

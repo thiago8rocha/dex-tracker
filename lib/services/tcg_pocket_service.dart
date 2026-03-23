@@ -258,6 +258,8 @@ class TcgPocketService {
 
   /// Busca detalhes de uma carta pelo setId + localId.
   /// Tenta os dois formatos: com zeros ("001") e sem ("1").
+  /// Busca detalhes de uma carta.
+  /// Tenta múltiplos endpoints em ordem até encontrar.
   static Future<PocketCardDetail?> fetchCard(
     String cardId, {
     String? setId,
@@ -267,8 +269,6 @@ class TcgPocketService {
     try {
       String resolvedSet   = setId   ?? '';
       String resolvedLocal = localId ?? '';
-
-      // Se não foram passados, extrai do cardId formato "A1-001"
       if (resolvedSet.isEmpty || resolvedLocal.isEmpty) {
         final dashIdx = cardId.lastIndexOf('-');
         if (dashIdx > 0) {
@@ -277,13 +277,19 @@ class TcgPocketService {
         }
       }
 
-      if (resolvedSet.isEmpty || resolvedLocal.isEmpty) return null;
+      final n            = int.tryParse(resolvedLocal);
+      final localNoZeros = n != null ? n.toString() : resolvedLocal;
+      final cardIdClean  = resolvedSet.isNotEmpty
+          ? '$resolvedSet-$localNoZeros' : cardId;
 
-      // Tenta primeiro com localId original, depois sem zeros
-      final urls = <String>{};
-      urls.add('$_kBase/sets/$resolvedSet/$resolvedLocal');
-      final n = int.tryParse(resolvedLocal);
-      if (n != null) urls.add('$_kBase/sets/$resolvedSet/$n');
+      final urls = <String>[
+        '$_kBase/cards/$cardIdClean',
+        '$_kBase/cards/$cardId',
+        if (resolvedSet.isNotEmpty) ...{
+          '$_kBase/sets/$resolvedSet/$localNoZeros',
+          '$_kBase/sets/$resolvedSet/$resolvedLocal',
+        },
+      ];
 
       for (final url in urls) {
         final res = await http
