@@ -365,7 +365,7 @@ class _CardGrid extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount:   3,
-        childAspectRatio: 0.56, // mais alto — imagem completa sem corte
+        childAspectRatio: 0.60,
         crossAxisSpacing: 8,
         mainAxisSpacing:  8,
       ),
@@ -424,7 +424,7 @@ class _CardGridTile extends StatelessWidget {
                 child: card.imageUrlLow != null
                     ? Image.network(
                         card.imageUrlLow!,
-                        fit: BoxFit.contain, // contain = sem corte
+                        fit: BoxFit.cover,
                         loadingBuilder: (_, child, p) => p == null
                             ? child
                             : Container(color: scheme.surfaceContainerHighest),
@@ -681,7 +681,7 @@ class _ListSkeletonState extends State<_ListSkeleton>
       builder: (_, __) => GridView.builder(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3, childAspectRatio: 0.56,
+          crossAxisCount: 3, childAspectRatio: 0.60,
           crossAxisSpacing: 8, mainAxisSpacing: 8,
         ),
         itemCount: 18,
