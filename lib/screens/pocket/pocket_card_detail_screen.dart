@@ -32,21 +32,23 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
   Future<void> _loadCard() async {
     setState(() { _loading = true; _error = null; });
     try {
-      // Tenta com localId original (ex: '001') e sem zeros ('1') como fallback
       final localId0 = widget.localId;
       final n        = int.tryParse(localId0);
       final localId1 = n != null ? n.toString() : localId0;
 
+      // Montar as URLs que serão tentadas
+      const base = 'https://api.tcgdex.net/v2/en';
+      final url0 = '$base/sets/${widget.setId}/$localId0';
+      final url1 = '$base/sets/${widget.setId}/$localId1';
+
       PocketCardDetail? card;
 
-      // Tentativa 1: localId como veio da API
       card = await TcgPocketService.fetchCard(
         widget.cardId,
         setId:   widget.setId,
         localId: localId0,
       );
 
-      // Tentativa 2: sem zeros à esquerda
       if (card == null && localId0 != localId1) {
         card = await TcgPocketService.fetchCard(
           '${widget.setId}-$localId1',
@@ -59,12 +61,18 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
         setState(() {
           _card    = card;
           _loading = false;
-          if (card == null) _error = 'Carta não encontrada';
+          if (card == null) {
+            _error = 'Não encontrada\n'
+                'setId: ${widget.setId}\n'
+                'localId: $localId0\n'
+                'url1: $url0\n'
+                'url2: $url1';
+          }
         });
       }
     } catch (e) {
       if (mounted) setState(() {
-        _error = 'Erro ao carregar carta';
+        _error = 'Exceção: ${e.runtimeType}\n${e.toString().substring(0, e.toString().length.clamp(0, 200))}';
         _loading = false;
       });
     }
@@ -957,7 +965,7 @@ class _ErrorView extends StatelessWidget {
         children: [
           Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
           const SizedBox(height: 12),
-          Text(message, style: const TextStyle(fontSize: 15)),
+          Text(message, style: const TextStyle(fontSize: 13), textAlign: TextAlign.center, softWrap: true),
           const SizedBox(height: 16),
           OutlinedButton(
             style: OutlinedButton.styleFrom(
