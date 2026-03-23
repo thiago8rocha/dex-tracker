@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/services/tcg_pocket_service.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_card_list_screen.dart';
 
+// ─── HUB SCREEN ───────────────────────────────────────────────────
+
 class PocketHubScreen extends StatefulWidget {
   const PocketHubScreen({super.key});
 
@@ -11,7 +13,7 @@ class PocketHubScreen extends StatefulWidget {
 
 class _PocketHubScreenState extends State<PocketHubScreen> {
   List<PocketSet> _sets = [];
-  bool   _loading = true;
+  bool    _loading = true;
   String? _error;
 
   @override
@@ -37,16 +39,6 @@ class _PocketHubScreenState extends State<PocketHubScreen> {
         title: const Text('TCG Pocket'),
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Atualizar',
-            onPressed: () {
-              TcgPocketService.clearCache();
-              _loadSets();
-            },
-          ),
-        ],
       ),
       body: _loading
           ? const _HubSkeleton()
@@ -68,12 +60,11 @@ class _SetGrid extends StatelessWidget {
     if (sets.isEmpty) {
       return const Center(child: Text('Nenhuma coleção encontrada'));
     }
-
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount:   2,
-        childAspectRatio: 0.82,
+        childAspectRatio: 0.85,
         crossAxisSpacing: 12,
         mainAxisSpacing:  12,
       ),
@@ -91,165 +82,103 @@ class _SetBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // URL do logo do set como imagem de fundo da caixa
-    final boosterUrl = TcgPocketService.boosterImageUrl(set.id);
+    final meta   = kPocketSetMeta[set.id];
+    final color1 = Color(meta?.color1 ?? 0xFF7038F8);
+    final color2 = Color(meta?.color2 ?? 0xFFF08030);
 
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => PocketCardListScreen(setId: set.id, setName: set.name),
+          builder: (_) => PocketCardListScreen(
+            setId:   set.id,
+            setName: set.name,
+          ),
         ),
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: isDark
-              ? scheme.surfaceContainerHigh
-              : scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: scheme.outlineVariant,
-            width: 0.5,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end:   Alignment.bottomRight,
+            colors: [
+              color1.withOpacity(0.85),
+              color2.withOpacity(0.85),
+            ],
           ),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              // ── Área da imagem do booster (fundo da caixa) ──
-              Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Fundo degradê sutil
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end:   Alignment.bottomRight,
-                          colors: isDark
-                              ? [
-                                  scheme.primaryContainer.withOpacity(0.3),
-                                  scheme.secondaryContainer.withOpacity(0.2),
-                                ]
-                              : [
-                                  scheme.primaryContainer.withOpacity(0.5),
-                                  scheme.secondaryContainer.withOpacity(0.3),
-                                ],
-                        ),
-                      ),
-                    ),
-                    // Logo do booster
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Image.network(
-                        boosterUrl,
-                        fit: BoxFit.contain,
-                        loadingBuilder: (_, child, progress) {
-                          if (progress == null) return child;
-                          return Center(
-                            child: Icon(
-                              Icons.style_outlined,
-                              size: 40,
-                              color: scheme.onSurfaceVariant.withOpacity(0.4),
-                            ),
-                          );
-                        },
-                        errorBuilder: (_, __, ___) => Center(
-                          child: Icon(
-                            Icons.style_outlined,
-                            size: 40,
-                            color: scheme.onSurfaceVariant.withOpacity(0.4),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // ID do set (canto superior direito)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: scheme.surface.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          set.id,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: scheme.onSurface,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+              // ── Imagem do booster (fundo) ──
+              Positioned.fill(
+                child: Image.network(
+                  TcgPocketService.boosterImageUrl(set.id),
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                  loadingBuilder: (_, child, progress) =>
+                      progress == null ? child : const SizedBox.shrink(),
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 ),
               ),
 
-              // ── Rodapé com nome e total de cartas ──
-              Container(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? scheme.surfaceContainerHighest
-                      : scheme.surfaceContainerHigh,
-                  border: Border(
-                    top: BorderSide(color: scheme.outlineVariant, width: 0.5),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      set.name,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        if (set.releaseDate != null) ...[
-                          Text(
-                            set.releaseDate!.substring(0, 4),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                          Text(
-                            ' · ',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                        Icon(
-                          Icons.chevron_right,
-                          size: 14,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        Text(
-                          'Ver cartas',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
+              // ── Gradiente escurecendo a base para o texto ──
+              Positioned(
+                left: 0, right: 0, bottom: 0,
+                height: 72,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end:   Alignment.topCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.75),
+                        Colors.transparent,
                       ],
                     ),
-                  ],
+                  ),
+                ),
+              ),
+
+              // ── ID da coleção (canto superior esquerdo) ──
+              Positioned(
+                top: 8, left: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.45),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    set.id,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Nome da coleção (rodapé) ──
+              Positioned(
+                left: 10, right: 10, bottom: 10,
+                child: Text(
+                  set.name,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
+                    ],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -260,12 +189,11 @@ class _SetBox extends StatelessWidget {
   }
 }
 
-// ─── Skeleton loader ─────────────────────────────────────────────
+// ─── Skeleton ────────────────────────────────────────────────────
 
 class _HubSkeleton extends StatefulWidget {
   const _HubSkeleton();
-  @override
-  State<_HubSkeleton> createState() => _HubSkeletonState();
+  @override State<_HubSkeleton> createState() => _HubSkeletonState();
 }
 
 class _HubSkeletonState extends State<_HubSkeleton>
@@ -276,43 +204,33 @@ class _HubSkeletonState extends State<_HubSkeleton>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat(reverse: true);
     _anim = Tween<double>(begin: 0.3, end: 0.7).animate(_ctrl);
   }
 
   @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _ctrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return AnimatedBuilder(
       animation: _anim,
-      builder: (_, __) {
-        final shimmer = scheme.onSurface.withOpacity(_anim.value * 0.15);
-        return GridView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount:   2,
-            childAspectRatio: 0.82,
-            crossAxisSpacing: 12,
-            mainAxisSpacing:  12,
+      builder: (_, __) => GridView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2, childAspectRatio: 0.85,
+          crossAxisSpacing: 12, mainAxisSpacing: 12,
+        ),
+        itemCount: 8,
+        itemBuilder: (_, __) => Container(
+          decoration: BoxDecoration(
+            color: scheme.onSurface.withOpacity(_anim.value * 0.12),
+            borderRadius: BorderRadius.circular(12),
           ),
-          itemCount: 6,
-          itemBuilder: (_, __) => Container(
-            decoration: BoxDecoration(
-              color: shimmer,
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -320,8 +238,7 @@ class _HubSkeletonState extends State<_HubSkeleton>
 // ─── Error view ──────────────────────────────────────────────────
 
 class _ErrorView extends StatelessWidget {
-  final String       message;
-  final VoidCallback onRetry;
+  final String message; final VoidCallback onRetry;
   const _ErrorView({required this.message, required this.onRetry});
 
   @override
@@ -332,12 +249,11 @@ class _ErrorView extends StatelessWidget {
         children: [
           Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
           const SizedBox(height: 12),
-          Text(message, style: const TextStyle(fontSize: 15)),
+          Text(message),
           const SizedBox(height: 16),
           OutlinedButton(
             style: OutlinedButton.styleFrom(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-            ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
             onPressed: onRetry,
             child: const Text('Tentar novamente'),
           ),
