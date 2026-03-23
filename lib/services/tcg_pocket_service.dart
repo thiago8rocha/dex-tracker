@@ -277,12 +277,22 @@ class TcgPocketService {
       final localNum = int.tryParse(resolvedLocal);
       final cleanLocal = localNum != null ? localNum.toString() : resolvedLocal;
       final url = '$_kBase/sets/$resolvedSet/$cleanLocal';
+      // ignore: avoid_print
+      print('[TcgPocket] fetchCard → $url');
       final res = await http.get(Uri.parse(url)).timeout(_timeout);
-      if (res.statusCode != 200) return null;
+      if (res.statusCode != 200) {
+        // ignore: avoid_print
+        print('[TcgPocket] fetchCard $url → HTTP ${res.statusCode}');
+        return null;
+      }
       final card = PocketCardDetail.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
       _cardCache[cardId] = card;
       return card;
-    } catch (_) { return null; }
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('[TcgPocket] fetchCard error: $e');
+      return null;
+    }
   }
 
   static void clearCache() {
