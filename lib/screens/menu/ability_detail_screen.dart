@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:pokedex_tracker/models/pokemon.dart';
-import 'package:pokedex_tracker/screens/detail/detail_shared.dart' show neutralBg;
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show neutralBg, kApiBase;
 import 'package:pokedex_tracker/screens/detail/mainline_detail_screen.dart';
 import 'package:pokedex_tracker/screens/detail/nacional_detail_screen.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
@@ -17,25 +20,85 @@ class AbilityDetailScreen extends StatefulWidget {
 class _AbilityDetailScreenState extends State<AbilityDetailScreen>
     with SingleTickerProviderStateMixin {
 
-  late TabController _tab;
+  late TabController    _tab;
+  // Dados da API — só buscados se o JSON local não tiver os campos expandidos
+  Map<String, dynamic>? _apiDetail;
+  bool                  _loadingApi = false;
+
+  // Os campos expandidos existem quando o script já rodou
+  bool get _hasExpandedData =>
+      widget.entry.effectLong.isNotEmpty || widget.entry.flavor.isNotEmpty;
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
+    // Só busca da API se o JSON local não tiver os dados detalhados
+    if (!_hasExpandedData) _loadFromApi();
   }
 
   @override
   void dispose() { _tab.dispose(); super.dispose(); }
 
-  // Textos vêm do ability_map.json (sem rede)
-  String get _shortEffect => widget.entry.description;
-  String get _effectLong  => widget.entry.effectLong;
-  String get _flavor      => widget.entry.flavor;
+  Future<void> _loadFromApi() async {
+    setState(() => _loadingApi = true);
+    try {
+      final res = await http.get(
+        Uri.parse('$kApiBase/ability/${widget.entry.nameEn}'),
+      ).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200 && mounted) {
+        setState(() { _apiDetail = jsonDecode(res.body); _loadingApi = false; });
+        return;
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loadingApi = false);
+  }
+
+  // ── Textos: prefere JSON local, usa API como fallback ────────────
+  String get _shortEffect {
+    // JSON expandido
+    if (widget.entry.description.isNotEmpty) return widget.entry.description;
+    // API
+    for (final e in _apiDetail?['effect_entries'] as List<dynamic>? ?? []) {
+      if (e['language']['name'] == 'en')
+        return (e['short_effect'] as String? ?? '').trim();
+    }
+    return '';
+  }
+
+  String get _effectLong {
+    // JSON expandido
+    if (widget.entry.effectLong.isNotEmpty) return widget.entry.effectLong;
+    // API
+    for (final e in _apiDetail?['effect_entries'] as List<dynamic>? ?? []) {
+      if (e['language']['name'] == 'en') {
+        final full  = (e['effect'] as String? ?? '').replaceAll('\n', ' ').trim();
+        final short = _shortEffect;
+        return full != short ? full : '';
+      }
+    }
+    return '';
+  }
+
+  String get _flavor {
+    // JSON expandido
+    if (widget.entry.flavor.isNotEmpty) return widget.entry.flavor;
+    // API — pegar a mais recente em PT-BR ou EN
+    final entries = _apiDetail?['flavor_text_entries'] as List<dynamic>? ?? [];
+    String pt = '', en = '';
+    for (final e in entries) {
+      final lang = e['language']['name'] as String;
+      if (lang == 'pt-BR' && pt.isEmpty)
+        pt = (e['flavor_text'] as String? ?? '').replaceAll('\n', ' ').trim();
+      else if (lang == 'en' && en.isEmpty)
+        en = (e['flavor_text'] as String? ?? '').replaceAll('\n', ' ').trim();
+    }
+    return pt.isNotEmpty ? pt : en;
+  }
 
   Future<void> _openPokemon(int id) async {
-    final svc   = PokedexDataService.instance;
-    final poke  = Pokemon(
+    final svc  = PokedexDataService.instance;
+    final poke = Pokemon(
       id: id, name: svc.getName(id), types: svc.getTypes(id),
       baseHp: 0, baseAttack: 0, baseDefense: 0,
       baseSpAttack: 0, baseSpDefense: 0, baseSpeed: 0,
@@ -69,6 +132,9 @@ class _AbilityDetailScreenState extends State<AbilityDetailScreen>
     final namePt    = translateAbility(widget.entry.nameEn);
     final mainIds   = widget.entry.mainIds;
     final hiddenIds = widget.entry.hiddenIds;
+    final short     = _shortEffect;
+    final long      = _effectLong;
+    final flavor    = _flavor;
 
     return Scaffold(
       appBar: AppBar(
@@ -78,72 +144,83 @@ class _AbilityDetailScreenState extends State<AbilityDetailScreen>
       ),
       body: Column(children: [
 
-        // ── Informações da habilidade (sem rede) ─────────────────
+        // ── Informações da habilidade ─────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-            // Efeito curto
-            if (_shortEffect.isNotEmpty)
+            // Loading spinner enquanto busca da API (só quando não tem JSON expandido)
+            if (_loadingApi)
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                height: 52,
                 decoration: BoxDecoration(color: neutralBg(context),
                     borderRadius: BorderRadius.circular(10)),
-                child: Text(_shortEffect, style: TextStyle(
-                    fontSize: 13, color: scheme.onSurface, height: 1.5)),
-              ),
+                child: const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            else ...[
 
-            // Flavor text do jogo
-            if (_flavor.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: neutralBg(context),
-                    borderRadius: BorderRadius.circular(10)),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Descrição no jogo',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                          color: scheme.onSurfaceVariant, letterSpacing: 0.6)),
-                  const SizedBox(height: 6),
-                  Text(_flavor, style: TextStyle(fontSize: 13,
-                      color: scheme.onSurface, height: 1.5,
-                      fontStyle: FontStyle.italic)),
-                ]),
-              ),
-            ],
+              // Efeito curto
+              if (short.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: neutralBg(context),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Text(short, style: TextStyle(
+                      fontSize: 13, color: scheme.onSurface, height: 1.5)),
+                ),
 
-            // Efeito detalhado
-            if (_effectLong.isNotEmpty && _effectLong != _shortEffect) ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: neutralBg(context),
-                    borderRadius: BorderRadius.circular(10)),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Efeito detalhado',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                          color: scheme.onSurfaceVariant, letterSpacing: 0.6)),
-                  const SizedBox(height: 6),
-                  Text(_effectLong, style: TextStyle(fontSize: 13,
-                      color: scheme.onSurface, height: 1.5)),
-                ]),
-              ),
+              // Flavor text
+              if (flavor.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: neutralBg(context),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text('Descrição no jogo',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
+                            color: scheme.onSurfaceVariant, letterSpacing: 0.6)),
+                    const SizedBox(height: 6),
+                    Text(flavor, style: TextStyle(fontSize: 13,
+                        color: scheme.onSurface, height: 1.5,
+                        fontStyle: FontStyle.italic)),
+                  ]),
+                ),
+              ],
+
+              // Efeito detalhado
+              if (long.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: neutralBg(context),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text('Efeito detalhado',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
+                            color: scheme.onSurfaceVariant, letterSpacing: 0.6)),
+                    const SizedBox(height: 6),
+                    Text(long, style: TextStyle(fontSize: 13,
+                        color: scheme.onSurface, height: 1.5)),
+                  ]),
+                ),
+              ],
             ],
 
             const SizedBox(height: 12),
           ]),
         ),
 
-        // ── Abas sem contagem ─────────────────────────────────────
+        // ── Abas ─────────────────────────────────────────────────
         TabBar(
           controller: _tab,
-          tabs: const [
-            Tab(text: 'Principal'),
-            Tab(text: 'Oculta'),
-          ],
+          tabs: const [Tab(text: 'Principal'), Tab(text: 'Oculta')],
           labelColor: scheme.primary,
           unselectedLabelColor: scheme.onSurfaceVariant,
           indicatorColor: scheme.primary,
@@ -176,7 +253,8 @@ class _PokemonList extends StatelessWidget {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       itemCount: ids.length,
-      itemBuilder: (ctx, i) => _PokemonTile(id: ids[i], scheme: scheme, onTap: onTap),
+      itemBuilder: (ctx, i) =>
+          _PokemonTile(id: ids[i], scheme: scheme, onTap: onTap),
     );
   }
 }
