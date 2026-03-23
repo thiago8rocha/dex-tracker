@@ -402,9 +402,8 @@ class _CardGridTile extends StatelessWidget {
         context,
         MaterialPageRoute(
           builder: (_) => PocketCardDetailScreen(
-            cardId:  card.id,
-            setId:   setId,
-            localId: card.localId,
+            card:  card,
+            setId: setId,
           ),
         ),
       ),
@@ -545,9 +544,8 @@ class _CardListTile extends StatelessWidget {
         context,
         MaterialPageRoute(
           builder: (_) => PocketCardDetailScreen(
-            cardId:  card.id,
-            setId:   setId,
-            localId: card.localId,
+            card:  card,
+            setId: setId,
           ),
         ),
       ),
