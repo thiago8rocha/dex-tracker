@@ -30,6 +30,7 @@ void main() async {
   await PokedexDataService.instance.load();
 
   runApp(const PokedexTrackerApp());
+  TranslationWarmup.start();
 }
 
 Future<void> _clearLegacyCacheIfNeeded() async {

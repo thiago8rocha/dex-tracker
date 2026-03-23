@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pokedex_tracker/services/tcg_pocket_service.dart';
+import 'package:pokedex_tracker/services/translation_warmup.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_card_detail_screen.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_rarity_widget.dart';
 
@@ -44,6 +45,8 @@ class _PocketCardListScreenState extends State<PocketCardListScreen> {
   void initState() {
     super.initState();
     _loadSet();
+    // Pré-traduzir todas as cartas do set em background
+    TranslationWarmup.warmupSet(widget.setId);
   }
 
   @override
