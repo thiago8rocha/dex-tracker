@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/services/tcg_pocket_service.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_card_list_screen.dart';
 
-// ─── Assets locais dos boosters ──────────────────────────────────
-// Localização: assets/pocket/boosters/{setId}.png
-// Use o script download_pocket_boosters.py para baixar todos os arquivos.
-// Promos: P-A.png e P-B.png (logos dos sets de promo)
-
-// Sets que usam tratamento especial de imagem (logo em vez de booster vertical)
+// Sets que usam logo ao invés de booster vertical
 const Set<String> _kPromoSets = {'P-A', 'P-B'};
 
 class PocketHubScreen extends StatefulWidget {
@@ -84,10 +79,10 @@ class _SetBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final meta     = kPocketSetMeta[set.id];
-    final color1   = Color(meta?.color1 ?? 0xFF1A1A2E);
-    final color2   = Color(meta?.color2 ?? 0xFF16213E);
-    final isPromo  = _kPromoSets.contains(set.id);
+    final meta    = kPocketSetMeta[set.id];
+    final color1  = Color(meta?.color1 ?? 0xFF1A1A2E);
+    final color2  = Color(meta?.color2 ?? 0xFF16213E);
+    final isPromo = _kPromoSets.contains(set.id);
     final assetPath = 'assets/pocket/boosters/${set.id}.png';
 
     return GestureDetector(
@@ -108,23 +103,30 @@ class _SetBox extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               // ── Imagem de fundo ──────────────────────────────────
-              isPromo
-                  ? _PromoBackground(assetPath: assetPath, color1: color1, color2: color2)
-                  : _BoosterBackground(assetPath: assetPath),
+              if (isPromo)
+                _PromoBackground(assetPath: assetPath)
+              else
+                _BoosterBackground(assetPath: assetPath),
 
-              // ── Overlay gradiente para legibilidade do texto ─────
+              // ── Overlay para suavizar a imagem (deixá-la sutil) ──
+              // + escurece topo (texto) e base (corta borda do pacote)
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      stops: const [0.0, 0.38, 0.65, 1.0],
+                      stops: const [0.0, 0.30, 0.55, 0.80, 1.0],
                       colors: [
-                        Colors.black.withOpacity(0.72),
-                        Colors.black.withOpacity(0.05),
-                        Colors.black.withOpacity(0.20),
-                        Colors.black.withOpacity(0.65),
+                        // Topo — fundo escuro para o texto
+                        Colors.black.withOpacity(0.68),
+                        // Transição para a imagem
+                        Colors.black.withOpacity(0.10),
+                        // Centro — overlay sutil que aclara/suaviza
+                        Colors.black.withOpacity(0.28),
+                        // Base — escurece para cortar o nome do booster
+                        Colors.black.withOpacity(0.55),
+                        Colors.black.withOpacity(0.75),
                       ],
                     ),
                   ),
@@ -146,7 +148,7 @@ class _SetBox extends StatelessWidget {
                         letterSpacing: 0.6,
                         shadows: [
                           Shadow(color: Colors.black, blurRadius: 6),
-                          Shadow(color: Colors.black, blurRadius: 12),
+                          Shadow(color: Colors.black, blurRadius: 14),
                         ],
                       ),
                     ),
@@ -177,7 +179,7 @@ class _SetBox extends StatelessWidget {
   }
 }
 
-// ─── Background de booster normal (vertical, zoom para cortar borda) ─
+// ─── Booster vertical: zoom alto + alinhamento para cortar borda ──
 
 class _BoosterBackground extends StatelessWidget {
   final String assetPath;
@@ -185,47 +187,52 @@ class _BoosterBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // scale baixo = imagem renderizada maior = mais zoom
+    // alignment negativo em Y = puxa imagem para cima, corta base
     return Positioned.fill(
       child: Image.asset(
         assetPath,
         fit: BoxFit.cover,
-        alignment: const Alignment(0.0, -0.55),
-        scale: 0.72,
+        alignment: const Alignment(0.0, -0.85),
+        scale: 0.52, // era 0.72 — mais zoom para sumir com a borda do topo
+        // Opacidade reduzida para imagem mais sutil
+        opacity: const AlwaysStoppedAnimation(0.55),
         errorBuilder: (_, __, ___) => const SizedBox.shrink(),
       ),
     );
   }
 }
 
-// ─── Background de Promo (logo horizontal — foco no centro, zoom alto) ─
+// ─── Promo: logo transparente centralizado sobre o degradê ────────
+// PNG com canal alpha — renderiza sobre o gradiente, centralizado e grande
 
 class _PromoBackground extends StatelessWidget {
-  final String   assetPath;
-  final Color    color1;
-  final Color    color2;
-  const _PromoBackground({
-    required this.assetPath,
-    required this.color1,
-    required this.color2,
-  });
+  final String assetPath;
+  const _PromoBackground({required this.assetPath});
 
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
-      // Zoom muito alto para recortar tudo exceto o emblema central
-      // O logo das promos é horizontal — scale baixo + center = só o ícone
-      child: OverflowBox(
-        maxWidth: double.infinity,
-        maxHeight: double.infinity,
-        child: FractionallySizedBox(
-          // 280% do tamanho da caixa — recorta completamente as bordas do logo
-          widthFactor: 2.8,
-          heightFactor: 2.8,
-          child: Image.asset(
-            assetPath,
-            fit: BoxFit.contain,
-            alignment: Alignment.center,
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      child: Padding(
+        // Padding negativo simulado via OverflowBox — amplia para fora
+        padding: EdgeInsets.zero,
+        child: OverflowBox(
+          maxWidth: double.infinity,
+          maxHeight: double.infinity,
+          // widthFactor > 1 = a imagem ocupa mais que 100% da caixa
+          // como o logo é horizontal (622x274), 1.6x preenche bem a caixa
+          // e recorta as bordas laterais deixando só o emblema central
+          child: FractionallySizedBox(
+            widthFactor: 1.6,
+            heightFactor: 1.6,
+            child: Image.asset(
+              assetPath,
+              fit: BoxFit.contain,
+              alignment: Alignment.center,
+              // Opacidade sutil — logo transparente sobre o gradiente de cor
+              opacity: const AlwaysStoppedAnimation(0.50),
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
           ),
         ),
       ),
