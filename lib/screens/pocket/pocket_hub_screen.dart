@@ -11,8 +11,6 @@ class PocketHubScreen extends StatefulWidget {
 
 class _PocketHubScreenState extends State<PocketHubScreen> {
   List<PocketSet> _sets = [];
-  // Mapa setId → URL da imagem do booster (carregada em background)
-  final Map<String, String?> _boosterArt = {};
   bool    _loading = true;
   String? _error;
 
@@ -23,24 +21,12 @@ class _PocketHubScreenState extends State<PocketHubScreen> {
   }
 
   Future<void> _loadSets() async {
-    setState(() { _loading = true; _error = null; _boosterArt.clear(); });
+    setState(() { _loading = true; _error = null; });
     try {
       final sets = await TcgPocketService.fetchSeries();
-      if (!mounted) return;
-      setState(() { _sets = sets; _loading = false; });
-      _loadBoosterArts(sets);
+      if (mounted) setState(() { _sets = sets; _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _error = 'Erro ao carregar coleções'; _loading = false; });
-    }
-  }
-
-  Future<void> _loadBoosterArts(List<PocketSet> sets) async {
-    for (final s in sets) {
-      final full = await TcgPocketService.fetchSet(s.id);
-      if (!mounted) return;
-      // Preferência: artwork do booster → logo do set
-      final art = full?.firstBoosterArtwork ?? full?.logoImageUrl;
-      if (mounted) setState(() => _boosterArt[s.id] = art);
     }
   }
 
@@ -56,7 +42,7 @@ class _PocketHubScreenState extends State<PocketHubScreen> {
           ? const _HubSkeleton()
           : _error != null
               ? _ErrorView(message: _error!, onRetry: _loadSets)
-              : _SetGrid(sets: _sets, boosterArt: _boosterArt),
+              : _SetGrid(sets: _sets),
     );
   }
 }
@@ -64,9 +50,8 @@ class _PocketHubScreenState extends State<PocketHubScreen> {
 // ─── Grid ─────────────────────────────────────────────────────────
 
 class _SetGrid extends StatelessWidget {
-  final List<PocketSet>      sets;
-  final Map<String, String?> boosterArt;
-  const _SetGrid({required this.sets, required this.boosterArt});
+  final List<PocketSet> sets;
+  const _SetGrid({required this.sets});
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +63,7 @@ class _SetGrid extends StatelessWidget {
         crossAxisSpacing: 12, mainAxisSpacing: 12,
       ),
       itemCount: sets.length,
-      itemBuilder: (_, i) => _SetBox(set: sets[i], imageUrl: boosterArt[sets[i].id]),
+      itemBuilder: (_, i) => _SetBox(set: sets[i]),
     );
   }
 }
@@ -87,14 +72,16 @@ class _SetGrid extends StatelessWidget {
 
 class _SetBox extends StatelessWidget {
   final PocketSet set;
-  final String?   imageUrl;
-  const _SetBox({required this.set, this.imageUrl});
+  const _SetBox({required this.set});
 
   @override
   Widget build(BuildContext context) {
     final meta   = kPocketSetMeta[set.id];
     final color1 = Color(meta?.color1 ?? 0xFF7038F8);
-    final color2 = Color(meta?.color2 ?? 0xFFF08030);
+    final color2 = Color(meta?.color2 ?? 0xFF303030);
+
+    // Imagem da primeira carta do set — é sempre a carta de capa do booster
+    final packImageUrl = set.packCardImageUrl;
 
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(
@@ -111,17 +98,48 @@ class _SetBox extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              // ── Cabeçalho: ID e nome em destaque ──────────────
-              Container(
-                padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
-                color: Colors.black.withOpacity(0.38),
+              // ── Imagem da carta de capa do booster ──────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 42, 0, 0),
+                child: Image.network(
+                  packImageUrl,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                  loadingBuilder: (_, child, p) =>
+                      p == null ? child : const SizedBox.shrink(),
+                  errorBuilder: (_, __, ___) => Center(
+                    child: Icon(Icons.style_outlined, size: 40,
+                        color: Colors.white.withOpacity(0.25)),
+                  ),
+                ),
+              ),
+
+              // ── Gradiente escurecendo o topo para o texto ────────
+              Positioned(
+                top: 0, left: 0, right: 0, height: 60,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.55),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Cabeçalho: ID + Nome sem nenhuma caixa/container ──
+              Positioned(
+                top: 9, left: 10, right: 10,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ID pequeno acima
+                    // ID — pequeno e semitransparente
                     Text(
                       set.id,
                       style: const TextStyle(
@@ -129,10 +147,11 @@ class _SetBox extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: Colors.white70,
                         letterSpacing: 0.8,
+                        shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    // Nome em destaque
+                    const SizedBox(height: 1),
+                    // Nome — destaque total
                     Text(
                       set.name,
                       style: const TextStyle(
@@ -141,45 +160,12 @@ class _SetBox extends StatelessWidget {
                         color: Colors.white,
                         height: 1.2,
                         shadows: [
-                          Shadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 1)),
+                          Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1)),
                         ],
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
-              ),
-
-              // ── Imagem do pacote booster ───────────────────────
-              Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Fundo de degradê
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          colors: [color1.withOpacity(0.5), color2.withOpacity(0.5)],
-                        ),
-                      ),
-                    ),
-                    // Imagem
-                    if (imageUrl != null)
-                      Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Image.network(
-                          imageUrl!,
-                          fit: BoxFit.contain,
-                          loadingBuilder: (_, child, p) =>
-                              p == null ? child : const SizedBox.shrink(),
-                          errorBuilder: (_, __, ___) =>
-                              _FallbackIcon(color: Colors.white),
-                        ),
-                      )
-                    else
-                      _FallbackIcon(color: Colors.white),
                   ],
                 ),
               ),
@@ -189,14 +175,6 @@ class _SetBox extends StatelessWidget {
       ),
     );
   }
-}
-
-class _FallbackIcon extends StatelessWidget {
-  final Color color;
-  const _FallbackIcon({required this.color});
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Icon(Icons.style_outlined, size: 40, color: color.withOpacity(0.3)));
 }
 
 // ─── Skeleton ────────────────────────────────────────────────────

@@ -1,43 +1,41 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-// ─── CONSTANTES ──────────────────────────────────────────────────
-
 const String _kBase   = 'https://api.tcgdex.net/v2/en';
 const String _kAssets = 'https://assets.tcgdex.net/en';
 
-// Ordem de exibição — sets regulares primeiro, Promos sempre por último
+// Ordem de exibição — Promos sempre ao final
 const List<String> kPocketSetOrder = [
   'A1', 'A1a',
   'A2', 'A2a', 'A2b',
   'A3', 'A3a', 'A3b',
   'A4', 'A4a', 'A4b',
   'B1', 'B1a',
-  'B2',
+  'B2', 'B2a', 'B2b',
   'P-A', 'P-B',
 ];
 
-// Metadados: nomes PT-BR oficiais + cores do degradê
+// Nomes PT-BR oficiais + cores temáticas
 const Map<String, PocketSetMeta> kPocketSetMeta = {
   'A1':  PocketSetMeta(id: 'A1',  namePt: 'Dominação Genética',        releaseDate: '2024-10-30', color1: 0xFF7038F8, color2: 0xFFF08030),
-  'A1a': PocketSetMeta(id: 'A1a', namePt: 'Ilha Mítica',               releaseDate: '2024-12-17', color1: 0xFF78C850, color2: 0xFF29B6F6),
-  'A2':  PocketSetMeta(id: 'A2',  namePt: 'Embate do Tempo e Espaço',  releaseDate: '2025-01-30', color1: 0xFF1565C0, color2: 0xFFB8A038),
-  'A2a': PocketSetMeta(id: 'A2a', namePt: 'Luz Triunfante',            releaseDate: '2025-03-27', color1: 0xFFB8A038, color2: 0xFFE0E0E0),
-  'A2b': PocketSetMeta(id: 'A2b', namePt: 'Brilho Deslumbrante',       releaseDate: '2025-04-30', color1: 0xFFEE99AC, color2: 0xFF98D8D8),
-  'A3':  PocketSetMeta(id: 'A3',  namePt: 'Guardiões Celestiais',      releaseDate: '2025-03-06', color1: 0xFFF8D030, color2: 0xFF7038F8),
-  'A3a': PocketSetMeta(id: 'A3a', namePt: 'Crise Extradimensional',    releaseDate: '2025-05-01', color1: 0xFF705898, color2: 0xFFA8B820),
-  'A3b': PocketSetMeta(id: 'A3b', namePt: 'Bosque de Eevee',           releaseDate: '2025-05-29', color1: 0xFF78C850, color2: 0xFFEE99AC),
-  'A4':  PocketSetMeta(id: 'A4',  namePt: 'Sabedoria do Mar e do Céu', releaseDate: '2025-07-03', color1: 0xFF1565C0, color2: 0xFF98D8D8),
-  'A4a': PocketSetMeta(id: 'A4a', namePt: 'Fontes Isoladas',           releaseDate: '2025-08-21', color1: 0xFF2E7D32, color2: 0xFF0288D1),
-  'A4b': PocketSetMeta(id: 'A4b', namePt: 'Pack Deluxe ex',            releaseDate: '2025-09-18', color1: 0xFFF57F17, color2: 0xFFE53935),
-  'B1':  PocketSetMeta(id: 'B1',  namePt: 'Ascensão Mega',             releaseDate: '2025-10-16', color1: 0xFFB71C1C, color2: 0xFF4A148C),
-  'B1a': PocketSetMeta(id: 'B1a', namePt: 'Chamas Carmesim',           releaseDate: '2025-12-17', color1: 0xFFE53935, color2: 0xFFF57F17),
-  'B2':  PocketSetMeta(id: 'B2',  namePt: 'Desfile Onírico',           releaseDate: '2026-01-29', color1: 0xFF880E4F, color2: 0xFF4527A0),
-  'P-A': PocketSetMeta(id: 'P-A', namePt: 'Promos-A',                  releaseDate: '2024-10-30', color1: 0xFF37474F, color2: 0xFF546E7A),
-  'P-B': PocketSetMeta(id: 'P-B', namePt: 'Promos-B',                  releaseDate: '2025-10-16', color1: 0xFF263238, color2: 0xFF37474F),
+  'A1a': PocketSetMeta(id: 'A1a', namePt: 'Ilha Mítica',               releaseDate: '2024-12-17', color1: 0xFF1B5E20, color2: 0xFF006064),
+  'A2':  PocketSetMeta(id: 'A2',  namePt: 'Embate do Tempo e Espaço',  releaseDate: '2025-01-30', color1: 0xFF0D47A1, color2: 0xFF4E342E),
+  'A2a': PocketSetMeta(id: 'A2a', namePt: 'Luz Triunfante',            releaseDate: '2025-03-27', color1: 0xFF5D4037, color2: 0xFF827717),
+  'A2b': PocketSetMeta(id: 'A2b', namePt: 'Brilho Deslumbrante',       releaseDate: '2025-04-30', color1: 0xFF880E4F, color2: 0xFF006064),
+  'A3':  PocketSetMeta(id: 'A3',  namePt: 'Guardiões Celestiais',      releaseDate: '2025-03-06', color1: 0xFF4A148C, color2: 0xFFE65100),
+  'A3a': PocketSetMeta(id: 'A3a', namePt: 'Crise Extradimensional',    releaseDate: '2025-05-01', color1: 0xFF1A237E, color2: 0xFF33691E),
+  'A3b': PocketSetMeta(id: 'A3b', namePt: 'Bosque de Eevee',           releaseDate: '2025-05-29', color1: 0xFF2E7D32, color2: 0xFF6A1B9A),
+  'A4':  PocketSetMeta(id: 'A4',  namePt: 'Sabedoria do Mar e do Céu', releaseDate: '2025-07-03', color1: 0xFF01579B, color2: 0xFF006064),
+  'A4a': PocketSetMeta(id: 'A4a', namePt: 'Fontes Isoladas',           releaseDate: '2025-08-21', color1: 0xFF1B5E20, color2: 0xFF01579B),
+  'A4b': PocketSetMeta(id: 'A4b', namePt: 'Pack Deluxe ex',            releaseDate: '2025-09-18', color1: 0xFFBF360C, color2: 0xFF827717),
+  'B1':  PocketSetMeta(id: 'B1',  namePt: 'Ascensão Mega',             releaseDate: '2025-10-16', color1: 0xFF880E4F, color2: 0xFF4A148C),
+  'B1a': PocketSetMeta(id: 'B1a', namePt: 'Chamas Carmesim',           releaseDate: '2025-12-17', color1: 0xFFB71C1C, color2: 0xFFE65100),
+  'B2':  PocketSetMeta(id: 'B2',  namePt: 'Desfile Onírico',           releaseDate: '2026-01-29', color1: 0xFF4A148C, color2: 0xFF880E4F),
+  'B2a': PocketSetMeta(id: 'B2a', namePt: 'Maravilhas de Paldea',      releaseDate: '2026-02-26', color1: 0xFFBF360C, color2: 0xFF1B5E20),
+  'B2b': PocketSetMeta(id: 'B2b', namePt: 'Mega Brilho',               releaseDate: '2026-03-26', color1: 0xFF0D47A1, color2: 0xFF880E4F),
+  'P-A': PocketSetMeta(id: 'P-A', namePt: 'Promos-A',                  releaseDate: '2024-10-30', color1: 0xFF263238, color2: 0xFF37474F),
+  'P-B': PocketSetMeta(id: 'P-B', namePt: 'Promos-B',                  releaseDate: '2025-10-16', color1: 0xFF1C1C1C, color2: 0xFF263238),
 };
-
-// ─── META ─────────────────────────────────────────────────────────
 
 class PocketSetMeta {
   final String id;
@@ -45,35 +43,11 @@ class PocketSetMeta {
   final String releaseDate;
   final int    color1;
   final int    color2;
-
-  const PocketSetMeta({
-    required this.id,
-    required this.namePt,
-    required this.releaseDate,
-    required this.color1,
-    required this.color2,
-  });
+  const PocketSetMeta({required this.id, required this.namePt,
+      required this.releaseDate, required this.color1, required this.color2});
 }
 
 // ─── MODELOS ──────────────────────────────────────────────────────
-
-class PocketBooster {
-  final String  id;
-  final String  name;
-  final String? artworkFront; // URL base — adicionar .webp para usar
-
-  const PocketBooster({required this.id, required this.name, this.artworkFront});
-
-  factory PocketBooster.fromJson(Map<String, dynamic> json) {
-    final raw = json['artwork_front'] as String?;
-    return PocketBooster(
-      id:           json['id'] as String,
-      name:         json['name'] as String,
-      // Padrão TCGdex: URL base sem extensão → adicionar .webp
-      artworkFront: raw != null ? '$raw.webp' : null,
-    );
-  }
-}
 
 class PocketSet {
   final String               id;
@@ -82,33 +56,19 @@ class PocketSet {
   final String?              releaseDate;
   final int                  totalCards;
   final List<PocketCardBrief>  cards;
-  final List<PocketBooster>    boosters;
 
   const PocketSet({
-    required this.id,
-    required this.name,
-    this.logoUrl,
-    this.releaseDate,
-    required this.totalCards,
-    required this.cards,
-    this.boosters = const [],
+    required this.id, required this.name, this.logoUrl,
+    this.releaseDate, required this.totalCards, required this.cards,
   });
 
-  /// Primeira artwork de booster disponível
-  String? get firstBoosterArtwork {
-    for (final b in boosters) {
-      if (b.artworkFront != null) return b.artworkFront;
-    }
-    return null;
-  }
-
-  /// URL do logo para usar como imagem de fundo quando não há booster art
-  String get logoImageUrl => '$_kAssets/tcgp/$id/logo.webp';
+  /// URL da imagem da primeira carta do set — usada como imagem do pacote no hub
+  /// Padrão TCGdex: https://assets.tcgdex.net/en/tcgp/{setId}/1/high.webp
+  String get packCardImageUrl => '$_kAssets/tcgp/$id/1/high.webp';
 
   factory PocketSet.fromJson(Map<String, dynamic> json, {String? overrideName}) {
-    final cardCount   = json['cardCount'] as Map<String, dynamic>?;
-    final cardList    = (json['cards']    as List<dynamic>?) ?? [];
-    final boosterList = (json['boosters'] as List<dynamic>?) ?? [];
+    final cardCount = json['cardCount'] as Map<String, dynamic>?;
+    final cardList  = (json['cards']   as List<dynamic>?) ?? [];
 
     final cards = cardList
         .map((c) => PocketCardBrief.fromJson(c as Map<String, dynamic>))
@@ -126,51 +86,33 @@ class PocketSet {
       releaseDate: json['releaseDate'] as String?,
       totalCards:  cardCount?['official'] as int? ?? cards.length,
       cards:       cards,
-      boosters:    boosterList
-          .map((b) => PocketBooster.fromJson(b as Map<String, dynamic>))
-          .toList(),
     );
   }
 }
 
-// ─── Card brief ───────────────────────────────────────────────────
-
 class PocketCardBrief {
-  final String  id;
-  final String  localId;
-  final String  name;
-  final String? imageUrlLow;
-  final String? rarity;
-
-  const PocketCardBrief({
-    required this.id,
-    required this.localId,
-    required this.name,
-    this.imageUrlLow,
-    this.rarity,
-  });
-
+  final String  id; final String localId; final String name;
+  final String? imageUrlLow; final String? rarity;
+  const PocketCardBrief({required this.id, required this.localId,
+      required this.name, this.imageUrlLow, this.rarity});
   factory PocketCardBrief.fromJson(Map<String, dynamic> json) {
     final raw = json['image'] as String?;
     return PocketCardBrief(
-      id:          json['id'] as String,
-      localId:     json['localId']?.toString() ?? '',
-      name:        json['name'] as String,
+      id: json['id'] as String, localId: json['localId']?.toString() ?? '',
+      name: json['name'] as String,
       imageUrlLow: raw != null ? '$raw/low.webp' : null,
-      rarity:      json['rarity'] as String?,
+      rarity: json['rarity'] as String?,
     );
   }
 }
-
-// ─── Card detail ─────────────────────────────────────────────────
 
 class PocketAttack {
   final String name; final String? damage; final String? effect; final List<String> cost;
   const PocketAttack({required this.name, this.damage, this.effect, required this.cost});
   factory PocketAttack.fromJson(Map<String, dynamic> json) {
-    final costRaw = (json['cost'] as List<dynamic>?) ?? [];
+    final c = (json['cost'] as List<dynamic>?) ?? [];
     return PocketAttack(name: json['name'] as String, damage: json['damage']?.toString(),
-        effect: json['effect'] as String?, cost: costRaw.map((e) => e.toString()).toList());
+        effect: json['effect'] as String?, cost: c.map((e) => e.toString()).toList());
   }
 }
 
@@ -222,8 +164,7 @@ class PocketCardDetail {
       description: json['description'] as String?,
       attacks:   attacksRaw.map((a) => PocketAttack.fromJson(a  as Map<String, dynamic>)).toList(),
       abilities: abilitRaw.map((a)  => PocketAbility.fromJson(a as Map<String, dynamic>)).toList(),
-      weaknessType: weakType, weaknessValue: weakVal,
-      retreat: json['retreat'] as int?,
+      weaknessType: weakType, weaknessValue: weakVal, retreat: json['retreat'] as int?,
       trainerEffect: json['effect'] as String?, trainerType: json['trainerType'] as String?,
     );
   }
@@ -233,7 +174,6 @@ class PocketCardDetail {
 
 class TcgPocketService {
   static const Duration _timeout = Duration(seconds: 12);
-
   static List<PocketSet>?                    _seriesCache;
   static final Map<String, PocketSet>        _setCache  = {};
   static final Map<String, PocketCardDetail> _cardCache = {};
@@ -261,12 +201,12 @@ class TcgPocketService {
         ));
       }
 
-      // Garantir que todos os sets conhecidos apareçam
+      // Garantir todos os sets conhecidos mesmo que a API não os retorne
       for (final id in kPocketSetOrder) {
         if (!seen.contains(id) && kPocketSetMeta.containsKey(id)) {
-          final meta = kPocketSetMeta[id]!;
-          sets.add(PocketSet(id: meta.id, name: meta.namePt,
-              releaseDate: meta.releaseDate, totalCards: 0, cards: []));
+          final m = kPocketSetMeta[id]!;
+          sets.add(PocketSet(id: m.id, name: m.namePt,
+              releaseDate: m.releaseDate, totalCards: 0, cards: []));
         }
       }
 
@@ -280,12 +220,10 @@ class TcgPocketService {
 
   static void _sortSets(List<PocketSet> sets) {
     sets.sort((a, b) {
-      // Promos sempre ao final
-      final aIsPromo = a.id.startsWith('P-');
-      final bIsPromo = b.id.startsWith('P-');
-      if (aIsPromo && !bIsPromo) return 1;
-      if (!aIsPromo && bIsPromo) return -1;
-
+      final aPromo = a.id.startsWith('P-');
+      final bPromo = b.id.startsWith('P-');
+      if (aPromo && !bPromo) return 1;
+      if (!aPromo && bPromo) return -1;
       int ai = kPocketSetOrder.indexOf(a.id);
       int bi = kPocketSetOrder.indexOf(b.id);
       if (ai == -1) ai = 990;
@@ -294,21 +232,20 @@ class TcgPocketService {
     });
   }
 
-  static List<PocketSet> _fallbackSeries() {
-    return kPocketSetOrder.where(kPocketSetMeta.containsKey).map((id) {
-      final m = kPocketSetMeta[id]!;
-      return PocketSet(id: m.id, name: m.namePt, releaseDate: m.releaseDate,
-          totalCards: 0, cards: []);
-    }).toList();
-  }
+  static List<PocketSet> _fallbackSeries() => kPocketSetOrder
+      .where(kPocketSetMeta.containsKey)
+      .map((id) { final m = kPocketSetMeta[id]!;
+        return PocketSet(id: m.id, name: m.namePt,
+            releaseDate: m.releaseDate, totalCards: 0, cards: []); })
+      .toList();
 
   static Future<PocketSet?> fetchSet(String setId) async {
     if (_setCache.containsKey(setId)) return _setCache[setId];
     try {
       final res = await http.get(Uri.parse('$_kBase/sets/$setId')).timeout(_timeout);
       if (res.statusCode != 200) return null;
-      final json = jsonDecode(res.body) as Map<String, dynamic>;
-      final set  = PocketSet.fromJson(json, overrideName: kPocketSetMeta[setId]?.namePt);
+      final set = PocketSet.fromJson(jsonDecode(res.body) as Map<String, dynamic>,
+          overrideName: kPocketSetMeta[setId]?.namePt);
       _setCache[setId] = set;
       return set;
     } catch (_) { return null; }
@@ -319,8 +256,7 @@ class TcgPocketService {
     try {
       final res = await http.get(Uri.parse('$_kBase/cards/$cardId')).timeout(_timeout);
       if (res.statusCode != 200) return null;
-      final json = jsonDecode(res.body) as Map<String, dynamic>;
-      final card = PocketCardDetail.fromJson(json);
+      final card = PocketCardDetail.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
       _cardCache[cardId] = card;
       return card;
     } catch (_) { return null; }
