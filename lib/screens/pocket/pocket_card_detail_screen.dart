@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/services/tcg_pocket_service.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_rarity_widget.dart';
