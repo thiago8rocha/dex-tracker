@@ -273,7 +273,10 @@ class TcgPocketService {
         }
       }
       if (resolvedSet.isEmpty || resolvedLocal.isEmpty) return null;
-      final url = '$_kBase/sets/$resolvedSet/$resolvedLocal';
+      // Remover zeros à esquerda do localId: "001" → "1", "012" → "12"
+      final localNum = int.tryParse(resolvedLocal);
+      final cleanLocal = localNum != null ? localNum.toString() : resolvedLocal;
+      final url = '$_kBase/sets/$resolvedSet/$cleanLocal';
       final res = await http.get(Uri.parse(url)).timeout(_timeout);
       if (res.statusCode != 200) return null;
       final card = PocketCardDetail.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
