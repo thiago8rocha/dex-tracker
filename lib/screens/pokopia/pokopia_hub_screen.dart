@@ -10,283 +10,226 @@ class PokopiaHubScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark  = Theme.of(context).brightness == Brightness.dark;
+
+    final cards = [
+      _CardDef(
+        title:    'Pokédex',
+        subtitle: '304 Pokémon de Pokopia',
+        // Caterpie (10) — representa os amigos do jogo
+        bgSprite: const _SpriteAsset.artwork(10),
+        color: isDark ? const Color(0xFF1A3A1A) : const Color(0xFFE8F5E9),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const PokedexScreen(
+            pokedexId:    'pokopia',
+            pokedexName:  'Pokopia',
+            totalPokemon: 304,
+          ),
+        )),
+      ),
+      _CardDef(
+        title:    'Habitats',
+        subtitle: '200 locais e seus Pokémon',
+        // Oddish (43) — planta, representa habitat natural
+        bgSprite: const _SpriteAsset.artwork(43),
+        color: isDark ? const Color(0xFF1A2A3A) : const Color(0xFFE3F2FD),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const PokopiaHabitatsScreen(),
+        )),
+      ),
+      _CardDef(
+        title:    'Especialidades',
+        subtitle: '31 especialidades',
+        // Usar ícone de especialidade "grow" como imagem de fundo
+        bgSprite: const _SpriteAsset.specialty('grow'),
+        color: isDark ? const Color(0xFF2A1A3A) : const Color(0xFFF3E5F5),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const PokopiaSpecialtiesScreen(),
+        )),
+      ),
+      _CardDef(
+        title:    'Sabores e Mosslax',
+        subtitle: 'Efeitos e receitas do Chef Dente',
+        // Mosslax = Snorlax (143)
+        bgSprite: const _SpriteAsset.artwork(143),
+        color: isDark ? const Color(0xFF2A2A1A) : const Color(0xFFFFF8E1),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const PokopiaFlavorsScreen(),
+        )),
+      ),
+      _CardDef(
+        title:    'Relíquias',
+        subtitle: 'Avaliadas pelo Prof. Tangrowth',
+        // Tangrowth (465) = Professor Tangrowth
+        bgSprite: const _SpriteAsset.artwork(465),
+        color: isDark ? const Color(0xFF3A2A1A) : const Color(0xFFFBE9E7),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const PokopiaRelicsScreen(),
+        )),
+      ),
+      _CardDef(
+        title:    'Fósseis',
+        subtitle: 'Fósseis encontrados em Pokopia',
+        // Aerodactyl (142) — ícone clássico de fóssil
+        bgSprite: const _SpriteAsset.artwork(142),
+        color: isDark ? const Color(0xFF2A1A1A) : const Color(0xFFFFEBEE),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const PokopiaRelicsScreen(),
+        )),
+      ),
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pokopia'),
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 4),
-
-          _HubCard(
-            icon: Icons.people_outline,
-            title: 'Pokédex de Amigos',
-            subtitle: 'Registre os 300 Pokémon que você conheceu em Pokopia',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const PokedexScreen(
-                pokedexId: 'pokopia',
-                pokedexName: 'Pokopia',
-                totalPokemon: 300,
+          // Disclaimer
+          Container(
+            color: scheme.surfaceContainerLow,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(children: [
+              Icon(Icons.info_outline, size: 14,
+                  color: scheme.onSurfaceVariant.withOpacity(0.7)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Os dados de Pokopia ainda estão sendo adicionados e atualizados.',
+                  style: TextStyle(fontSize: 11,
+                      color: scheme.onSurfaceVariant.withOpacity(0.8),
+                      height: 1.3),
+                ),
               ),
-            )),
-          ),
-          const SizedBox(height: 12),
-
-          _HubCard(
-            icon: Icons.forest_outlined,
-            title: 'Habitats',
-            subtitle: 'Todos os 200 habitats e quais Pokémon aparecem em cada um',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const PokopiaHabitatsScreen(),
-            )),
-          ),
-          const SizedBox(height: 12),
-
-          _HubCard(
-            icon: Icons.auto_awesome_outlined,
-            title: 'Especialidades',
-            subtitle: 'Todas as 31 especialidades e o que cada Pokémon pode fazer',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const PokopiaSpecialtiesScreen(),
-            )),
-          ),
-          const SizedBox(height: 12),
-
-          _HubCard(
-            icon: Icons.restaurant_outlined,
-            title: 'Sabores e Mosslax',
-            subtitle: 'Efeitos de cada sabor no Mosslax e receitas do Chef Dente',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const PokopiaFlavorsScreen(),
-            )),
-          ),
-          const SizedBox(height: 12),
-
-          _HubCard(
-            icon: Icons.inventory_2_outlined,
-            title: 'Relíquias e Fósseis',
-            subtitle: 'Itens raros avaliados pelo Professor Tangrowth',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const PokopiaRelicsScreen(),
-            )),
+            ]),
           ),
 
-          const SizedBox(height: 20),
-          _SectionLabel('POKÉMON PECULIARES'),
-          const SizedBox(height: 8),
-          ..._peculiarPokemon.map((p) => _PeculiarCard(data: p)),
+          // Grid
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount:   2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing:  12,
+                childAspectRatio: 1.0,
+              ),
+              itemCount: cards.length,
+              itemBuilder: (context, i) =>
+                  _HubCard(def: cards[i], scheme: scheme),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-// ─── DADOS ───────────────────────────────────────────────────────
+// ─── Tipos de imagem de fundo ─────────────────────────────────────
 
-class _PeculiarData {
-  final String name;
-  final String base;
-  final String specialtyAsset; // nome do arquivo sem .png
-  final String specialtyLabel;
-  final String description;
-  final String location;
-  const _PeculiarData({
-    required this.name,
-    required this.base,
-    required this.specialtyAsset,
-    required this.specialtyLabel,
-    required this.description,
-    required this.location,
-  });
+class _SpriteAsset {
+  final String path;
+  const _SpriteAsset.artwork(int id) : path = 'assets/sprites/artwork/$id.webp';
+  const _SpriteAsset.specialty(String name)
+      : path = 'assets/pokopia/specialties/$name.png';
 }
 
-const _peculiarPokemon = [
-  _PeculiarData(
-    name: 'Professor Tangrowth',
-    base: 'Tangrowth',
-    specialtyAsset: 'appraise',
-    specialtyLabel: 'Appraise',
-    description:
-        'Seu guia em Pokopia. Avalia todas as Relíquias Perdidas que você encontrar durante a jornada.',
-    location: 'Withered Wasteland',
-  ),
-  _PeculiarData(
-    name: 'Mosslax',
-    base: 'Snorlax',
-    specialtyAsset: 'eat',
-    specialtyLabel: 'Eat',
-    description:
-        'Snorlax coberto de musgo e flores após séculos dormindo. Aceita comidas para conceder efeitos especiais até o fim do dia.',
-    location: 'Bleak Beach',
-  ),
-  _PeculiarData(
-    name: 'Smearguru',
-    base: 'Smeargle',
-    specialtyAsset: 'paint',
-    specialtyLabel: 'Paint',
-    description:
-        'Coberto de manchas coloridas. Pode repintar móveis e estruturas usando materiais específicos.',
-    location: 'Bleak Beach',
-  ),
-  _PeculiarData(
-    name: 'Peakychu',
-    base: 'Pikachu',
-    specialtyAsset: 'illuminate',
-    specialtyLabel: 'Illuminate',
-    description:
-        'Pikachu pálida que doou toda sua eletricidade para curar amigos. Quando se recupera, consegue alimentar a cidade inteira.',
-    location: 'Rocky Ridges',
-  ),
-  _PeculiarData(
-    name: 'DJ Rotom',
-    base: 'Rotom',
-    specialtyAsset: 'DJ',
-    specialtyLabel: 'DJ',
-    description:
-        'Rotom habitando um aparelho de som. Toca os CDs que você colecionar, alterando a música ambiente da cidade.',
-    location: 'Rocky Ridges',
-  ),
-  _PeculiarData(
-    name: 'Chef Dente',
-    base: 'Greedent',
-    specialtyAsset: 'party',
-    specialtyLabel: 'Party',
-    description:
-        'Cheia de utensílios de cozinha presos no corpo. Ajuda a preparar refeições em grande quantidade para festas.',
-    location: 'Rocky Ridges',
-  ),
-  _PeculiarData(
-    name: 'Tinkmaster',
-    base: 'Tinkaton',
-    specialtyAsset: 'Engineer',
-    specialtyLabel: 'Engineer',
-    description:
-        'Passou anos construindo sua própria cidade. Lidera grandes projetos de construção e cria tecnologia de transporte.',
-    location: 'Sparkling Skylands',
-  ),
-];
+// ─── Definição de card ────────────────────────────────────────────
 
-// ─── WIDGETS ─────────────────────────────────────────────────────
-
-
-// ─── HUB CARD ─────────────────────────────────────────────────────
-
-class _HubCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
+class _CardDef {
+  final String       title;
+  final String       subtitle;
+  final _SpriteAsset bgSprite;
+  final Color        color;
   final VoidCallback onTap;
 
-  const _HubCard({
-    required this.icon,
+  const _CardDef({
     required this.title,
     required this.subtitle,
+    required this.bgSprite,
+    required this.color,
     required this.onTap,
   });
+}
+
+// ─── Widget do card ───────────────────────────────────────────────
+
+class _HubCard extends StatelessWidget {
+  final _CardDef    def;
+  final ColorScheme scheme;
+  const _HubCard({required this.def, required this.scheme});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+    return GestureDetector(
+      onTap: def.onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: scheme.outlineVariant, width: 1),
-        ),
-        child: Row(children: [
-          Container(
-            width: 42, height: 42,
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: scheme.outlineVariant, width: 0.5),
-            ),
-            child: Icon(icon, size: 22, color: scheme.onSurfaceVariant),
+          color:        def.color,
+          borderRadius: BorderRadius.circular(16),
+          border:       Border.all(
+            color: scheme.outlineVariant.withOpacity(0.5),
+            width: 0.5,
           ),
-          const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600)),
-              const SizedBox(height: 2),
-              Text(subtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant, height: 1.4)),
-            ])),
-          Icon(Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant),
-        ]),
-      ),
-    );
-  }
-}
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(children: [
 
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(text,
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.8,
-        color: Theme.of(context).colorScheme.onSurfaceVariant));
-  }
-}
-
-class _PeculiarCard extends StatelessWidget {
-  final _PeculiarData data;
-  const _PeculiarCard({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.outlineVariant, width: 1),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(child: Text(data.name,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600))),
-          // ícone de especialidade sem caixa
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Image.asset(
-              'assets/pokopia/specialties/${data.specialtyAsset}.png',
-              width: 16, height: 16,
-              errorBuilder: (_, __, ___) =>
-                  Icon(Icons.star_outline, size: 16,
-                      color: scheme.onSurfaceVariant),
+            // Sprite como imagem de fundo
+            Positioned(
+              right: -10,
+              bottom: -6,
+              child: Opacity(
+                opacity: 0.20,
+                child: Image.asset(
+                  def.bgSprite.path,
+                  width:  110,
+                  height: 110,
+                  fit:    BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      const SizedBox(width: 110, height: 110),
+                ),
+              ),
             ),
-            const SizedBox(width: 4),
-            Text(data.specialtyLabel,
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500,
-                  color: scheme.onSurfaceVariant)),
+
+            // Conteúdo de texto
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    def.title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    def.subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: scheme.onSurface.withOpacity(0.6),
+                      height: 1.3,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.arrow_forward_rounded,
+                      size: 18,
+                      color: scheme.onSurface.withOpacity(0.4)),
+                ],
+              ),
+            ),
           ]),
-        ]),
-        const SizedBox(height: 4),
-        Text(
-          'Base: ${data.base}  •  ${data.location}',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: scheme.onSurfaceVariant, fontSize: 10)),
-        const SizedBox(height: 6),
-        Text(data.description,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: scheme.onSurfaceVariant, height: 1.4)),
-      ]),
+        ),
+      ),
     );
   }
 }
