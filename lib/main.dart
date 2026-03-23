@@ -5,6 +5,7 @@ import 'package:pokedex_tracker/theme/app_theme.dart';
 import 'package:pokedex_tracker/screens/pokedex_screen.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
+import 'package:pokedex_tracker/services/translation_warmup.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
     show initBilingualMode, initDefaultSprite;
 
@@ -117,7 +118,7 @@ class _LastDexLoaderState extends State<_LastDexLoader> {
     'omega_ruby___alpha_sapphire': 'Omega Ruby / Alpha Sapphire',
     'sun___moon': 'Sun / Moon',
     'ultra_sun___ultra_moon': 'Ultra Sun / Ultra Moon',
-    "let\'s_go_pikachu___eevee": "Let\'s Go Pikachu / Eevee",
+    "let's_go_pikachu___eevee": "Let's Go Pikachu / Eevee",
     'sword___shield': 'Sword / Shield',
     'brilliant_diamond___shining_pearl': 'Brilliant Diamond / Shining Pearl',
     'legends:_arceus': 'Legends: Arceus',
@@ -135,7 +136,7 @@ class _LastDexLoaderState extends State<_LastDexLoader> {
     'black___white': 649, 'black_2___white_2': 649,
     'x___y': 721, 'omega_ruby___alpha_sapphire': 721,
     'sun___moon': 807, 'ultra_sun___ultra_moon': 807,
-    "let\'s_go_pikachu___eevee": 153,
+    "let's_go_pikachu___eevee": 153,
     'sword___shield': 400, 'brilliant_diamond___shining_pearl': 493,
     'legends:_arceus': 242, 'scarlet___violet': 400,
     'legends:_z-a': 132, 'firered___leafgreen': 386,
