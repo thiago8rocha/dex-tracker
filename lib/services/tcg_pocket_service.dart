@@ -251,16 +251,29 @@ class TcgPocketService {
     } catch (_) { return null; }
   }
 
-  /// Busca detalhes de uma carta via /sets/{setId}/{localId}
-  /// cardId é usado apenas como chave de cache.
+  /// Busca detalhes de uma carta.
+  /// [cardId] no formato "A1-1" → monta /sets/A1/1
+  /// Aceita também setId + localId como named params opcionais.
   static Future<PocketCardDetail?> fetchCard(
     String cardId, {
-    required String setId,
-    required String localId,
+    String? setId,
+    String? localId,
   }) async {
     if (_cardCache.containsKey(cardId)) return _cardCache[cardId];
     try {
-      final url = '$_kBase/sets/$setId/$localId';
+      // Determinar setId e localId: preferir params, senão extrair do cardId
+      String resolvedSet   = setId   ?? '';
+      String resolvedLocal = localId ?? '';
+      if (resolvedSet.isEmpty || resolvedLocal.isEmpty) {
+        // cardId formato "A1-1" → set="A1", local="1"
+        final dashIdx = cardId.lastIndexOf('-');
+        if (dashIdx > 0) {
+          resolvedSet   = cardId.substring(0, dashIdx);
+          resolvedLocal = cardId.substring(dashIdx + 1);
+        }
+      }
+      if (resolvedSet.isEmpty || resolvedLocal.isEmpty) return null;
+      final url = '$_kBase/sets/$resolvedSet/$resolvedLocal';
       final res = await http.get(Uri.parse(url)).timeout(_timeout);
       if (res.statusCode != 200) return null;
       final card = PocketCardDetail.fromJson(jsonDecode(res.body) as Map<String, dynamic>);

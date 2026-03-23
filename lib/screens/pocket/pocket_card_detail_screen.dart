@@ -41,11 +41,14 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
         setState(() {
           _card    = card;
           _loading = false;
-          if (card == null) _error = 'Carta não encontrada';
+          if (card == null) _error = 'Carta não encontrada (id: ${widget.cardId})';
         });
       }
-    } catch (_) {
-      if (mounted) setState(() { _error = 'Erro ao carregar carta'; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() {
+        _error = 'Erro: ${e.toString()}';
+        _loading = false;
+      });
     }
   }
 
