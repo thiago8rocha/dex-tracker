@@ -7,10 +7,11 @@ import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/pokeapi_service.dart';
 import 'package:pokedex_tracker/services/dex_bundle_service.dart';
+import 'package:pokedex_tracker/services/move_warmup_service.dart';
 import 'package:pokedex_tracker/translations.dart';
 import 'package:pokedex_tracker/screens/menu/move_detail_screen.dart';
 
-// ─── Modelo público (partilhado com move_detail_screen) ───────────
+// ─── Modelo público ───────────────────────────────────────────────
 class MoveEntry {
   final String nameEn;
   final String url;
@@ -22,36 +23,52 @@ class MoveEntry {
   MoveEntry({required this.nameEn, required this.url});
 }
 
-// ─── Lista de jogos para seletor ─────────────────────────────────
-class _GameDef {
-  final String id;
-  final String label;
-  const _GameDef({required this.id, required this.label});
-}
+// ─── Dados dos jogos (mesmo formato da home) ──────────────────────
+const _gamesByGen = <int, List<Map<String, dynamic>>>{
+  1: [
+    {'name': 'Red / Blue',            'id': 'red___blue',                   'c1': 0xFFE53935, 'c2': 0xFF1565C0},
+    {'name': 'Yellow',                'id': 'yellow',                       'c1': 0xFFFDD835, 'c2': 0xFFFF8F00},
+  ],
+  2: [
+    {'name': 'Gold / Silver',         'id': 'gold___silver',                'c1': 0xFFFFCA28, 'c2': 0xFFB0BEC5},
+    {'name': 'Crystal',               'id': 'crystal',                      'c1': 0xFF29B6F6, 'c2': 0xFFE1F5FE},
+  ],
+  3: [
+    {'name': 'Ruby / Sapphire',       'id': 'ruby___sapphire',              'c1': 0xFFE53935, 'c2': 0xFF1E88E5},
+    {'name': 'FireRed / LeafGreen',   'id': 'firered___leafgreen_(gba)',     'c1': 0xFFEF5350, 'c2': 0xFF43A047},
+    {'name': 'Emerald',               'id': 'emerald',                      'c1': 0xFF43A047, 'c2': 0xFF00BCD4},
+  ],
+  4: [
+    {'name': 'Diamond / Pearl',       'id': 'diamond___pearl',              'c1': 0xFF90CAF9, 'c2': 0xFFF48FB1},
+    {'name': 'Platinum',              'id': 'platinum',                     'c1': 0xFF78909C, 'c2': 0xFFCFD8DC},
+    {'name': 'HeartGold / SoulSilver','id': 'heartgold___soulsilver',       'c1': 0xFFFFCA28, 'c2': 0xFFB0BEC5},
+  ],
+  5: [
+    {'name': 'Black / White',         'id': 'black___white',                'c1': 0xFF424242, 'c2': 0xFFBDBDBD},
+    {'name': 'Black 2 / White 2',     'id': 'black_2___white_2',            'c1': 0xFF1A237E, 'c2': 0xFFE0E0E0},
+  ],
+  6: [
+    {'name': 'X / Y',                 'id': 'x___y',                        'c1': 0xFF1565C0, 'c2': 0xFFE53935},
+    {'name': 'Omega Ruby / Alpha Sapphire', 'id': 'omega_ruby___alpha_sapphire', 'c1': 0xFFE53935, 'c2': 0xFF1E88E5},
+  ],
+  7: [
+    {'name': 'Sun / Moon',            'id': 'sun___moon',                   'c1': 0xFFFF8F00, 'c2': 0xFF7B1FA2},
+    {'name': 'Ultra Sun / Ultra Moon','id': 'ultra_sun___ultra_moon',       'c1': 0xFFFF6F00, 'c2': 0xFF4A148C},
+    {'name': "Let's Go Pikachu / Eevee", 'id': 'lets_go_pikachu___eevee',  'c1': 0xFFFDD835, 'c2': 0xFF8D6E63},
+  ],
+  8: [
+    {'name': 'Sword / Shield',        'id': 'sword___shield',               'c1': 0xFF42A5F5, 'c2': 0xFFEF5350},
+    {'name': 'Brilliant Diamond / Shining Pearl', 'id': 'brilliant_diamond___shining_pearl', 'c1': 0xFF42A5F5, 'c2': 0xFFEC407A},
+    {'name': 'Legends: Arceus',       'id': 'legends_arceus',               'c1': 0xFFFFCA28, 'c2': 0xFFFFFDE7},
+  ],
+  9: [
+    {'name': 'Scarlet / Violet',      'id': 'scarlet___violet',             'c1': 0xFFEF6C00, 'c2': 0xFF7B1FA2},
+    {'name': 'Legends: Z-A',          'id': 'legends_z-a',                  'c1': 0xFF546E7A, 'c2': 0xFFFFD54F},
+  ],
+};
 
-const _kGames = [
-  _GameDef(id: 'scarlet___violet',              label: 'Scarlet / Violet'),
-  _GameDef(id: 'sword___shield',                label: 'Sword / Shield'),
-  _GameDef(id: 'legends_arceus',                label: 'Legends: Arceus'),
-  _GameDef(id: 'brilliant_diamond___shining_pearl', label: 'BD / Shining Pearl'),
-  _GameDef(id: 'ultra_sun___ultra_moon',        label: 'Ultra Sun / Ultra Moon'),
-  _GameDef(id: 'sun___moon',                    label: 'Sun / Moon'),
-  _GameDef(id: 'lets_go_pikachu___eevee',       label: "Let's Go Pikachu / Eevee"),
-  _GameDef(id: 'black_2___white_2',             label: 'Black 2 / White 2'),
-  _GameDef(id: 'black___white',                 label: 'Black / White'),
-  _GameDef(id: 'heartgold___soulsilver',        label: 'HeartGold / SoulSilver'),
-  _GameDef(id: 'platinum',                      label: 'Platinum'),
-  _GameDef(id: 'diamond___pearl',               label: 'Diamond / Pearl'),
-  _GameDef(id: 'omega_ruby___alpha_sapphire',   label: 'Omega Ruby / Alpha Sapphire'),
-  _GameDef(id: 'emerald',                       label: 'Emerald'),
-  _GameDef(id: 'ruby___sapphire',               label: 'Ruby / Sapphire'),
-  _GameDef(id: 'firered___leafgreen_(gba)',      label: 'FireRed / LeafGreen'),
-  _GameDef(id: 'x___y',                         label: 'X / Y'),
-  _GameDef(id: 'crystal',                       label: 'Crystal'),
-  _GameDef(id: 'gold___silver',                 label: 'Gold / Silver'),
-  _GameDef(id: 'yellow',                        label: 'Yellow'),
-  _GameDef(id: 'red___blue',                    label: 'Red / Blue'),
-  _GameDef(id: 'nacional',                      label: 'Nacional'),
+const _specialGames = <Map<String, dynamic>>[
+  {'name': 'Nacional', 'id': 'nacional', 'c1': 0xFFE8524A, 'c2': 0xFFB71C1C},
 ];
 
 // ─── Tela principal ───────────────────────────────────────────────
@@ -68,10 +85,12 @@ class _MovesListScreenState extends State<MovesListScreen> {
   String?         _typeFilter;
   String?         _catFilter;
   String          _activeGameId    = 'scarlet___violet';
-  String          _activeGameLabel = 'Scarlet / Violet';
+  String          _activeGameName  = 'Scarlet / Violet';
+  int             _activeGameC1    = 0xFFEF6C00;
+  int             _activeGameC2    = 0xFF7B1FA2;
 
-  // Cache compartilhado passado para a tela de detalhe
-  final Map<String, Map<String, dynamic>> _detailCache = {};
+  // Cache compartilhado: começa com o warmup, preenchido também pela tela
+  Map<String, Map<String, dynamic>> get _detailCache => MoveWarmupService.cache;
 
   @override
   void initState() {
@@ -81,14 +100,19 @@ class _MovesListScreenState extends State<MovesListScreen> {
 
   Future<void> _initGame() async {
     final lastDex = await StorageService().getLastPokedexId();
-    if (lastDex != null &&
-        !lastDex.startsWith('pokopia') &&
-        lastDex != 'pokémon_go') {
-      final game = _kGames.firstWhere(
-          (g) => g.id == lastDex,
-          orElse: () => _kGames.first);
-      _activeGameId    = game.id;
-      _activeGameLabel = game.label;
+    if (lastDex != null && !lastDex.startsWith('pokopia') && lastDex != 'pokémon_go') {
+      // Encontrar o jogo correspondente nos dados
+      for (final gen in _gamesByGen.values) {
+        for (final g in gen) {
+          if (g['id'] == lastDex) {
+            _activeGameId   = lastDex;
+            _activeGameName = g['name'] as String;
+            _activeGameC1   = g['c1'] as int;
+            _activeGameC2   = g['c2'] as int;
+            break;
+          }
+        }
+      }
     }
     _loadMoves();
   }
@@ -108,61 +132,70 @@ class _MovesListScreenState extends State<MovesListScreen> {
       for (int i = 1; i <= 1025; i++) allIds.add(i);
     }
 
-    // Coletar moves de todos os pokémon do jogo
     final moveMap = <String, MoveEntry>{};
     final ids     = allIds.toList()..sort();
 
-    // Lotes de 15 em paralelo
     for (int i = 0; i < ids.length; i += 15) {
       if (!mounted) return;
       final batch = ids.skip(i).take(15).toList();
-      await Future.wait(batch.map((id) => _fetchPokemonMoves(id, moveMap)));
+      await Future.wait(batch.map((id) async {
+        try {
+          final res = await http.get(Uri.parse('$kApiBase/pokemon/$id'))
+              .timeout(const Duration(seconds: 8));
+          if (res.statusCode != 200) return;
+          final data  = jsonDecode(res.body) as Map<String, dynamic>;
+          final moves = data['moves'] as List<dynamic>? ?? [];
+          for (final m in moves) {
+            final nameEn = m['move']['name'] as String;
+            final url    = m['move']['url'] as String;
+            if (!moveMap.containsKey(nameEn)) {
+              final entry = MoveEntry(nameEn: nameEn, url: url);
+              // Aplicar do cache do warmup imediatamente se disponível
+              _applyCache(entry);
+              moveMap[nameEn] = entry;
+            }
+          }
+        } catch (_) {}
+      }));
+
       if (mounted) setState(() {
-        _allMoves = moveMap.values.toList()
-          ..sort((a, b) {
-            final ptA = translateMove(a.nameEn);
-            final ptB = translateMove(b.nameEn);
-            return ptA.compareTo(ptB);
-          });
+        _allMoves = _sortedMoves(moveMap);
         _applyFilters();
         _loading = false;
       });
     }
 
-    // Após ter a lista completa, pré-carregar os detalhes (tipo/categoria)
-    // em background para preencher os cards
-    _prefetchDetails(moveMap.values.toList());
+    // Preencher entradas sem tipo ainda (cache pode ter chegado depois)
+    _fillMissingDetails(moveMap);
   }
 
-  Future<void> _fetchPokemonMoves(int id, Map<String, MoveEntry> map) async {
-    try {
-      final res = await http.get(Uri.parse('$kApiBase/pokemon/$id'))
-          .timeout(const Duration(seconds: 8));
-      if (res.statusCode != 200) return;
-      final data  = jsonDecode(res.body) as Map<String, dynamic>;
-      final moves = data['moves'] as List<dynamic>? ?? [];
-      for (final m in moves) {
-        final nameEn = m['move']['name'] as String;
-        final url    = m['move']['url'] as String;
-        if (!map.containsKey(nameEn)) map[nameEn] = MoveEntry(nameEn: nameEn, url: url);
-      }
-    } catch (_) {}
+  void _applyCache(MoveEntry entry) {
+    final d = _detailCache[entry.url];
+    if (d == null) return;
+    entry.typeEn   = d['type']?['name'] as String? ?? '';
+    entry.category = d['damage_class']?['name'] as String? ?? '';
+    entry.power    = d['power'] as int?;
+    entry.accuracy = d['accuracy'] as int?;
+    entry.pp       = d['pp'] as int?;
   }
 
-  // Pré-carrega detalhes dos moves em batches — preenche tipo/cat/poder
-  Future<void> _prefetchDetails(List<MoveEntry> moves) async {
-    final uncached = moves.where((m) => m.typeEn.isEmpty).toList();
-    for (int i = 0; i < uncached.length; i += 20) {
+  // Para moves sem tipo após a carga inicial, busca em background
+  Future<void> _fillMissingDetails(Map<String, MoveEntry> map) async {
+    final missing = map.values.where((e) => e.typeEn.isEmpty).toList();
+    for (int i = 0; i < missing.length; i += 20) {
       if (!mounted) return;
-      final batch = uncached.skip(i).take(20).toList();
-      await Future.wait(batch.map((m) => _loadDetail(m.url)));
-      if (mounted) setState(() {}); // re-render com dados novos
+      final batch = missing.skip(i).take(20).toList();
+      await Future.wait(batch.map((e) => _loadDetail(e.url)));
+      // Re-aplicar cache após cada batch
+      for (final e in _allMoves) _applyCache(e);
+      if (mounted) setState(() {});
+      await Future.delayed(const Duration(milliseconds: 50));
     }
   }
 
   Future<Map<String, dynamic>?> _loadDetail(String url) async {
     if (_detailCache.containsKey(url)) {
-      _applyDetailToEntries(url, _detailCache[url]!);
+      _applyToAll(url, _detailCache[url]!);
       return _detailCache[url];
     }
     try {
@@ -171,14 +204,14 @@ class _MovesListScreenState extends State<MovesListScreen> {
       if (res.statusCode == 200) {
         final d = jsonDecode(res.body) as Map<String, dynamic>;
         _detailCache[url] = d;
-        _applyDetailToEntries(url, d);
+        _applyToAll(url, d);
         return d;
       }
     } catch (_) {}
     return null;
   }
 
-  void _applyDetailToEntries(String url, Map<String, dynamic> d) {
+  void _applyToAll(String url, Map<String, dynamic> d) {
     for (final e in _allMoves) {
       if (e.url == url) {
         e.typeEn   = d['type']?['name'] as String? ?? '';
@@ -189,6 +222,10 @@ class _MovesListScreenState extends State<MovesListScreen> {
       }
     }
   }
+
+  List<MoveEntry> _sortedMoves(Map<String, MoveEntry> map) =>
+      map.values.toList()
+        ..sort((a, b) => translateMove(a.nameEn).compareTo(translateMove(b.nameEn)));
 
   void _applyFilters() {
     var list = _allMoves;
@@ -204,27 +241,30 @@ class _MovesListScreenState extends State<MovesListScreen> {
     _filtered = list;
   }
 
-  void _changeGame(_GameDef game) {
+  void _changeGame(Map<String, dynamic> game) {
     setState(() {
-      _activeGameId    = game.id;
-      _activeGameLabel = game.label;
+      _activeGameId   = game['id'] as String;
+      _activeGameName = game['name'] as String;
+      _activeGameC1   = game['c1'] as int;
+      _activeGameC2   = game['c2'] as int;
       _typeFilter = null;
       _catFilter  = null;
       _search     = '';
     });
+    // Disparar warmup para o novo jogo
+    MoveWarmupService.startForGame(_activeGameId);
     _loadMoves();
   }
 
-  void _showGamePicker() {
-    showModalBottomSheet(
+  void _showGamePicker() async {
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => _GamePickerSheet(
-        selected: _activeGameId,
-        onSelect: (g) { Navigator.pop(context); _changeGame(g); },
-      ),
+      builder: (_) => _MoveGamePickerSheet(selectedId: _activeGameId),
     );
+    if (result != null && mounted) _changeGame(result);
   }
 
   void _showFilterSheet() {
@@ -236,9 +276,7 @@ class _MovesListScreenState extends State<MovesListScreen> {
         selectedType: _typeFilter,
         selectedCat:  _catFilter,
         onApply: (type, cat) => setState(() {
-          _typeFilter = type;
-          _catFilter  = cat;
-          _applyFilters();
+          _typeFilter = type; _catFilter = cat; _applyFilters();
         }),
       ),
     );
@@ -247,7 +285,11 @@ class _MovesListScreenState extends State<MovesListScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme    = Theme.of(context).colorScheme;
+    final isDark    = Theme.of(context).brightness == Brightness.dark;
+    final opacity   = isDark ? 0.45 : 0.28;
     final hasFilter = _typeFilter != null || _catFilter != null;
+    final c1 = Color(_activeGameC1);
+    final c2 = Color(_activeGameC2);
 
     return Scaffold(
       appBar: AppBar(
@@ -263,25 +305,23 @@ class _MovesListScreenState extends State<MovesListScreen> {
         ],
       ),
       body: Column(children: [
-        // Seletor de jogo
-        InkWell(
+        // Seletor de jogo — mesmo visual da home
+        GestureDetector(
           onTap: _showGamePicker,
           child: Container(
-            color: scheme.surfaceContainerLow,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft, end: Alignment.centerRight,
+                colors: [c1.withOpacity(opacity), c2.withOpacity(opacity)]),
+            ),
             child: Row(children: [
-              Icon(Icons.videogame_asset_outlined,
-                  size: 14, color: scheme.onSurfaceVariant),
-              const SizedBox(width: 6),
-              Text(_activeGameLabel,
-                  style: TextStyle(fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: scheme.onSurfaceVariant)),
-              const SizedBox(width: 4),
-              Icon(Icons.expand_more, size: 14, color: scheme.onSurfaceVariant),
-              const Spacer(),
+              Expanded(child: Text(_activeGameName,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
               Text('${_filtered.length} golpes',
                   style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+              const SizedBox(width: 6),
+              Icon(Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
             ]),
           ),
         ),
@@ -294,11 +334,9 @@ class _MovesListScreenState extends State<MovesListScreen> {
             decoration: InputDecoration(
               hintText: 'Buscar golpe...',
               prefixIcon: const Icon(Icons.search, size: 20),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(4),
                   borderSide: BorderSide(color: scheme.outlineVariant)),
-              enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4),
                   borderSide: BorderSide(color: scheme.outlineVariant)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               isDense: true,
@@ -306,22 +344,20 @@ class _MovesListScreenState extends State<MovesListScreen> {
           ),
         ),
 
-        // Chips de filtro ativos
+        // Chips ativos
         if (hasFilter)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
             child: Row(children: [
               if (_typeFilter != null) _ActiveChip(
                 label: ptType(_typeFilter!),
-                onRemove: () => setState(() { _typeFilter = null; _applyFilters(); }),
-              ),
+                onRemove: () => setState(() { _typeFilter = null; _applyFilters(); })),
               if (_catFilter != null) ...[
                 const SizedBox(width: 6),
                 _ActiveChip(
                   label: _catFilter == 'physical' ? 'Físico'
                       : _catFilter == 'special' ? 'Especial' : 'Status',
-                  onRemove: () => setState(() { _catFilter = null; _applyFilters(); }),
-                ),
+                  onRemove: () => setState(() { _catFilter = null; _applyFilters(); })),
               ],
             ]),
           ),
@@ -354,21 +390,93 @@ class _MovesListScreenState extends State<MovesListScreen> {
   }
 }
 
+// ─── Game picker sheet — visual igual à home ──────────────────────
+class _MoveGamePickerSheet extends StatelessWidget {
+  final String selectedId;
+  const _MoveGamePickerSheet({required this.selectedId});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme  = Theme.of(context).colorScheme;
+    final isDark  = Theme.of(context).brightness == Brightness.dark;
+    final opacity = isDark ? 0.45 : 0.28;
+
+    Widget card(Map<String, dynamic> g) {
+      final id  = g['id'] as String;
+      final c1  = Color(g['c1'] as int);
+      final c2  = Color(g['c2'] as int);
+      final sel = id == selectedId;
+      return GestureDetector(
+        onTap: () => Navigator.pop(context, g),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              colors: [c1.withOpacity(opacity), c2.withOpacity(opacity)]),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: sel ? scheme.primary : scheme.outlineVariant,
+              width: sel ? 2 : 1)),
+          child: Row(children: [
+            Expanded(child: Text(g['name'] as String,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                    color: sel ? scheme.primary : scheme.onSurface))),
+            if (sel) Icon(Icons.check_circle, size: 16, color: scheme.primary),
+          ]),
+        ),
+      );
+    }
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75, minChildSize: 0.5, maxChildSize: 0.95, expand: false,
+      builder: (_, ctrl) => Column(children: [
+        const SizedBox(height: 8),
+        Container(width: 40, height: 4, decoration: BoxDecoration(
+            color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 12),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text('Selecionar Jogo',
+                style: Theme.of(context).textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700))),
+        const SizedBox(height: 8),
+        Divider(height: 1, color: scheme.outlineVariant),
+        Expanded(child: ListView(controller: ctrl, padding: const EdgeInsets.all(12),
+          children: [
+            ..._specialGames.map(card),
+            const SizedBox(height: 4),
+            ..._gamesByGen.entries.map((entry) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(padding: const EdgeInsets.fromLTRB(0, 8, 0, 6),
+                    child: Text('Geração ${entry.key}',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                            color: scheme.onSurfaceVariant, letterSpacing: 0.5))),
+                ...entry.value.map(card),
+              ],
+            )),
+          ],
+        )),
+      ]),
+    );
+  }
+}
+
 // ─── Card de golpe ────────────────────────────────────────────────
 class _MoveCard extends StatelessWidget {
-  final MoveEntry    entry;
-  final VoidCallback onTap;
+  final MoveEntry entry; final VoidCallback onTap;
   const _MoveCard({required this.entry, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final scheme   = Theme.of(context).colorScheme;
-    final namePt   = translateMove(entry.nameEn);
-    final typeEn   = entry.typeEn;
-    final typePt   = typeEn.isNotEmpty ? ptType(typeEn) : '';
+    final scheme    = Theme.of(context).colorScheme;
+    final namePt    = translateMove(entry.nameEn);
+    final typeEn    = entry.typeEn;
+    final typePt    = typeEn.isNotEmpty ? ptType(typeEn) : '';
     final typeColor = typeEn.isNotEmpty
         ? TypeColors.fromType(typePt) : scheme.surfaceContainerHighest;
-    final catName  = entry.category;
+    final catName   = entry.category;
 
     return GestureDetector(
       onTap: onTap,
@@ -377,26 +485,23 @@ class _MoveCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: scheme.outlineVariant, width: 0.5),
-        ),
+          border: Border.all(color: scheme.outlineVariant, width: 0.5)),
         child: Column(children: [
-          // Linha superior: nome + stats
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 10, 6),
             child: Row(children: [
               Expanded(child: Text(namePt,
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
-              _Stat('POD',  entry.power    != null ? '${entry.power}'    : '—'),
+              _Stat('POD',  entry.power    != null ? '${entry.power}'     : '—'),
               const SizedBox(width: 10),
-              _Stat('PREC', entry.accuracy != null ? '${entry.accuracy}%': '—'),
+              _Stat('PREC', entry.accuracy != null ? '${entry.accuracy}%' : '—'),
               const SizedBox(width: 10),
-              _Stat('PP',   entry.pp       != null ? '${entry.pp}'       : '—'),
+              _Stat('PP',   entry.pp       != null ? '${entry.pp}'        : '—'),
               const SizedBox(width: 6),
               Icon(Icons.chevron_right, size: 14,
                   color: scheme.onSurfaceVariant.withOpacity(0.4)),
             ]),
           ),
-          // Linha inferior: tipo + categoria
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
             child: Row(children: [
@@ -404,7 +509,7 @@ class _MoveCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: typeColor, borderRadius: BorderRadius.circular(4)),
+                      color: typeColor, borderRadius: BorderRadius.circular(4)),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Image.asset(typeIconAsset(typeEn), width: 11, height: 11,
                         errorBuilder: (_, __, ___) => const SizedBox()),
@@ -415,10 +520,9 @@ class _MoveCard extends StatelessWidget {
                   ]),
                 )
               else
-                Container(width: 52, height: 20,
-                    decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(4))),
+                Container(width: 52, height: 20, decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(4))),
               const SizedBox(width: 8),
               if (catName.isNotEmpty) Row(mainAxisSize: MainAxisSize.min, children: [
                 Image.asset('assets/categories/$catName.png', width: 16, height: 16,
@@ -439,13 +543,11 @@ class _MoveCard extends StatelessWidget {
 class _Stat extends StatelessWidget {
   final String label, value;
   const _Stat(this.label, this.value);
-  @override Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(children: [
-      Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-      Text(label, style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant)),
-    ]);
-  }
+  @override Widget build(BuildContext context) => Column(children: [
+    Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+    Text(label, style: TextStyle(fontSize: 9,
+        color: Theme.of(context).colorScheme.onSurfaceVariant)),
+  ]);
 }
 
 class _ActiveChip extends StatelessWidget {
@@ -461,53 +563,16 @@ class _ActiveChip extends StatelessWidget {
         Text(label, style: TextStyle(fontSize: 11, color: scheme.onPrimaryContainer)),
         const SizedBox(width: 4),
         GestureDetector(onTap: onRemove,
-          child: Icon(Icons.close, size: 13, color: scheme.onPrimaryContainer)),
+            child: Icon(Icons.close, size: 13, color: scheme.onPrimaryContainer)),
       ]),
     );
   }
 }
 
-// ─── Sheet: seletor de jogo ───────────────────────────────────────
-class _GamePickerSheet extends StatelessWidget {
-  final String selected;
-  final void Function(_GameDef) onSelect;
-  const _GamePickerSheet({required this.selected, required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Text('Selecionar jogo',
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700)),
-      ),
-      const Divider(height: 1),
-      Flexible(child: ListView.builder(
-        shrinkWrap: true,
-        itemCount: _kGames.length,
-        itemBuilder: (_, i) {
-          final g = _kGames[i];
-          return ListTile(
-            dense: true,
-            title: Text(g.label, style: const TextStyle(fontSize: 13)),
-            trailing: g.id == selected
-                ? Icon(Icons.check, color: scheme.primary, size: 18)
-                : null,
-            onTap: () => onSelect(g),
-          );
-        },
-      )),
-      const SizedBox(height: 16),
-    ]);
-  }
-}
-
-// ─── Sheet: filtros ───────────────────────────────────────────────
+// ─── Filter sheet ─────────────────────────────────────────────────
 class _FilterSheet extends StatefulWidget {
   final String? selectedType, selectedCat;
-  final void Function(String? type, String? cat) onApply;
+  final void Function(String?, String?) onApply;
   const _FilterSheet({required this.selectedType, required this.selectedCat,
       required this.onApply});
   @override State<_FilterSheet> createState() => _FilterSheetState();
@@ -520,7 +585,6 @@ class _FilterSheetState extends State<_FilterSheet> {
     'bug','ghost','steel','fire','water','grass',
     'electric','psychic','ice','dragon','dark','fairy',
   ];
-
   @override void initState() { super.initState(); _type = widget.selectedType; _cat = widget.selectedCat; }
 
   @override
@@ -531,12 +595,10 @@ class _FilterSheetState extends State<_FilterSheet> {
       child: Column(mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Text('Filtrar golpes',
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700)),
+          Text('Filtrar golpes', style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w700)),
           const Spacer(),
-          TextButton(
-              onPressed: () => setState(() { _type = null; _cat = null; }),
+          TextButton(onPressed: () => setState(() { _type = null; _cat = null; }),
               child: const Text('Limpar')),
         ]),
         const SizedBox(height: 10),

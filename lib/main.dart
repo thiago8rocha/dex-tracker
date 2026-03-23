@@ -6,6 +6,7 @@ import 'package:pokedex_tracker/screens/pokedex_screen.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
 import 'package:pokedex_tracker/services/translation_warmup.dart';
+import 'package:pokedex_tracker/services/move_warmup_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
     show initBilingualMode, initDefaultSprite;
 
@@ -32,6 +33,7 @@ void main() async {
 
   runApp(const PokedexTrackerApp());
   TranslationWarmup.start();
+  MoveWarmupService.start();
 }
 
 Future<void> _clearLegacyCacheIfNeeded() async {
