@@ -41,8 +41,8 @@ class _TeamCoverageScreenState extends State<TeamCoverageScreen>
     _selectedTeam = widget.initial ??
         (widget.savedTeams.isNotEmpty ? widget.savedTeams.first : null);
     _loadAvailable();
-    // Se veio com time inicial vai para aba de time salvo
-    if (widget.initial != null) _tab.index = 0;
+    // Se veio com time inicial, vai para aba de times salvos (índice 1)
+    if (widget.initial != null) _tab.index = 1;
   }
 
   @override
@@ -113,8 +113,8 @@ class _TeamCoverageScreenState extends State<TeamCoverageScreen>
           controller: _tab,
           onTap: (_) => setState(() {}),
           tabs: const [
-            Tab(text: 'Time salvo'),
             Tab(text: 'Montar time'),
+            Tab(text: 'Times salvos'),
           ],
           labelColor: scheme.primary,
           unselectedLabelColor: scheme.onSurfaceVariant,
@@ -122,24 +122,12 @@ class _TeamCoverageScreenState extends State<TeamCoverageScreen>
         ),
       ),
       body: TabBarView(controller: _tab, children: [
-        // ── Aba 1: Time salvo ──────────────────────────────────────
-        _SavedTeamTab(
-          savedTeams: widget.savedTeams,
-          selected:   _selectedTeam,
-          onSelect:   (t) => setState(() => _selectedTeam = t),
-          analysis:   _selectedTeam != null
-              ? _CoverageAnalysis(
-                  weakCount:  _weakCount(_selectedTeam!.members),
-                  uncovered:  _uncovered(_selectedTeam!.members),
-                  members:    _selectedTeam!.members,
-                )
-              : null,
-        ),
-        // ── Aba 2: Montar time ────────────────────────────────────
+        // ── Aba 1: Montar time ────────────────────────────────────
         _BuildTab(
           available:    _available,
           loading:      _loadingAvail,
           members:      _custom,
+          activeGame:   _game,
           onToggle:     (id) => setState(() {
             _custom.contains(id) ? _custom.remove(id)
                 : _custom.length < 6 ? _custom.add(id) : null;
@@ -149,6 +137,19 @@ class _TeamCoverageScreenState extends State<TeamCoverageScreen>
                   weakCount:  _weakCount(_custom),
                   uncovered:  _uncovered(_custom),
                   members:    _custom,
+                )
+              : null,
+        ),
+        // ── Aba 2: Times salvos ───────────────────────────────────
+        _SavedTeamTab(
+          savedTeams: widget.savedTeams,
+          selected:   _selectedTeam,
+          onSelect:   (t) => setState(() => _selectedTeam = t),
+          analysis:   _selectedTeam != null
+              ? _CoverageAnalysis(
+                  weakCount:  _weakCount(_selectedTeam!.members),
+                  uncovered:  _uncovered(_selectedTeam!.members),
+                  members:    _selectedTeam!.members,
                 )
               : null,
         ),
@@ -246,21 +247,46 @@ class _SavedTeamTab extends StatelessWidget {
 
 // ─── Aba montar time ──────────────────────────────────────────────
 class _BuildTab extends StatefulWidget {
-  final List<int> available, members;
-  final bool loading;
-  final void Function(int) onToggle;
-  final _CoverageAnalysis? analysis;
+  final List<int>             available, members;
+  final bool                  loading;
+  final void Function(int)    onToggle;
+  final _CoverageAnalysis?    analysis;
+  final Map<String, dynamic>  activeGame;
   const _BuildTab({required this.available, required this.members,
-      required this.loading, required this.onToggle, required this.analysis});
+      required this.loading, required this.onToggle,
+      required this.analysis, required this.activeGame});
   @override State<_BuildTab> createState() => _BuildTabState();
 }
 
 class _BuildTabState extends State<_BuildTab> {
-  String _search = '';
-  final _ctrl = TextEditingController();
+  String  _search  = '';
+  String? _saveMsg;
+  final   _ctrl    = TextEditingController();
 
   @override
   void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  Future<void> _saveTeam() async {
+    if (widget.members.isEmpty) return;
+    final gameId   = widget.activeGame['id']   as String? ?? '';
+    final gameName = widget.activeGame['name'] as String? ?? '';
+    try {
+      final canSave = await TeamsStorageService.instance.canSave(gameId);
+      if (!canSave) {
+        setState(() => _saveMsg = 'Limite de ${TeamsStorageService.maxPerGame} times atingido.');
+        return;
+      }
+      final team = PokemonTeam(
+        id: TeamsStorageService.newId(), gameId: gameId, gameName: gameName,
+        name: 'Time de cobertura - $gameName',
+        members: List<int>.from(widget.members),
+      );
+      await TeamsStorageService.instance.save(team);
+      setState(() => _saveMsg = 'Time salvo!');
+    } catch (e) {
+      setState(() => _saveMsg = 'Erro ao salvar: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -312,6 +338,31 @@ class _BuildTabState extends State<_BuildTab> {
           child: _CoverageReport(analysis: widget.analysis!),
         ),
       const Divider(height: 1),
+      // Botão salvar time montado
+      if (widget.members.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            OutlinedButton.icon(
+              onPressed: _saveTeam,
+              icon: const Icon(Icons.save_outlined, size: 16),
+              label: Text('Salvar time (${widget.members.length}/6)'),
+              style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6)),
+                  side: BorderSide(color: scheme.primary, width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 8)),
+            ),
+            if (_saveMsg != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(_saveMsg!, textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                        color: _saveMsg!.startsWith('Erro') || _saveMsg!.startsWith('Limite')
+                            ? scheme.error : Colors.green.shade700)),
+              ),
+          ]),
+        ),
       Padding(
         padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
         child: TextField(

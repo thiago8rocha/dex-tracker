@@ -91,13 +91,18 @@ class _TeamsScreenState extends State<TeamsScreen> {
     _reload();
   }
 
-  void _openCoverage({PokemonTeam? initial}) => Navigator.push(context,
-      MaterialPageRoute(builder: (_) => TeamCoverageScreen(
+  Future<void> _openCoverage({PokemonTeam? initial}) async {
+    await Navigator.push(context, MaterialPageRoute(
+      builder: (_) => TeamCoverageScreen(
           activeGame: _activeGame!, savedTeams: _teams, initial: initial)));
+    _reload();
+  }
 
-  void _openSuggestion() => Navigator.push(context,
-      MaterialPageRoute(builder: (_) =>
-          TeamSuggestionScreen(activeGame: _activeGame!)));
+  Future<void> _openSuggestion() async {
+    await Navigator.push(context, MaterialPageRoute(
+      builder: (_) => TeamSuggestionScreen(activeGame: _activeGame!)));
+    _reload();
+  }
 
   Future<void> _deleteTeam(PokemonTeam t) async {
     final ok = await showDialog<bool>(
