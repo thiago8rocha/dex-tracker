@@ -2,6 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
     show BilingualTerm;
 
+// ─── Constantes de cor pré-computadas ────────────────────────────
+// Evita withOpacity() em cada build
+const _upBg     = Color(0x142E7D32); // verde 8%
+const _upBorder = Color(0x592E7D32); // verde 35%
+const _upText   = Color(0xFF2E7D32);
+const _dnBg     = Color(0x14C62828);
+const _dnBorder = Color(0x59C62828);
+const _dnText   = Color(0xFFC62828);
+const _neuBg    = Color(0x14888888);
+const _neuBorder= Color(0x59888888);
+const _neuText  = Color(0xFF888888);
+
+// ─── Decorações pré-computadas ────────────────────────────────────
+const _upDec  = BoxDecoration(color: _upBg,  borderRadius: BorderRadius.all(Radius.circular(4)), border: Border.fromBorderSide(BorderSide(color: _upBorder, width: 0.5)));
+const _dnDec  = BoxDecoration(color: _dnBg,  borderRadius: BorderRadius.all(Radius.circular(4)), border: Border.fromBorderSide(BorderSide(color: _dnBorder, width: 0.5)));
+const _neuDec = BoxDecoration(color: _neuBg, borderRadius: BorderRadius.all(Radius.circular(4)), border: Border.fromBorderSide(BorderSide(color: _neuBorder, width: 0.5)));
+
 // ─── Modelo ───────────────────────────────────────────────────────
 class _Nature {
   final String  nameEn;
@@ -45,27 +62,21 @@ const _natures = [
 ];
 
 const _statLabel = {
-  'atk': 'Ataque',
-  'def': 'Defesa',
-  'spa': 'Atq. Esp.',
-  'spd': 'Def. Esp.',
+  'atk': 'Ataque',       'def': 'Defesa',
+  'spa': 'Atq. Esp.',    'spd': 'Def. Esp.',
   'spe': 'Velocidade',
 };
 
 const _flavorLabel = {
-  'spicy':  'Apimentado',
-  'sour':   'Azedo',
-  'sweet':  'Doce',
-  'dry':    'Seco',
-  'bitter': 'Amargo',
+  'spicy': 'Apimentado', 'sour':   'Azedo',
+  'sweet': 'Doce',       'dry':    'Seco',
+  'bitter':'Amargo',
 };
 
 const _flavorIcon = {
-  'spicy':  '🌶',
-  'sour':   '🍋',
-  'sweet':  '🍬',
-  'dry':    '🌿',
-  'bitter': '☕',
+  'spicy': '🌶', 'sour': '🍋',
+  'sweet': '🍬', 'dry':  '🌿',
+  'bitter':'☕',
 };
 
 // ─── Tela ─────────────────────────────────────────────────────────
@@ -75,11 +86,11 @@ class NaturesListScreen extends StatefulWidget {
 }
 
 class _NaturesListScreenState extends State<NaturesListScreen> {
-  bool   _searching = false;
-  String _search    = '';
+  bool    _searching  = false;
+  String  _search     = '';
   String? _filterStat;
-  final _searchCtrl = TextEditingController();
-  final _filterKey  = GlobalKey();
+  final   _searchCtrl = TextEditingController();
+  final   _filterKey  = GlobalKey();
 
   @override
   void dispose() { _searchCtrl.dispose(); super.dispose(); }
@@ -103,13 +114,12 @@ class _NaturesListScreenState extends State<NaturesListScreen> {
   });
 
   void _showStatFilter() async {
-    final box  = _filterKey.currentContext?.findRenderObject() as RenderBox?;
-    final pos  = box?.localToGlobal(Offset.zero) ?? Offset.zero;
-    final size = box?.size ?? Size.zero;
-    final rect = RelativeRect.fromLTRB(
-        pos.dx, pos.dy + size.height, pos.dx + size.width, 0);
+    final box = _filterKey.currentContext?.findRenderObject() as RenderBox?;
+    final pos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final sz  = box?.size ?? Size.zero;
+    final rect = RelativeRect.fromLTRB(pos.dx, pos.dy + sz.height, pos.dx + sz.width, 0);
 
-    PopupMenuItem<String?> item(String label, String? value) {
+    PopupMenuItem<String?> mk(String label, String? value) {
       final sel = _filterStat == value;
       return PopupMenuItem<String?>(
         value: value,
@@ -128,9 +138,9 @@ class _NaturesListScreenState extends State<NaturesListScreen> {
       position: rect,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       items: [
-        item('Todas', null),
+        mk('Todas', null),
         for (final s in ['atk', 'def', 'spa', 'spd', 'spe'])
-          item('+ \${_statLabel[s]}', s),
+          mk('+ ${_statLabel[s]}', s),
       ],
     );
     if (mounted) setState(() => _filterStat = result);
@@ -141,8 +151,7 @@ class _NaturesListScreenState extends State<NaturesListScreen> {
     final scheme   = Theme.of(context).colorScheme;
     final filtered = _filtered;
     final label    = _filterStat == null
-        ? 'Todas as naturezas'
-        : '+ ${_statLabel[_filterStat]}';
+        ? 'Todas as naturezas' : '+ ${_statLabel[_filterStat]}';
 
     return Scaffold(
       appBar: AppBar(
@@ -165,7 +174,6 @@ class _NaturesListScreenState extends State<NaturesListScreen> {
         ],
       ),
       body: Column(children: [
-        // Dropdown de filtro
         GestureDetector(
           key: _filterKey,
           onTap: _showStatFilter,
@@ -175,21 +183,18 @@ class _NaturesListScreenState extends State<NaturesListScreen> {
             child: Row(children: [
               Text(label, style: TextStyle(
                   fontSize: 12, fontWeight: FontWeight.w600,
-                  color: _filterStat != null
-                      ? scheme.primary : scheme.onSurfaceVariant)),
+                  color: _filterStat != null ? scheme.primary : scheme.onSurfaceVariant)),
               const SizedBox(width: 4),
               Icon(Icons.expand_more, size: 16,
-                  color: _filterStat != null
-                      ? scheme.primary : scheme.onSurfaceVariant),
+                  color: _filterStat != null ? scheme.primary : scheme.onSurfaceVariant),
             ]),
           ),
         ),
-
         Expanded(child: ListView.separated(
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+          // itemExtent fixo para evitar cálculos de layout por item
           itemCount: filtered.length,
-          separatorBuilder: (_, __) => Divider(
-              height: 1, color: scheme.outlineVariant.withOpacity(0.5)),
+          separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0x1A888888)),
           itemBuilder: (_, i) => _NatureTile(nature: filtered[i]),
         )),
       ]),
@@ -197,132 +202,79 @@ class _NaturesListScreenState extends State<NaturesListScreen> {
   }
 }
 
-// ─── Tile ─────────────────────────────────────────────────────────
+// ─── Tile — const onde possível, sem withOpacity() ────────────────
 class _NatureTile extends StatelessWidget {
   final _Nature nature;
-  const _NatureTile({required this.nature});
+  const _NatureTile({required this.nature, super.key});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    const up   = Color(0xFF2E7D32);
-    const down = Color(0xFFC62828);
-    const neu  = Color(0xFF888888);
-
-    final incLabel = nature.increased != null ? _statLabel[nature.increased]! : '—';
-    final decLabel = nature.decreased != null ? _statLabel[nature.decreased]! : '—';
-
+    final n = nature;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-        // Nome da natureza
+        // Nome
         BilingualTerm(
-          namePt: nature.namePt,
-          nameEn: nature.nameEn,
+          namePt: n.namePt,
+          nameEn: n.nameEn,
           baseStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           secondaryStyle: const TextStyle(fontSize: 11),
         ),
 
-        const SizedBox(height: 8),
-
-        // Badges de stat
-        Row(children: [
-          // Stat aumentado
-          Expanded(child: _StatBox(
-            label: incLabel,
-            icon: nature.isNeutral
-                ? Icons.remove_rounded
-                : Icons.arrow_upward_rounded,
-            color: nature.isNeutral ? neu : up,
-            scheme: scheme,
-          )),
-          const SizedBox(width: 8),
-          // Stat reduzido
-          Expanded(child: _StatBox(
-            label: nature.isNeutral ? '—' : decLabel,
-            icon: nature.isNeutral
-                ? Icons.remove_rounded
-                : Icons.arrow_downward_rounded,
-            color: nature.isNeutral ? neu : down,
-            scheme: scheme,
-          )),
-        ]),
-
-        // Sabores (só para não-neutras)
-        if (!nature.isNeutral && nature.likeFlavor != null) ...[
-          const SizedBox(height: 8),
+        // Sabores (logo abaixo do nome, só não-neutras)
+        if (!n.isNeutral && n.likeFlavor != null) ...[
+          const SizedBox(height: 4),
           Row(children: [
-            _FlavorBadge(
-              label: _flavorLabel[nature.likeFlavor]!,
-              emoji: _flavorIcon[nature.likeFlavor]!,
-              likes: true,
-              scheme: scheme,
-            ),
-            const SizedBox(width: 8),
-            _FlavorBadge(
-              label: _flavorLabel[nature.hateFlavor]!,
-              emoji: _flavorIcon[nature.hateFlavor]!,
-              likes: false,
-              scheme: scheme,
-            ),
+            Text('Gosta: ', style: const TextStyle(fontSize: 10, color: Color(0xFF888888))),
+            Text(_flavorIcon[n.likeFlavor]!, style: const TextStyle(fontSize: 10)),
+            const SizedBox(width: 2),
+            Text(_flavorLabel[n.likeFlavor]!, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500)),
+            const SizedBox(width: 12),
+            Text('Odeia: ', style: const TextStyle(fontSize: 10, color: Color(0xFF888888))),
+            Text(_flavorIcon[n.hateFlavor]!, style: const TextStyle(fontSize: 10)),
+            const SizedBox(width: 2),
+            Text(_flavorLabel[n.hateFlavor]!, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500)),
           ]),
         ],
-      ]),
-    );
-  }
-}
 
-// ─── Caixa de stat ────────────────────────────────────────────────
-class _StatBox extends StatelessWidget {
-  final String      label;
-  final IconData    icon;
-  final Color       color;
-  final ColorScheme scheme;
-  const _StatBox({required this.label, required this.icon,
-      required this.color, required this.scheme});
+        const SizedBox(height: 7),
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.35), width: 0.5),
-      ),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(icon, size: 13, color: color),
-        const SizedBox(width: 5),
-        Text(label, style: TextStyle(
-            fontSize: 11, fontWeight: FontWeight.w600, color: color)),
-      ]),
-    );
-  }
-}
-
-// ─── Badge de sabor ───────────────────────────────────────────────
-class _FlavorBadge extends StatelessWidget {
-  final String      label;
-  final String      emoji;
-  final bool        likes;
-  final ColorScheme scheme;
-  const _FlavorBadge({required this.label, required this.emoji,
-      required this.likes, required this.scheme});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Row(children: [
-        Text(likes ? 'Gosta:' : 'Odeia:',
-            style: TextStyle(fontSize: 10,
-                color: scheme.onSurfaceVariant.withOpacity(0.7))),
-        const SizedBox(width: 4),
-        Text(emoji, style: const TextStyle(fontSize: 11)),
-        const SizedBox(width: 3),
-        Text(label, style: TextStyle(
-            fontSize: 11, fontWeight: FontWeight.w500,
-            color: scheme.onSurface)),
+        // Caixas de stat
+        if (n.isNeutral)
+          // Neutras: um único traço centralizado
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            decoration: _neuDec,
+            child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.remove_rounded, size: 13, color: _neuText),
+              SizedBox(width: 5),
+              Text('Neutra', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _neuText)),
+            ]),
+          )
+        else
+          Row(children: [
+            Expanded(child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 10),
+              decoration: _upDec,
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.arrow_upward_rounded, size: 13, color: _upText),
+                const SizedBox(width: 5),
+                Text(_statLabel[n.increased]!, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _upText)),
+              ]),
+            )),
+            const SizedBox(width: 8),
+            Expanded(child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 10),
+              decoration: _dnDec,
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.arrow_downward_rounded, size: 13, color: _dnText),
+                const SizedBox(width: 5),
+                Text(_statLabel[n.decreased]!, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _dnText)),
+              ]),
+            )),
+          ]),
       ]),
     );
   }
