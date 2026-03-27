@@ -181,6 +181,7 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
                 height: _height,
                 weight: _weight,
                 loading: _loading,
+                pokedexId: widget.pokedexId,
               ),
               StatusTab(pokemon: widget.pokemon),
               if (_hasMultipleForms) FormsTab(forms: _forms, loading: _loading),
@@ -198,14 +199,14 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
 class _SwitchInfoTab extends StatelessWidget {
   final Pokemon pokemon;
   final List<Map<String, dynamic>> abilities, evoChain;
-  final String category, flavorText, height, weight;
+  final String category, flavorText, height, weight, pokedexId;
   final bool loading;
 
   const _SwitchInfoTab({
     required this.pokemon, required this.abilities, required this.evoChain,
     required this.category, required this.flavorText,
     required this.height, required this.weight,
-    required this.loading,
+    required this.loading, required this.pokedexId,
   });
 
   @override
@@ -257,18 +258,15 @@ class _SwitchInfoTab extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // ── Evoluções ──
-        SectionCard(
-          title: 'EVOLUÇÕES',
-          pokemonTypes: pokemon.types,
-          child: evoChain.isEmpty
-              ? Text(loading ? 'Carregando...' : 'Sem dados',
-                  style: TextStyle(fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant))
-              : EvoChainWidget(chain: evoChain),
-        ),
-
-        const SizedBox(height: 16),
+        // ── Evoluções — só exibe se há evolução no jogo ativo ──
+        if (!loading && filterEvoChainForGame(evoChain, pokedexId).length > 1) ...[
+          SectionCard(
+            title: 'EVOLUÇÕES',
+            pokemonTypes: pokemon.types,
+            child: EvoChainWidget(chain: evoChain, pokedexId: pokedexId),
+          ),
+          const SizedBox(height: 16),
+        ],
       ]),
     );
   }

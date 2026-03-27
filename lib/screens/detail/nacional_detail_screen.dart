@@ -18,11 +18,14 @@ class NacionalDetailScreen extends StatefulWidget {
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
 
+  final String pokedexId;
+
   const NacionalDetailScreen({
     super.key,
     required this.pokemon,
     required this.caught,
     required this.onToggleCaught,
+    required this.pokedexId,
     this.prevName, this.prevId,
     this.nextName, this.nextId,
     this.onPrev, this.onNext,
@@ -229,6 +232,7 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
                 pokemon: widget.pokemon,
                 abilities: _abilities,
                 evoChain: _evoChain,
+                pokedexId: widget.pokedexId,
                 category: _category,
                 flavorText: _flavorText,
                 height: _height,
@@ -252,7 +256,7 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
 class _NacionalInfoTab extends StatelessWidget {
   final Pokemon pokemon;
   final List<Map<String, dynamic>> abilities, evoChain;
-  final String category, flavorText, height, weight;
+  final String category, flavorText, height, weight, pokedexId;
   final List<String> availableGames;
   final bool loading;
 
@@ -261,6 +265,7 @@ class _NacionalInfoTab extends StatelessWidget {
     required this.category, required this.flavorText,
     required this.height, required this.weight,
     required this.availableGames, required this.loading,
+    required this.pokedexId,
   });
 
   @override
@@ -303,18 +308,15 @@ class _NacionalInfoTab extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // ── Evoluções ──
-        SectionCard(
-          title: 'EVOLUÇÕES',
-          pokemonTypes: pokemon.types,
-          child: evoChain.isEmpty
-              ? Text(loading ? 'Carregando...' : 'Sem dados',
-                  style: TextStyle(fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant))
-              : EvoChainWidget(chain: evoChain),
-        ),
-
-        const SizedBox(height: 16),
+        // ── Evoluções — só exibe se há evolução no jogo ativo ──
+        if (!loading && filterEvoChainForGame(evoChain, pokedexId).length > 1) ...[
+          SectionCard(
+            title: 'EVOLUÇÕES',
+            pokemonTypes: pokemon.types,
+            child: EvoChainWidget(chain: evoChain, pokedexId: pokedexId),
+          ),
+          const SizedBox(height: 16),
+        ],
 
         // ── Disponível em ──
         SectionCard(

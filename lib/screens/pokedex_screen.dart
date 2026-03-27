@@ -643,6 +643,7 @@ class _PokedexScreenState extends State<PokedexScreen>
           if (isNacional) {
             return NacionalDetailScreen(
               pokemon: pokemon, caught: isCaught, onToggleCaught: onToggle,
+              pokedexId: _effectivePokedexId,
               prevName: _prevName, prevId: _prevId,
               nextName: _nextName, nextId: _nextId,
               onPrev: onPrevCallback, onNext: onNextCallback,
@@ -743,6 +744,7 @@ class _PokedexScreenState extends State<PokedexScreen>
         if (isNacional) {
           return NacionalDetailScreen(
             pokemon: pokemon, caught: isCaught, onToggleCaught: onToggle,
+            pokedexId: _effectivePokedexId,
             prevName: prevName, prevId: prevId, nextName: nextName, nextId: nextId,
             onPrev: onP, onNext: onN,
           );

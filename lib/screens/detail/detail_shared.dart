@@ -2006,9 +2006,52 @@ class AbilityCard extends StatelessWidget {
 
 // ─── EVO CHAIN (compartilhado) ───────────────────────────────────
 
+// ─── MAPA POKEDEX → GAME LABEL ──────────────────────────────────
+// Mapeia pokedexId para o label usado no campo 'games' do pokedex_data.json.
+// null = sem filtro (nacional).
+const Map<String, String?> _pokedexToGame = {
+  'red___blue':                     'Red / Blue',
+  'gold___silver':                  'Gold / Silver',
+  'ruby___sapphire':                'Ruby / Sapphire',
+  'firered___leafgreen_(gba)':      'Red / Blue',
+  'emerald':                        'Emerald',
+  'diamond___pearl':                'Diamond / Pearl',
+  'platinum':                       'Platinum',
+  'heartgold___soulsilver':         'HeartGold / SoulSilver',
+  'black___white':                  'Black / White',
+  'black_2___white_2':              'Black 2 / White 2',
+  'x___y':                          'X / Y',
+  'omega_ruby___alpha_sapphire':    'Ruby / Sapphire',
+  'sun___moon':                     'Sun / Moon',
+  'ultra_sun___ultra_moon':         'Ultra Sun / Ultra Moon',
+  'lets_go_pikachu___eevee':        "Let's Go Pikachu / Eevee",
+  'sword___shield':                 'Sword / Shield',
+  'brilliant_diamond___shining_pearl': 'Diamond / Pearl',
+  'legends_arceus':                 'Legends: Arceus',
+  'scarlet___violet':               'Scarlet / Violet',
+  'legends_z-a':                    'Scarlet / Violet',
+  'pokémon_go':                     'Pokémon GO',
+  'pokopia':                        'Pokopia',
+  'pokopia_event':                  'Pokopia',
+  'nacional':                       null,
+};
+
+/// Filtra o evoChain para conter apenas membros disponíveis no jogo ativo.
+/// Se pokedexId for 'nacional' ou não mapeado, retorna o chain completo.
+List<Map<String, dynamic>> filterEvoChainForGame(
+    List<Map<String, dynamic>> chain, String pokedexId) {
+  final game = _pokedexToGame[pokedexId];
+  if (game == null) return chain; // nacional: sem filtro
+  return chain.where((e) {
+    final games = PokedexDataService.instance.getGames(e['id'] as int);
+    return games.contains(game);
+  }).toList();
+}
+
 class EvoChainWidget extends StatefulWidget {
   final List<Map<String, dynamic>> chain;
-  const EvoChainWidget({super.key, required this.chain});
+  final String pokedexId;
+  const EvoChainWidget({super.key, required this.chain, required this.pokedexId});
 
   @override
   State<EvoChainWidget> createState() => _EvoChainWidgetState();
@@ -2057,17 +2100,19 @@ class _EvoChainWidgetState extends State<EvoChainWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final filtered = filterEvoChainForGame(widget.chain, widget.pokedexId);
+    if (filtered.length <= 1) return const SizedBox.shrink();
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: _buildWidgets(context),
+      children: _buildWidgets(context, filtered),
     );
   }
 
-  List<Widget> _buildWidgets(BuildContext ctx) {
+  List<Widget> _buildWidgets(BuildContext ctx, List<Map<String, dynamic>> filtered) {
     final ws = <Widget>[];
-    for (int i = 0; i < widget.chain.length; i++) {
-      final e = widget.chain[i];
+    for (int i = 0; i < filtered.length; i++) {
+      final e = filtered[i];
       final id   = e['id'] as int;
       final name = e['name'] as String;
       final displayName = name[0].toUpperCase() + name.substring(1);
@@ -2100,32 +2145,21 @@ class _EvoChainWidgetState extends State<EvoChainWidget> {
               maxLines: 1, overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center),
             const SizedBox(height: 4),
-            // Badges de tipo
+            // Badges de tipo — usa TypeBadge padrão do projeto
             if (types.isNotEmpty)
               Wrap(
                 spacing: 3, runSpacing: 3,
                 alignment: WrapAlignment.center,
-                children: types.map((t) {
-                  final tc = TypeColors.fromType(ptType(t));
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: tc, borderRadius: BorderRadius.circular(4)),
-                    child: Text(ptType(t), style: TextStyle(
-                      fontSize: 8, fontWeight: FontWeight.w700,
-                      color: typeTextColor(tc))),
-                  );
-                }).toList(),
+                children: types.map((t) => TypeBadge(type: t)).toList(),
               )
             else
-              // Placeholder enquanto carrega
-              const SizedBox(height: 16),
+              const SizedBox(height: 32),
           ],
         ),
       ));
 
-      if (i < widget.chain.length - 1) {
-        final cond = widget.chain[i + 1]['condition'] as String;
+      if (i < filtered.length - 1) {
+        final cond = filtered[i + 1]['condition'] as String;
         ws.add(SizedBox(
           width: 32,
           child: Column(
