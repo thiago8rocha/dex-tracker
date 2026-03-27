@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
-    show PokeballLoader;
+    show PokeballLoader, translateFlavorText;
 import 'package:pokedex_tracker/services/tcg_pocket_service.dart';
-import 'package:pokedex_tracker/services/translation_service.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_rarity_widget.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_energy_icon.dart';
 
@@ -52,36 +51,35 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
         return;
       }
 
-      // 2. Traduzir descrição — TranslationService tem retry interno (3x backoff)
-      //    Só faz setState quando tiver PT — nunca exibe EN ao usuário
+      // 2. Traduzir descrição usando translateFlavorText (Google Translate + MyMemory)
+      //    Sempre retorna algo — nunca fica em loop
       String? descPt;
       final descEn = detail.description;
       if (descEn != null && descEn.isNotEmpty) {
-        descPt = await TranslationService.translate(descEn);
-        // Se todas as tentativas falharam, omite a descrição
-        // (melhor ausente do que em inglês)
+        descPt = await translateFlavorText(descEn);
+        // translateFlavorText retorna o texto original se ambas as APIs falharem
+        // Nesse caso omitimos — só exibimos se a tradução foi bem-sucedida
+        if (descPt == descEn) descPt = null;
       }
 
-      // 3. Traduzir ataques — mapa estático primeiro, dinâmico para os que faltam
+      // 3. Traduzir ataques — mapa estático primeiro, translateFlavorText para os que faltam
       final Map<String, String> pt = {};
       for (int i = 0; i < detail.attacks.length; i++) {
         final atk = detail.attacks[i];
 
-        // Nome
+        // Nome: mapa estático → tradução via translateFlavorText
         final nameStatic = _PocketTranslations.translateAttackName(atk.name);
         if (nameStatic == atk.name && atk.name.isNotEmpty) {
-          final namePt = await TranslationService.translate(atk.name);
-          if (namePt != null) pt['attack_$i'] = namePt;
-          // Se null: _attackName() usa o mapa estático ou EN — aceitável para nome
+          final namePt = await translateFlavorText(atk.name);
+          if (namePt != atk.name) pt['attack_$i'] = namePt;
         }
 
-        // Efeito
+        // Efeito: mapa estático → tradução via translateFlavorText
         if (atk.effect != null && atk.effect!.isNotEmpty) {
           final effStatic = _PocketTranslations.translateAttackEffect(atk.effect);
           if (effStatic == atk.effect) {
-            final effPt = await TranslationService.translate(atk.effect!);
-            if (effPt != null) pt['attackEffect_$i'] = effPt;
-            // Se null: efeito omitido (melhor ausente do que em inglês)
+            final effPt = await translateFlavorText(atk.effect!);
+            if (effPt != atk.effect) pt['attackEffect_$i'] = effPt;
           }
         }
       }
