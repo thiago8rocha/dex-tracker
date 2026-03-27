@@ -785,6 +785,12 @@ class _PokedexScreenState extends State<PokedexScreen>
       appBar: AppBar(
         scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
