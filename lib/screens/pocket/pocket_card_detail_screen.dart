@@ -62,8 +62,21 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
         if (descPt == descEn) descPt = null;
       }
 
-      // 3. Traduzir ataques — mapa estático primeiro, translateFlavorText para os que faltam
+      // 3. Traduzir habilidades — nome e efeito via translateFlavorText
       final Map<String, String> pt = {};
+      for (int i = 0; i < detail.abilities.length; i++) {
+        final ab = detail.abilities[i];
+        if (ab.name.isNotEmpty) {
+          final namePt = await translateFlavorText(ab.name);
+          if (namePt != ab.name) pt['ability_name_$i'] = namePt;
+        }
+        if (ab.effect != null && ab.effect!.isNotEmpty) {
+          final effPt = await translateFlavorText(ab.effect!);
+          if (effPt != ab.effect) pt['ability_effect_$i'] = effPt;
+        }
+      }
+
+      // 4. Traduzir ataques — mapa estático primeiro, translateFlavorText para os que faltam
       for (int i = 0; i < detail.attacks.length; i++) {
         final atk = detail.attacks[i];
 
@@ -361,12 +374,15 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
                   scheme: scheme,
                 )),
               ],
-              if (widget.card.rarity != null) ...[
+              if ((_detail?.rarity ?? widget.card.rarity) != null) ...[
                 if (row1.isNotEmpty)
                   VerticalDivider(width: 1, thickness: 0.5, color: scheme.outlineVariant),
                 Expanded(child: _buildStatCellWidget(
                   label: 'Raridade',
-                  widget: PocketRarityBadge(rarity: widget.card.rarity!, expanded: true),
+                  widget: PocketRarityBadge(
+                    rarity: _detail?.rarity ?? widget.card.rarity!,
+                    expanded: true,
+                  ),
                   scheme: scheme,
                 )),
               ],
@@ -434,35 +450,40 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
               color: scheme.onSurfaceVariant)),
       const SizedBox(height: 8),
-      ..._detail!.abilities.map((a) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.purple.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.purple.withOpacity(0.25)),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(color: Colors.purple.shade600,
-                  borderRadius: BorderRadius.circular(4)),
-              child: Text(a.type ?? 'Habilidade',
-                  style: const TextStyle(color: Colors.white,
-                      fontSize: 10, fontWeight: FontWeight.w700)),
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(a.name, style: const TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w700))),
+      ...List.generate(_detail!.abilities.length, (i) {
+        final a = _detail!.abilities[i];
+        final namePt   = _pt['ability_name_$i']   ?? a.name;
+        final effectPt = _pt['ability_effect_$i']  ?? a.effect;
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.purple.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.purple.withOpacity(0.25)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: Colors.purple.shade600,
+                    borderRadius: BorderRadius.circular(4)),
+                child: Text(a.type ?? 'Habilidade',
+                    style: const TextStyle(color: Colors.white,
+                        fontSize: 10, fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Text(namePt, style: const TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w700))),
+            ]),
+            if (effectPt != null && effectPt.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(effectPt, style: TextStyle(fontSize: 13, height: 1.4,
+                  color: scheme.onSurface.withOpacity(0.8))),
+            ],
           ]),
-          if (a.effect != null && a.effect!.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(a.effect!, style: TextStyle(fontSize: 13, height: 1.4,
-                color: scheme.onSurface.withOpacity(0.8))),
-          ],
-        ]),
-      )),
+        );
+      }),
     ]);
   }
 
