@@ -225,7 +225,7 @@ class _MoveDetailScreenState extends State<MoveDetailScreen> {
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(color: _catColor(catName).withOpacity(0.4))),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Image.asset('assets/categories/$catName.png', width: 16, height: 16,
+                      Image.asset('assets/categories/$catName.png', width: 37, height: 16, fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) => const SizedBox()),
                       const SizedBox(width: 6),
                       Text(catName == 'physical' ? 'Ataque Físico'

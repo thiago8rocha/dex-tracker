@@ -431,36 +431,109 @@ class TypeBadge extends StatelessWidget {
 }
 
 // ─── WIDGET: CABEÇALHO DA ABA INFORMAÇÕES ────────────────────────
-// Layout: categoria (itálico) → flavor text → Altura/Tipo/Peso com label acima
+// Layout: categoria → seletor de jogo (opcional) → flavor text → Altura/Tipo/Peso
 
-class AboutHeader extends StatelessWidget {
+class AboutHeader extends StatefulWidget {
   final String category;
-  final String flavorText;
+  final List<Map<String, dynamic>> flavorTexts; // grupos do bundle novo
   final String height;
   final String weight;
   final List<String> types;
   final bool loading;
+  final String pokedexId; // jogo ativo — seleciona o grupo padrão
 
   const AboutHeader({
     super.key,
     required this.category,
-    required this.flavorText,
+    required this.flavorTexts,
     required this.height,
     required this.weight,
     required this.types,
     required this.loading,
+    required this.pokedexId,
   });
+
+  @override
+  State<AboutHeader> createState() => _AboutHeaderState();
+}
+
+class _AboutHeaderState extends State<AboutHeader> {
+  int _selectedIdx = 0;
+
+  // Mapa pokedexId → gameName usado em flavorTexts[].games
+  static const Map<String, String?> _pokedexToGame = {
+    'red___blue':                    'Red / Blue',
+    'gold___silver':                 'Gold / Silver',
+    'ruby___sapphire':               'Ruby / Sapphire',
+    'firered___leafgreen_(gba)':     'FireRed / LeafGreen (GBA)',
+    'emerald':                       'Emerald',
+    'diamond___pearl':               'Diamond / Pearl',
+    'platinum':                      'Platinum',
+    'heartgold___soulsilver':        'HeartGold / SoulSilver',
+    'black___white':                 'Black / White',
+    'black_2___white_2':             'Black 2 / White 2',
+    'x___y':                         'X / Y',
+    'omega_ruby___alpha_sapphire':   'Omega Ruby / Alpha Sapphire',
+    'sun___moon':                    'Sun / Moon',
+    'ultra_sun___ultra_moon':        'Ultra Sun / Ultra Moon',
+    'lets_go_pikachu___eevee':       "Let's Go Pikachu / Eevee",
+    'sword___shield':                'Sword / Shield',
+    'brilliant_diamond___shining_pearl': 'Brilliant Diamond / Shining Pearl',
+    'legends_arceus':                'Legends: Arceus',
+    'scarlet___violet':              'Scarlet / Violet',
+    'legends_z-a':                   'Legends: Z-A',
+    'pokémon_go':                    'Pokémon GO',
+    'pokopia':                       'Pokopia',
+    'pokopia_event':                 'Pokopia',
+    'nacional':                      null,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _selectDefaultGroup();
+  }
+
+  @override
+  void didUpdateWidget(AboutHeader old) {
+    super.didUpdateWidget(old);
+    if (old.pokedexId != widget.pokedexId || old.flavorTexts != widget.flavorTexts) {
+      _selectDefaultGroup();
+    }
+  }
+
+  void _selectDefaultGroup() {
+    if (widget.flavorTexts.isEmpty) return;
+    final game = _pokedexToGame[widget.pokedexId];
+    if (game == null) {
+      // Nacional — usa o grupo mais recente (último)
+      setState(() => _selectedIdx = widget.flavorTexts.length - 1);
+      return;
+    }
+    final idx = widget.flavorTexts.indexWhere(
+      (g) => (g['games'] as List).contains(game),
+    );
+    setState(() => _selectedIdx = idx >= 0 ? idx : widget.flavorTexts.length - 1);
+  }
 
   @override
   Widget build(BuildContext context) {
     final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
-    final categoryLabel = loading
+    final categoryLabel = widget.loading
         ? ''
-        : category.isEmpty || category == '—' ? '—' : category;
+        : widget.category.isEmpty || widget.category == '—'
+            ? '—'
+            : widget.category;
+
+    final groups      = widget.flavorTexts;
+    final hasMultiple = groups.length > 1;
+    final currentText = groups.isNotEmpty
+        ? (groups[_selectedIdx]['textPt'] as String? ?? '')
+        : '';
 
     return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
       // Categoria centralizada
-      if (loading)
+      if (widget.loading)
         const SizedBox(height: 20,
           child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
       else
@@ -471,17 +544,66 @@ class AboutHeader extends StatelessWidget {
             fontSize: 13, color: secondary, fontStyle: FontStyle.italic),
         ),
 
+      // Seletor de jogo — só aparece quando há múltiplos grupos
+      if (!widget.loading && hasMultiple) ...[
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(groups.length, (i) {
+              final games  = (groups[i]['games'] as List).cast<String>();
+              // Label: primeira palavra de cada jogo separado por "·"
+              final label  = games.map((g) => g.split(' / ').first).join(' · ');
+              final active = i == _selectedIdx;
+              final color  = typeIconColors[widget.types.isNotEmpty
+                  ? widget.types[0].toLowerCase()
+                  : 'normal'] ?? const Color(0xFF888888);
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedIdx = i),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: active ? color.withOpacity(0.15) : Colors.transparent,
+                      border: Border.all(
+                        color: active ? color : secondary.withOpacity(0.35),
+                        width: active ? 1.5 : 1.0,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                        color: active ? color : secondary,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
+
       const SizedBox(height: 12),
 
       // Flavor text
-      if (loading)
+      if (widget.loading)
         const SizedBox(height: 40,
           child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
       else
-        Text(
-          flavorText.isEmpty ? '—' : flavorText,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 13.5, height: 1.5),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: Text(
+            currentText.isEmpty ? '—' : currentText,
+            key: ValueKey(_selectedIdx),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13.5, height: 1.5),
+          ),
         ),
 
       const SizedBox(height: 20),
@@ -499,7 +621,7 @@ class AboutHeader extends StatelessWidget {
               children: [
                 Text('Altura', style: TextStyle(fontSize: 11, color: secondary)),
                 Expanded(child: Center(
-                  child: Text(loading ? '—' : height,
+                  child: Text(widget.loading ? '—' : widget.height,
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 )),
               ],
@@ -511,11 +633,11 @@ class AboutHeader extends StatelessWidget {
               children: [
                 Text('Tipo', style: TextStyle(fontSize: 11, color: secondary)),
                 const SizedBox(height: 6),
-                if (loading)
+                if (widget.loading)
                   const SizedBox(height: 32,
                     child: CircularProgressIndicator(strokeWidth: 2))
                 else
-                  ...types.map((t) => Padding(
+                  ...widget.types.map((t) => Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: TypeBadge(type: t),
                   )),
@@ -528,7 +650,7 @@ class AboutHeader extends StatelessWidget {
               children: [
                 Text('Peso', style: TextStyle(fontSize: 11, color: secondary)),
                 Expanded(child: Center(
-                  child: Text(loading ? '—' : weight,
+                  child: Text(widget.loading ? '—' : widget.weight,
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 )),
               ],
@@ -1643,7 +1765,8 @@ class _CatLegend extends StatelessWidget {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Image.asset(
         'assets/categories/$category.png',
-        width: 16, height: 16,
+        width: 37, height: 16,
+        fit: BoxFit.contain,
         errorBuilder: (_, __, ___) => Container(
           width: 16, height: 16,
           decoration: BoxDecoration(
@@ -1745,7 +1868,8 @@ class _MoveRowState extends State<MoveRow> {
           Image.asset(
             catName.isEmpty ? 'assets/categories/status.png'
                 : 'assets/categories/$catName.png',
-            width: 18, height: 18,
+            width: 41, height: 18,
+            fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Container(
               width: 18, height: 18,
               decoration: BoxDecoration(

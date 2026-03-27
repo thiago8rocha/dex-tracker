@@ -571,7 +571,7 @@ class _MoveCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4))),
               const SizedBox(width: 8),
               if (catName.isNotEmpty) Row(mainAxisSize: MainAxisSize.min, children: [
-                Image.asset('assets/categories/$catName.png', width: 16, height: 16,
+                Image.asset('assets/categories/$catName.png', width: 37, height: 16, fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => const SizedBox()),
                 const SizedBox(width: 4),
                 Text(catName == 'physical' ? 'Físico'
@@ -713,7 +713,7 @@ class _CatBtn extends StatelessWidget {
         border: Border.all(color: sel ? color
             : Theme.of(context).colorScheme.outlineVariant, width: sel ? 2 : 1)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Image.asset('assets/categories/$cat.png', width: 15, height: 15,
+        Image.asset('assets/categories/$cat.png', width: 35, height: 15, fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => const SizedBox()),
         const SizedBox(width: 5),
         Text(_l[cat]!, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
