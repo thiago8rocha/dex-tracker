@@ -1689,33 +1689,34 @@ class _MovesTabState extends State<MovesTab> {
 
             // ── Cabeçalho de colunas ──
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               child: Row(children: [
-                // Coluna Nível/MT — largura fixa alinhada com a coluna de dados
+                // Nível: mesma largura da coluna de dados (28 level / 36 mt) + gap de 8
                 SizedBox(
-                  width: _method == 'level' ? 36 : 36,
+                  width: _method == 'level' ? 28 : 36,
                   child: Text(
                     _method == 'level' ? 'Nível' : _method == 'mt' ? 'MT' : '',
-                    style: const TextStyle(fontSize: 9, color: Color(0xFF888888),
-                      letterSpacing: 0.6, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF888888),
+                      letterSpacing: 0.3, fontWeight: FontWeight.w700),
                     textAlign: TextAlign.center),
                 ),
-                const SizedBox(width: 6),
-                // Coluna Tipo — centralizada entre ícone de tipo (32) + ícone cat (41)
-                SizedBox(
-                  width: 32 + 6 + 41,
-                  child: const Text('Tipo', style: TextStyle(fontSize: 9,
-                    color: Color(0xFF888888), letterSpacing: 0.6,
-                    fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
                 const SizedBox(width: 8),
-                // Coluna Golpe — alinhada com o texto do golpe
-                const Expanded(child: Text('Golpe', style: TextStyle(fontSize: 9,
-                  color: Color(0xFF888888), letterSpacing: 0.6, fontWeight: FontWeight.w600))),
-                // Coluna Poder
+                // Tipo: centralizado sobre ícone tipo (32) + gap (6) + ícone cat (41) = 79px
+                SizedBox(
+                  width: 79,
+                  child: const Text('Tipo', style: TextStyle(fontSize: 11,
+                    color: Color(0xFF888888), letterSpacing: 0.3,
+                    fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
+                const SizedBox(width: 8),
+                // Golpe: Expanded igual à coluna de dados
+                const Expanded(child: Text('Golpe', style: TextStyle(fontSize: 11,
+                  color: Color(0xFF888888), letterSpacing: 0.3,
+                  fontWeight: FontWeight.w700))),
+                // Poder: mesma largura da coluna de dados (36)
                 const SizedBox(width: 36,
-                  child: Text('Poder', style: TextStyle(fontSize: 9,
-                    color: Color(0xFF888888), letterSpacing: 0.6,
-                    fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
+                  child: Text('Poder', style: TextStyle(fontSize: 11,
+                    color: Color(0xFF888888), letterSpacing: 0.3,
+                    fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
               ]),
             ),
 
@@ -1849,7 +1850,7 @@ class _MoveRowState extends State<MoveRow> {
               style: TextStyle(fontSize: widget.method == 'level' ? 11 : 10,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500),
-              textAlign: TextAlign.right,
+              textAlign: TextAlign.center,
             ),
           ),
           const SizedBox(width: 8),
@@ -1898,7 +1899,7 @@ class _MoveRowState extends State<MoveRow> {
             power != null ? '$power' : '—',
             style: TextStyle(fontSize: 11,
               color: power == null ? Theme.of(context).colorScheme.onSurfaceVariant : null),
-            textAlign: TextAlign.right, maxLines: 1,
+            textAlign: TextAlign.center, maxLines: 1,
           )),
           Padding(
             padding: const EdgeInsets.only(left: 4),
