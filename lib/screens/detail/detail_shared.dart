@@ -1936,7 +1936,10 @@ class MoveModal extends StatelessWidget {
     final level = move['level'] as int;
     final method = move['method'] as String;
 
+    // Descrição: PT-BR nativo → tradução do EN → effect em EN
+    // A tradução é feita via translateFlavorText (mesmo mecanismo do resto do app)
     String desc = '';
+    String descEn = '';
     if (detail != null) {
       final flavors = detail!['flavor_text_entries'] as List<dynamic>? ?? [];
       String ptDesc = '', enDesc = '';
@@ -1945,12 +1948,17 @@ class MoveModal extends StatelessWidget {
         if (lang == 'pt-BR' && ptDesc.isEmpty) ptDesc = (e['flavor_text'] as String? ?? '').replaceAll('\n', ' ').trim();
         else if (lang == 'en' && enDesc.isEmpty) enDesc = (e['flavor_text'] as String? ?? '').replaceAll('\n', ' ').trim();
       }
-      if (ptDesc.isNotEmpty) desc = ptDesc;
-      else if (enDesc.isNotEmpty) desc = enDesc;
-      else {
+      if (ptDesc.isNotEmpty) {
+        desc = ptDesc;
+      } else if (enDesc.isNotEmpty) {
+        descEn = enDesc;
+        desc = enDesc; // exibido enquanto tradução não chega (mas modal é síncrono aqui)
+      } else {
         for (final e in (detail!['effect_entries'] as List<dynamic>? ?? [])) {
           if ((e['language']['name'] as String) == 'en') {
-            desc = (e['short_effect'] as String? ?? '').trim(); break;
+            descEn = (e['short_effect'] as String? ?? '').trim();
+            desc = _descEn;
+            break;
           }
         }
       }
@@ -1988,31 +1996,34 @@ class MoveModal extends StatelessWidget {
               ]),
               const SizedBox(height: 10),
               Row(children: [
-                if (typeEn.isNotEmpty) Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: typeColor, borderRadius: BorderRadius.circular(4)),
-                  child: Text(typePt, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                    color: typeTextColor(typeColor)))),
+                // Tipo — TypeBadge padrão do projeto (ícone PNG + cor + nome PT)
+                if (typeEn.isNotEmpty) TypeBadge(type: typeEn),
                 const SizedBox(width: 8),
+                // Categoria — ícone PNG proporcional, sem forma oval
                 if (catName.isNotEmpty) Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: catName == 'physical' ? const Color(0xFFE24B4A).withOpacity(0.15)
-                        : catName == 'special' ? const Color(0xFF9C27B0).withOpacity(0.15)
-                        : const Color(0xFF888888).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
+                    color: catName == 'physical' ? const Color(0xFFE24B4A).withOpacity(0.12)
+                        : catName == 'special' ? const Color(0xFF9C27B0).withOpacity(0.12)
+                        : const Color(0xFF888888).withOpacity(0.12),
+                    borderRadius: BorderRadius.zero,
                     border: Border.all(
                       color: catName == 'physical' ? const Color(0xFFE24B4A).withOpacity(0.4)
                           : catName == 'special' ? const Color(0xFF9C27B0).withOpacity(0.4)
-                          : const Color(0xFF888888).withOpacity(0.4),
-                      width: 0.5)),
-                  child: Text(
-                    catName == 'physical' ? 'Ataque Físico'
-                        : catName == 'special' ? 'Ataque Especial' : 'Ataque de Status',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500,
-                      color: catName == 'physical' ? const Color(0xFFE24B4A)
-                          : catName == 'special' ? const Color(0xFF9C27B0)
-                          : const Color(0xFF666666)))),
+                          : const Color(0xFF888888).withOpacity(0.4))),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Image.asset('assets/categories/$catName.png',
+                      width: 41, height: 18, fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const SizedBox()),
+                    const SizedBox(width: 6),
+                    Text(
+                      catName == 'physical' ? 'Físico'
+                          : catName == 'special' ? 'Especial' : 'Status',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                        color: catName == 'physical' ? const Color(0xFFE24B4A)
+                            : catName == 'special' ? const Color(0xFF9C27B0)
+                            : const Color(0xFF666666))),
+                  ])),
               ]),
               const SizedBox(height: 12),
               if (loading)
@@ -2031,8 +2042,16 @@ class MoveModal extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(8)),
-                child: Text(desc, style: TextStyle(fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.5))),
+                child: descEn.isNotEmpty
+                    ? FutureBuilder<String>(
+                        future: translateFlavorText(descEn),
+                        builder: (ctx, snap) => Text(
+                          snap.data ?? desc,
+                          style: TextStyle(fontSize: 12,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.5)),
+                      )
+                    : Text(desc, style: TextStyle(fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.5))),
               const SizedBox(height: 8),
               Text(
                 method == 'level-up' && level > 0 ? 'Aprendido no nível $level'
