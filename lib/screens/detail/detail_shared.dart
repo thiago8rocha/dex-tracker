@@ -900,7 +900,7 @@ class _DetailHeaderState extends State<DetailHeader> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text('#${p.id.toString().padLeft(3, '0')}',
+                                  Text('#${p.entryNumber.toString().padLeft(3, '0')}',
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                       color: Colors.white70,

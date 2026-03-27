@@ -27,7 +27,8 @@ class _AbilityDetailScreenState extends State<AbilityDetailScreen>
   Future<void> _openPokemon(int id) async {
     final svc  = PokedexDataService.instance;
     final poke = Pokemon(
-      id: id, name: svc.getName(id), types: svc.getTypes(id),
+      id: id,
+      entryNumber: id, name: svc.getName(id), types: svc.getTypes(id),
       baseHp: 0, baseAttack: 0, baseDefense: 0,
       baseSpAttack: 0, baseSpDefense: 0, baseSpeed: 0,
       spriteUrl:      'assets/sprites/artwork/$id.webp',

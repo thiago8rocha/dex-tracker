@@ -1,5 +1,6 @@
 class Pokemon {
   final int id;
+  final int entryNumber; // número na dex atual (regional ou nacional)
   final String name;
   final List<String> types;
 
@@ -23,6 +24,7 @@ class Pokemon {
 
   const Pokemon({
     required this.id,
+    required this.entryNumber,
     required this.name,
     required this.types,
     required this.baseHp,

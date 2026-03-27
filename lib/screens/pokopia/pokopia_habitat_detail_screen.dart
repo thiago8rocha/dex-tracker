@@ -75,6 +75,7 @@ class _PokopiaHabitatDetailScreenState
     };
     return Pokemon(
       id: d['id'] as int,
+      entryNumber: d['id'] as int,
       name: d['name'] as String,
       types: types,
       baseHp: stats['hp'] ?? 0,

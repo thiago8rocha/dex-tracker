@@ -470,7 +470,7 @@ class _PokedexScreenState extends State<PokedexScreen>
   // ─── DETALHE ──────────────────────────────────────────────────────
 
   /// Constrói um Pokemon a partir do speciesId — usa dados locais do bundle.
-  Pokemon? _buildPokemon(int speciesId) {
+  Pokemon? _buildPokemon(int speciesId, {required int entryNumber}) {
     final data = _pokemonData[speciesId];
     if (data == null) return null;
 
@@ -507,6 +507,7 @@ class _PokedexScreenState extends State<PokedexScreen>
 
     return Pokemon(
       id:                  speciesId,
+      entryNumber:         entryNumber,
       name:                displayName,
       types:               types,
       baseHp:              statVal('hp'),
@@ -553,7 +554,7 @@ class _PokedexScreenState extends State<PokedexScreen>
       }
     }
 
-    final pokemon = _buildPokemon(entry.speciesId);
+    final pokemon = _buildPokemon(entry.speciesId, entryNumber: entry.entryNumber);
     if (pokemon == null) return;
 
     bool isCaught = _caughtMap[entry.speciesId] ?? false;
@@ -591,7 +592,7 @@ class _PokedexScreenState extends State<PokedexScreen>
       if (d != null) {
         final raw = (d['name'] as String).split('-').first;
         _prevName = raw[0].toUpperCase() + raw.substring(1);
-        _prevId   = d['id'] as int;
+        _prevId   = prevEntry.entryNumber;
       }
     }
     if (nextEntry != null) {
@@ -599,7 +600,7 @@ class _PokedexScreenState extends State<PokedexScreen>
       if (d != null) {
         final raw = (d['name'] as String).split('-').first;
         _nextName = raw[0].toUpperCase() + raw.substring(1);
-        _nextId   = d['id'] as int;
+        _nextId   = nextEntry.entryNumber;
       }
     }
 
@@ -678,7 +679,7 @@ class _PokedexScreenState extends State<PokedexScreen>
       for (final p in batch) _pokemonData[p['id'] as int] = p;
     }
 
-    final pokemon = _buildPokemon(entry.speciesId);
+    final pokemon = _buildPokemon(entry.speciesId, entryNumber: entry.entryNumber);
     if (pokemon == null || !detailContext.mounted) return;
 
     bool isCaught = _caughtMap[entry.speciesId] ?? false;

@@ -113,6 +113,7 @@ class _MoveDetailScreenState extends State<MoveDetailScreen> {
     // Construir Pokemon mínimo para a tela de detalhe
     final poke = Pokemon(
       id:            l.id,
+      entryNumber:   l.id,
       name:          l.name,
       types:         l.types,
       baseHp:        0, baseAttack:    0, baseDefense: 0,
