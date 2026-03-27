@@ -528,9 +528,15 @@ class _PokedexScreenState extends State<PokedexScreen>
   }
 
   void _openDetail(_Entry entry) async {
-    final filtered = _allFilteredEntries();
-    final idx = filtered.indexWhere((e) => e.speciesId == entry.speciesId);
-    await _openDetailAt(filtered, idx);
+    // Navegação no detalhe sempre usa a lista completa (sem busca)
+    // para que prev/next funcionem independente do filtro ativo
+    final savedQuery = _searchQuery;
+    _searchQuery = '';
+    final fullList = _allFilteredEntries();
+    _searchQuery = savedQuery;
+
+    final idx = fullList.indexWhere((e) => e.speciesId == entry.speciesId);
+    await _openDetailAt(fullList, idx);
   }
 
   Future<void> _openDetailAt(List<_Entry> filtered, int idx) async {
