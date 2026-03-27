@@ -1630,16 +1630,15 @@ class _MovesTabState extends State<MovesTab> {
           child: Column(children: [
             const SizedBox(height: 4),
 
-            // ── Filtros centralizados em retângulos ──
-            Center(
-              child: Wrap(
-                spacing: 6,
-                children: [
-                  for (final e in [('level','Nível'),('mt','MT'),('tutor','Tutor'),('egg','Ovo')])
-                    GestureDetector(
+            // ── Filtros — ocupam toda a largura ──
+            Row(
+              children: [
+                for (final e in [('level','Nível'),('mt','MT'),('tutor','Tutor'),('egg','Ovo')]) ...[
+                  Expanded(
+                    child: GestureDetector(
                       onTap: () => setState(() => _method = e.$1),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        padding: const EdgeInsets.symmetric(vertical: 7),
                         decoration: BoxDecoration(
                           color: _method == e.$1
                               ? typeColor
@@ -1652,7 +1651,9 @@ class _MovesTabState extends State<MovesTab> {
                             width: 1,
                           ),
                         ),
-                        child: Text(e.$2, style: TextStyle(
+                        child: Text(e.$2,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
                           fontSize: 11, fontWeight: FontWeight.w600,
                           color: _method == e.$1
                               ? typeTextColor(typeColor)
@@ -1660,8 +1661,10 @@ class _MovesTabState extends State<MovesTab> {
                         )),
                       ),
                     ),
+                  ),
+                  if (e.$1 != 'egg') const SizedBox(width: 5),
                 ],
-              ),
+              ],
             ),
 
             const SizedBox(height: 10),
@@ -1688,26 +1691,29 @@ class _MovesTabState extends State<MovesTab> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               child: Row(children: [
+                // Coluna Nível/MT — largura fixa alinhada com a coluna de dados
                 SizedBox(
-                  width: _method == 'level' ? 28 : 36,
+                  width: _method == 'level' ? 36 : 36,
                   child: Text(
-                    _method == 'level' ? 'NV' : _method == 'mt' ? 'MT' : '',
+                    _method == 'level' ? 'Nível' : _method == 'mt' ? 'MT' : '',
                     style: const TextStyle(fontSize: 9, color: Color(0xFF888888),
                       letterSpacing: 0.6, fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.right),
+                    textAlign: TextAlign.center),
                 ),
                 const SizedBox(width: 6),
-                const SizedBox(width: 32,
-                  child: Text('TIPO', style: TextStyle(fontSize: 9,
+                // Coluna Tipo — centralizada entre ícone de tipo (32) + ícone cat (41)
+                SizedBox(
+                  width: 32 + 6 + 41,
+                  child: const Text('Tipo', style: TextStyle(fontSize: 9,
                     color: Color(0xFF888888), letterSpacing: 0.6,
                     fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
-                const SizedBox(width: 6),
-                const SizedBox(width: 18),
-                const SizedBox(width: 6),
-                const Expanded(child: Text('GOLPE', style: TextStyle(fontSize: 9,
+                const SizedBox(width: 8),
+                // Coluna Golpe — alinhada com o texto do golpe
+                const Expanded(child: Text('Golpe', style: TextStyle(fontSize: 9,
                   color: Color(0xFF888888), letterSpacing: 0.6, fontWeight: FontWeight.w600))),
-                const SizedBox(width: 32,
-                  child: Text('POW', style: TextStyle(fontSize: 9,
+                // Coluna Poder
+                const SizedBox(width: 36,
+                  child: Text('Poder', style: TextStyle(fontSize: 9,
                     color: Color(0xFF888888), letterSpacing: 0.6,
                     fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
               ]),
@@ -1780,7 +1786,8 @@ class _CatLegend extends StatelessWidget {
         ),
       ),
       const SizedBox(width: 4),
-      Text(label, style: TextStyle(fontSize: 9,
+      Text(label, style: TextStyle(fontSize: 11,
+        fontWeight: FontWeight.w700,
         color: Theme.of(context).colorScheme.onSurfaceVariant)),
     ]);
   }
