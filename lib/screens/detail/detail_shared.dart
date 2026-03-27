@@ -347,24 +347,24 @@ class BilingualTerm extends StatelessWidget {
 // ─── CORES DOS TIPOS ─────────────────────────────────────────────
 // Extraídas dos ícones oficiais do Bulbapedia
 const Map<String, Color> typeIconColors = {
-  'normal':   Color.fromRGBO(131, 140, 150, 1),
-  'fire':     Color.fromRGBO(253, 149,  76, 1),
-  'water':    Color.fromRGBO( 64, 135, 210, 1),
-  'grass':    Color.fromRGBO( 75, 172,  68, 1),
-  'electric': Color.fromRGBO(251, 205,  44, 1),
-  'ice':      Color.fromRGBO(103, 195, 180, 1),
-  'fighting': Color.fromRGBO(208,  40,  89, 1),
-  'poison':   Color.fromRGBO(164,  82, 194, 1),
-  'ground':   Color.fromRGBO(216, 118,  74, 1),
-  'flying':   Color.fromRGBO(136, 162, 218, 1),
-  'psychic':  Color.fromRGBO(252, 114, 121, 1),
-  'bug':      Color.fromRGBO(144, 188,  42, 1),
-  'rock':     Color.fromRGBO(192, 172, 128, 1),
-  'ghost':    Color.fromRGBO( 85, 104, 167, 1),
-  'dragon':   Color.fromRGBO(  2,  96, 181, 1),
-  'dark':     Color.fromRGBO( 83,  77,  94, 1),
-  'steel':    Color.fromRGBO( 77, 125, 144, 1),
-  'fairy':    Color.fromRGBO(232, 112, 217, 1),
+  'normal':   Color.fromRGBO(144, 153, 161, 1),
+  'fire':     Color.fromRGBO(255, 159,  90, 1),
+  'water':    Color.fromRGBO( 77, 144, 213, 1),
+  'grass':    Color.fromRGBO(104, 189,  96, 1),
+  'electric': Color.fromRGBO(243, 210,  59, 1),
+  'ice':      Color.fromRGBO(118, 206, 193, 1),
+  'fighting': Color.fromRGBO(207,  68, 108, 1),
+  'poison':   Color.fromRGBO(171, 107, 200, 1),
+  'ground':   Color.fromRGBO(217, 121,  73, 1),
+  'flying':   Color.fromRGBO(148, 171, 222, 1),
+  'psychic':  Color.fromRGBO(249, 113, 118, 1),
+  'bug':      Color.fromRGBO(144, 193,  45, 1),
+  'rock':     Color.fromRGBO(199, 183, 139, 1),
+  'ghost':    Color.fromRGBO( 82, 105, 172, 1),
+  'dragon':   Color.fromRGBO(  9, 109, 196, 1),
+  'dark':     Color.fromRGBO( 95,  88, 106, 1),
+  'steel':    Color.fromRGBO( 92, 143, 162, 1),
+  'fairy':    Color.fromRGBO(236, 144, 230, 1),
 };
 
 // ─── WIDGET: BADGE DE TIPO ────────────────────────────────────────
@@ -386,12 +386,12 @@ class TypeBadge extends StatelessWidget {
       width: 130,
       child: Stack(
         children: [
-          // Fundo colorido com bordas arredondadas
+          // Fundo colorido sem bordas arredondadas
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: color,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.zero,
               ),
             ),
           ),
