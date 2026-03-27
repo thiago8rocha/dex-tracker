@@ -330,7 +330,7 @@ class _GoSobreTab extends StatelessWidget {
                 Text('Altura', style: TextStyle(fontSize: 11,
                   color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 4),
-                Text('${(pokemon.height / 10).toStringAsFixed(1)} m',
+                Text(svc.getHeight(id),
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               ])),
               Expanded(child: Column(children: [
@@ -345,7 +345,7 @@ class _GoSobreTab extends StatelessWidget {
                 Text('Peso', style: TextStyle(fontSize: 11,
                   color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 4),
-                Text('${(pokemon.weight / 10).toStringAsFixed(1)} kg',
+                Text(svc.getWeight(id),
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               ])),
             ]),
