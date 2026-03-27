@@ -8,7 +8,7 @@ import 'package:pokedex_tracker/services/pokedex_data_service.dart';
 import 'package:pokedex_tracker/services/translation_warmup.dart';
 import 'package:pokedex_tracker/services/move_warmup_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
-    show initBilingualMode, initDefaultSprite;
+    show initBilingualMode, initDefaultSprite, PokeballLoader;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -151,7 +151,7 @@ class _LastDexLoaderState extends State<_LastDexLoader> {
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()));
+            body: Center(child: PokeballLoader()));
         }
         final lastId = snap.data;
         final id    = (lastId != null && _idToName.containsKey(lastId)) ? lastId : 'nacional';

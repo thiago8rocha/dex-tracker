@@ -198,7 +198,7 @@ class _MoveDetailScreenState extends State<MoveDetailScreen> {
         surfaceTintColor: Colors.transparent,
       ),
       body: _loadingDetail
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: PokeballLoader())
           : ListView(padding: const EdgeInsets.all(16), children: [
 
               // ── Tipo e categoria ──────────────────────────────
@@ -299,7 +299,7 @@ class _MoveDetailScreenState extends State<MoveDetailScreen> {
               else if (_loadingLearners)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: Center(child: PokeballLoader.small()),
                 )
               else if (_learners.isEmpty)
                 Padding(

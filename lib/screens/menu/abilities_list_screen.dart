@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show PokeballLoader;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pokedex_tracker/screens/settings_screen.dart';
@@ -181,7 +183,7 @@ class _AbilitiesListScreenState extends State<AbilitiesListScreen> {
         // Lista
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? Center(child: PokeballLoader())
               : _filtered.isEmpty
                   ? Center(child: Text('Nenhuma habilidade encontrada',
                       style: TextStyle(color: scheme.onSurfaceVariant)))

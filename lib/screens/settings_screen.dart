@@ -688,7 +688,7 @@ class _ManagePokedexScreenState extends State<ManagePokedexScreen> {
         surfaceTintColor: Colors.transparent,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          ? const Center(child: PokeballLoader.small())
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [

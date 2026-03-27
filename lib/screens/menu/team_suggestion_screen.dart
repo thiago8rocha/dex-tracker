@@ -244,7 +244,7 @@ class _TeamSuggestionScreenState extends State<TeamSuggestionScreen> {
       ),
       body: _loading
           ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              CircularProgressIndicator(),
+              PokeballLoader(),
               SizedBox(height: 16),
               Text('Carregando Pokémon do jogo...'),
             ]))
@@ -317,7 +317,7 @@ class _TeamSuggestionScreenState extends State<TeamSuggestionScreen> {
                 decoration: BoxDecoration(color: scheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(12)),
                 child: Column(children: [
-                  const CircularProgressIndicator(),
+                  const PokeballLoader(),
                   const SizedBox(height: 16),
                   Text('Calculando melhor cobertura...',
                       style: TextStyle(fontSize: 13,

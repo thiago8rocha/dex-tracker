@@ -278,7 +278,7 @@ class _TeamBuilderScreenState extends State<TeamBuilderScreen> {
         // Grid de pokémon
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? Center(child: PokeballLoader())
               : _filtered.isEmpty
                   ? Center(child: Text('Nenhum Pokémon encontrado.',
                       style: TextStyle(color: scheme.onSurfaceVariant)))

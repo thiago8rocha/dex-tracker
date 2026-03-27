@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show PokeballLoader;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -166,7 +168,7 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: PokeballLoader())
           : _raids.isEmpty
               ? _EmptyState(
                   message: _error ?? 'Nenhum raid ativo no momento',

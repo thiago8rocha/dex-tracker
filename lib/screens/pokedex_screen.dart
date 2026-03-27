@@ -1022,7 +1022,7 @@ class _PokedexScreenState extends State<PokedexScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator(),
+            const PokeballLoader(),
             const SizedBox(height: 16),
             Text('Carregando Pokémon...',
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),

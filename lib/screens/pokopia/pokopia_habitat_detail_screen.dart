@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show PokeballLoader;
 import 'package:pokedex_tracker/data/pokopia_habitat_data.dart';
 import 'package:pokedex_tracker/models/pokemon.dart';
 import 'package:pokedex_tracker/services/pokeapi_service.dart';
@@ -194,7 +196,7 @@ class _PokopiaHabitatDetailScreenState
                   const Center(
                       child: Padding(
                     padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(),
+                    child: PokeballLoader(),
                   ))
                 else if (habitat.pokemon.isEmpty)
                   Padding(

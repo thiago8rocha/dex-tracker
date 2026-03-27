@@ -411,7 +411,7 @@ class _MovesListScreenState extends State<MovesListScreen> {
         // Lista
         Expanded(
           child: _loading && _filtered.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? Center(child: PokeballLoader())
               : _filtered.isEmpty
                   ? Center(child: Text('Nenhum golpe encontrado',
                       style: TextStyle(color: scheme.onSurfaceVariant)))

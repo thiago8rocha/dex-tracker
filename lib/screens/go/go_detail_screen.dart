@@ -300,7 +300,7 @@ class _GoInfoTabState extends State<_GoInfoTab> {
           child: _loadingStats
               ? const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
+                  child: Center(child: PokeballLoader.small()))
               : Column(children: [
                   Row(children: [
                     _statBox(context, '$_goAtk', 'Ataque'),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show PokeballLoader;
 import 'package:pokedex_tracker/services/tcg_pocket_service.dart';
 import 'package:pokedex_tracker/services/translation_service.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_rarity_widget.dart';
@@ -129,7 +131,7 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
                                   ? child
                                   : Container(
                                       color: scheme.surfaceContainerHigh,
-                                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                      child: const Center(child: PokeballLoader.small()),
                                     ),
                               errorBuilder: (_, __, ___) => Container(
                                 color: scheme.surfaceContainerHigh,
@@ -201,9 +203,7 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        SizedBox(width: 14, height: 14,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: scheme.onSurfaceVariant)),
+                        PokeballLoader.small(),
                         const SizedBox(width: 8),
                         Text('Carregando detalhes...',
                             style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),

@@ -291,7 +291,7 @@ class _BuildTabState extends State<_BuildTab> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    if (widget.loading) return const Center(child: CircularProgressIndicator());
+    if (widget.loading) return Center(child: PokeballLoader());
 
     final filtered = _search.isEmpty ? widget.available
         : widget.available.where((id) =>

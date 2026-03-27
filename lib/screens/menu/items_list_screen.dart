@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show PokeballLoader;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -330,7 +332,7 @@ class _ItemsListScreenState extends State<ItemsListScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: PokeballLoader())
           : Column(children: [
 
               // Banner do jogo ativo — igual ao de Golpes

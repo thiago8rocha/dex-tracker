@@ -368,6 +368,107 @@ const Map<String, Color> typeIconColors = {
   'fairy':    Color.fromRGBO(236, 144, 230, 1),
 };
 
+// ─── POKÉBALL LOADER ─────────────────────────────────────────────
+// Spinner customizado do projeto.
+// size: normal (default 48px) para tela cheia, small (24px) para uso inline.
+
+class PokeballLoader extends StatefulWidget {
+  final double size;
+  const PokeballLoader({super.key, this.size = 48});
+
+  /// Versão pequena para uso inline (ex: dentro de SizedBox de 32px)
+  const PokeballLoader.small({super.key}) : size = 24;
+
+  @override
+  State<PokeballLoader> createState() => _PokeballLoaderState();
+}
+
+class _PokeballLoaderState extends State<PokeballLoader>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => CustomPaint(
+        size: Size(widget.size, widget.size),
+        painter: _PokeballPainter(_ctrl.value),
+      ),
+    );
+  }
+}
+
+class _PokeballPainter extends CustomPainter {
+  final double t; // 0.0 → 1.0
+  _PokeballPainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r  = size.width / 2;
+
+    // Rotação contínua
+    canvas.save();
+    canvas.translate(cx, cy);
+    canvas.rotate(t * 2 * 3.14159265);
+    canvas.translate(-cx, -cy);
+
+    final paintRed   = Paint()..color = const Color(0xFFE53935)..style = PaintingStyle.fill;
+    final paintWhite = Paint()..color = Colors.white..style = PaintingStyle.fill;
+    final paintBlack = Paint()..color = const Color(0xFF212121)..style = PaintingStyle.fill;
+    final paintStroke = Paint()
+      ..color = const Color(0xFF212121)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.05;
+
+    // Metade superior (vermelha)
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      3.14159265, 3.14159265, true, paintRed);
+
+    // Metade inferior (branca)
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      0, 3.14159265, true, paintWhite);
+
+    // Faixa central preta
+    final bandH = size.height * 0.12;
+    canvas.drawRect(
+      Rect.fromLTWH(0, cy - bandH / 2, size.width, bandH), paintBlack);
+
+    // Círculo central externo (preto)
+    canvas.drawCircle(Offset(cx, cy), r * 0.28, paintBlack);
+
+    // Círculo central interno (branco)
+    canvas.drawCircle(Offset(cx, cy), r * 0.18, paintWhite);
+
+    // Contorno geral
+    canvas.drawCircle(Offset(cx, cy), r - paintStroke.strokeWidth / 2, paintStroke);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_PokeballPainter old) => old.t != t;
+}
+
 // ─── WIDGET: BADGE DE TIPO ────────────────────────────────────────
 // Círculo PNG (transparente fora) encaixado no lado esquerdo
 // do retângulo colorido. Sem blendMode, sem layer extra.
@@ -535,7 +636,7 @@ class _AboutHeaderState extends State<AboutHeader> {
       // Categoria centralizada
       if (widget.loading)
         const SizedBox(height: 20,
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
+          child: Center(child: PokeballLoader.small()))
       else
         Text(
           categoryLabel,
@@ -594,7 +695,7 @@ class _AboutHeaderState extends State<AboutHeader> {
       // Flavor text
       if (widget.loading)
         const SizedBox(height: 40,
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
+          child: Center(child: PokeballLoader.small()))
       else
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
@@ -635,7 +736,7 @@ class _AboutHeaderState extends State<AboutHeader> {
                 const SizedBox(height: 6),
                 if (widget.loading)
                   const SizedBox(height: 32,
-                    child: CircularProgressIndicator(strokeWidth: 2))
+                    child: PokeballLoader.small())
                 else
                   ...widget.types.map((t) => Padding(
                     padding: const EdgeInsets.only(bottom: 4),
@@ -725,7 +826,7 @@ class SectionCard extends StatelessWidget {
           child: loading
               ? const Center(child: Padding(
                   padding: EdgeInsets.all(12),
-                  child: CircularProgressIndicator(strokeWidth: 2)))
+                  child: PokeballLoader.small()))
               : child,
         ),
 
@@ -1411,7 +1512,7 @@ class FormsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    if (loading) return const Center(child: PokeballLoader.small());
 
     final altForms = forms.where((f) => !(f['isDefault'] as bool? ?? false)).toList();
     if (altForms.isEmpty) {
@@ -2046,7 +2147,7 @@ class MoveModal extends StatelessWidget {
               ]),
               const SizedBox(height: 12),
               if (loading)
-                const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                const Center(child: PokeballLoader.small())
               else
                 Row(children: [
                   _statBox(context, power != null ? '$power' : '—', 'Poder'),

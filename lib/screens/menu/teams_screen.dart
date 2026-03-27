@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show PokeballLoader;
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/teams_storage_service.dart';
 import 'package:pokedex_tracker/screens/menu/team_builder_screen.dart';
@@ -144,7 +146,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
       appBar: AppBar(title: const Text('Times'),
           scrolledUnderElevation: 0, surfaceTintColor: Colors.transparent),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: PokeballLoader())
           : ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
 
