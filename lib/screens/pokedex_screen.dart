@@ -1343,36 +1343,43 @@ class _PokedexScreenState extends State<PokedexScreen>
         ? _filterTypes.map((t) => typeNamePt[t] ?? t).join(' + ')
         : 'Tipo';
 
+    // GO e Pokopia não têm seletor de jogo — só geração e tipo
+    final isGoOrPokopia = _effectivePokedexId.contains('pokémon_go') ||
+        _effectivePokedexId.contains('pokemon_go') ||
+        _effectivePokedexId.contains('pokopia');
+
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(
           color: scheme.outlineVariant, width: 0.5))),
       child: Row(children: [
-        // ── Filtro de Jogo ──
-        Expanded(
-          flex: 5,
-          child: GestureDetector(
-            onTap: _showGamePicker,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [c1.withOpacity(0.15), c2.withOpacity(0.15)]),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: c1.withOpacity(0.45), width: 1)),
-              child: Row(children: [
-                Expanded(child: Text(
-                  gameName + genSuffix,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600))),
-                Icon(Icons.keyboard_arrow_down, size: 15,
-                  color: scheme.onSurfaceVariant),
-              ]),
+        // ── Filtro de Jogo (oculto no GO e Pokopia) ──
+        if (!isGoOrPokopia) ...[
+          Expanded(
+            flex: 5,
+            child: GestureDetector(
+              onTap: _showGamePicker,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [c1.withOpacity(0.15), c2.withOpacity(0.15)]),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: c1.withOpacity(0.45), width: 1)),
+                child: Row(children: [
+                  Expanded(child: Text(
+                    gameName + genSuffix,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600))),
+                  Icon(Icons.keyboard_arrow_down, size: 15,
+                    color: scheme.onSurfaceVariant),
+                ]),
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 6),
+          const SizedBox(width: 6),
+        ],
         // ── Filtro de Geração ──
         Expanded(
           flex: 3,

@@ -49,6 +49,168 @@ const Map<int, String> _goRegionals = {
 
 String? _getRegional(int pokemonId) => _goRegionals[pokemonId];
 
+
+// ─── EVOLUÇÕES NO POKÉMON GO ──────────────────────────────────────
+// Requisitos especiais além de candy padrão
+const Map<int, String> _goEvoRequirements = {
+  // Eevee (133) → evoluções por nome / itens
+  133:  'Candy (25) + apelido ou caminhada de 10km como Buddy',
+  // Tyrogue (236) → depende dos stats
+  236:  'Candy (25) — evolução depende dos stats (ATK/DEF/STA)',
+  // Feebas (349) → caminhada
+  349:  'Candy (100) + caminhar 20km como Buddy',
+  // Wurmple (265) → aleatório
+  265:  'Candy (12) — evolução aleatória (Silcoon ou Cascoon)',
+  // Burmy (412) → depende do manto
+  412:  'Candy (50) — depende do manto equipado',
+  // Mime Jr. (439) → regional
+  439:  'Candy (50) — exclusivo de regiões europeias',
+  // Galarian Yamask (562) → desafio
+  562:  '10 raids como Buddy + Candy (50)',
+  // Pancham (674) → tipo sombrio
+  674:  'Candy (50) + capturar 32 Pokémon do tipo Sombrio',
+  // Spritzee (682) → incenso
+  682:  'Candy (50) + usar Incenso',
+  // Swirlix (685) → item alimentação
+  685:  'Candy (50) + dar 25 doces ao Buddy',
+  // Sliggoo (0) geração → clima
+  705:  'Candy (100) + tempo chuvoso ou neblinoso',
+};
+
+// Itens de evolução GO (ID do Pokémon → item necessário)
+const Map<int, String> _goEvoItems = {
+  // Sinnoh Stones
+  94:  'Pedra de Sinnoh',   // Gengar
+  106: 'Pedra de Sinnoh',   // Hitmonlee (via Tyrogue)
+  107: 'Pedra de Sinnoh',   // Hitmonchan (via Tyrogue)
+  214: 'Pedra de Sinnoh',   // Heracross — não evolui, mas exibe
+  233: 'Módulo de Upgrade',  // Porygon2
+  474: 'Módulo de Upgrade',  // Porygon-Z
+  461: 'Pedra de Sinnoh',   // Weavile
+  462: 'Pedra de Sinnoh',   // Magnezone
+  463: 'Pedra de Sinnoh',   // Lickilicky
+  464: 'Pedra de Sinnoh',   // Rhyperior
+  465: 'Pedra de Sinnoh',   // Tangrowth
+  466: 'Pedra de Sinnoh',   // Electivire
+  467: 'Pedra de Sinnoh',   // Magmortar
+  468: 'Pedra de Sinnoh',   // Togekiss
+  469: 'Pedra de Sinnoh',   // Yanmega
+  470: 'Pedra de Sinnoh',   // Leafeon (+ Módulo de Isca Musgosa)
+  471: 'Pedra de Sinnoh',   // Glaceon (+ Módulo de Isca Glacial)
+  472: 'Pedra de Sinnoh',   // Gliscor
+  473: 'Pedra de Sinnoh',   // Mamoswine
+  // Unova Stones
+  526: 'Pedra de Unova',    // Gigalith
+  530: 'Pedra de Unova',    // Excadrill
+  549: 'Pedra de Unova',    // Lilligant
+  553: 'Pedra de Unova',    // Krookodile
+  555: 'Pedra de Unova',    // Darmanitan
+  560: 'Pedra de Unova',    // Scrafty
+  579: 'Pedra de Unova',    // Reuniclus
+  586: 'Pedra de Unova',    // Sawsbuck (sazonal)
+  589: 'Pedra de Unova',    // Escavalier (+ troca)
+  592: 'Pedra de Unova',    // Frillish
+  617: 'Pedra de Unova',    // Accelgor (+ troca)
+  618: 'Pedra de Unova',    // Stunfisk de Galar
+  // Dragon Scale
+  230: 'Escama de Dragão',  // Kingdra
+  // Sun Stone
+  45:  'Pedra Solar',       // Vileplume
+  182: 'Pedra Solar',       // Bellossom
+  192: 'Pedra Solar',       // Sunflora
+  315: 'Pedra Solar',       // Roselia → Roserade
+  407: 'Pedra Solar',       // Roserade
+  // Metal Coat
+  212: 'Casaco de Metal',   // Scizor
+  208: 'Casaco de Metal',   // Steelix
+  // King's Rock
+  182: 'Pedra do Rei',      // Politoed
+  199: 'Pedra do Rei',      // Slowking
+  // Magnetic Lure
+  462: 'Módulo de Isca Magnética', // Magnezone (alternativa)
+};
+
+// Candy necessário padrão por família
+const Map<int, int> _goCandyCost = {
+  // Evoluções de 1 estágio
+  133: 25, 236: 25,
+  // Evoluções de 2 estágios (1o → 2o)
+};
+
+// Como obter no GO (ID → lista de fontes)
+const Map<int, List<String>> _goObtain = {
+  // Exclusivos de Raid
+  144: ['Raid de 5 estrelas (Lendário)'],
+  145: ['Raid de 5 estrelas (Lendário)'],
+  146: ['Raid de 5 estrelas (Lendário)'],
+  150: ['Raid de 5 estrelas (Lendário)'],
+  151: ['Evento especial (pesquisa)'],
+  243: ['Raid de 5 estrelas (Lendário)'],
+  244: ['Raid de 5 estrelas (Lendário)'],
+  245: ['Raid de 5 estrelas (Lendário)'],
+  249: ['Raid de 5 estrelas (Lendário)'],
+  250: ['Raid de 5 estrelas (Lendário)'],
+  251: ['Evento especial (pesquisa)'],
+  // Míticos
+  385: ['Evento especial (pesquisa)'],
+  386: ['Evento especial (pesquisa)'],
+  // Exclusivos de evolução (não aparecem selvagens)
+  3:   ['Evolução de Ivysaur'],
+  6:   ['Evolução de Charmeleon'],
+  9:   ['Evolução de Wartortle'],
+};
+
+// Pokémon exclusivos de Shadow (Team Rocket)
+const Set<int> _goShadowOnly = {
+  52, 66, 92, 109, 147, 246,
+};
+
+// Pokémon disponíveis em ovos
+const Map<int, String> _goEggs = {
+  // 2km
+  10: '2km', 13: '2km', 16: '2km', 19: '2km', 21: '2km',
+  // 5km
+  7: '5km', 1: '5km', 4: '5km',
+  // 10km
+  147: '10km', 246: '10km', 443: '10km',
+};
+
+List<String> _getObtainMethods(int pokemonId) {
+  // Se tem dados específicos, usar
+  if (_goObtain.containsKey(pokemonId)) return _goObtain[pokemonId]!;
+
+  final methods = <String>[];
+
+  // Regional = só aparece em certas regiões
+  if (_goRegionals.containsKey(pokemonId)) {
+    methods.add('Selvagem — exclusivo de ${_goRegionals[pokemonId]}');
+  } else {
+    methods.add('Selvagem');
+  }
+
+  // Ovo
+  if (_goEggs.containsKey(pokemonId)) {
+    methods.add('Ovo de ${_goEggs[pokemonId]}');
+  }
+
+  // Shadow
+  if (_goShadowOnly.contains(pokemonId)) {
+    methods.add('Resgate do Team Rocket (Shadow)');
+  }
+
+  return methods.isEmpty ? ['Encontro selvagem'] : methods;
+}
+
+String _getEvoInfo(int pokemonId) {
+  if (_goEvoRequirements.containsKey(pokemonId)) {
+    return _goEvoRequirements[pokemonId]!;
+  }
+  if (_goEvoItems.containsKey(pokemonId)) {
+    return 'Candy + ${_goEvoItems[pokemonId]}';
+  }
+  return '';
+}
+
 class GoDetailScreen extends StatefulWidget {
   final Pokemon pokemon;
   final bool caught;
@@ -338,12 +500,100 @@ class _GoInfoTabState extends State<_GoInfoTab> {
           ]),
         ]),
         const SizedBox(height: 16),
+
+        // ── Como Obter ────────────────────────────────────────
         secTitle(context, 'COMO OBTER'),
-        _obtainCard(context, Icons.catching_pokemon_outlined, const Color(0xFF4a9020),
-          'Encontro selvagem', 'Ambientes urbanos e parques'),
-        const SizedBox(height: 8),
-        _obtainCard(context, Icons.star_border_outlined, const Color(0xFFc8a020),
-          'Raid de 3 estrelas', 'Disponível como chefe de raid'),
+        ..._getObtainMethods(widget.pokemon.id).map((method) {
+          IconData icon;
+          Color color;
+          if (method.contains('Lendário')) {
+            icon = Icons.auto_awesome; color = const Color(0xFFE65100);
+          } else if (method.contains('Ovo')) {
+            icon = Icons.egg_outlined; color = const Color(0xFF1565C0);
+          } else if (method.contains('Rocket') || method.contains('Shadow')) {
+            icon = Icons.rocket_launch_outlined; color = const Color(0xFF7B1FA2);
+          } else if (method.contains('Evento') || method.contains('pesquisa')) {
+            icon = Icons.event_outlined; color = const Color(0xFF00897B);
+          } else if (method.contains('exclusivo')) {
+            icon = Icons.location_on_outlined; color = const Color(0xFFE65100);
+          } else if (method.contains('Selvagem') || method.contains('Encontro')) {
+            icon = Icons.catching_pokemon_outlined; color = const Color(0xFF4a9020);
+          } else {
+            icon = Icons.info_outline; color = Colors.grey;
+          }
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _obtainCard(context, icon, color, method, ''),
+          );
+        }),
+
+        // ── Evolução no GO ────────────────────────────────────
+        Builder(builder: (ctx) {
+          final evoInfo  = _getEvoInfo(widget.pokemon.id);
+          final svc      = PokedexDataService.instance;
+          final evoChain = svc.getEvoChain(widget.pokemon.id);
+
+          if (evoChain.isEmpty && evoInfo.isEmpty) return const SizedBox();
+
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const SizedBox(height: 16),
+            secTitle(context, 'EVOLUÇÃO NO GO'),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: neutralBg(context),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // Cadeia de evolução
+                if (evoChain.isNotEmpty) ...[
+                  Text('Cadeia',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8, runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      for (int i = 0; i < evoChain.length; i++) ...[
+                        Column(mainAxisSize: MainAxisSize.min, children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.asset(
+                              'assets/sprites/artwork/${evoChain[i]['id']}.webp',
+                              width: 48, height: 48, fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const SizedBox(width: 48, height: 48),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(evoChain[i]['name'] as String? ?? '',
+                            style: const TextStyle(fontSize: 10),
+                            textAlign: TextAlign.center),
+                        ]),
+                        if (i < evoChain.length - 1)
+                          const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+                      ],
+                    ],
+                  ),
+                  if (evoInfo.isNotEmpty) const SizedBox(height: 10),
+                ],
+                // Requisito especial
+                if (evoInfo.isNotEmpty) ...[
+                  Text('Requisito',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                  const SizedBox(height: 4),
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Icon(Icons.info_outline, size: 14, color: Color(0xFF1565C0)),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(evoInfo,
+                      style: const TextStyle(fontSize: 12, height: 1.4))),
+                  ]),
+                ],
+              ]),
+            ),
+          ]);
+        }),
       ]),
     );
   }
@@ -405,11 +655,12 @@ class _GoInfoTabState extends State<_GoInfoTab> {
       child: Row(children: [
         Icon(icon, color: iconColor, size: 20),
         const SizedBox(width: 10),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-          Text(sub, style: TextStyle(fontSize: 11,
-            color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
-        ]),
+          if (sub.isNotEmpty)
+            Text(sub, style: TextStyle(fontSize: 11,
+              color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
+        ])),
       ]),
     );
 } // fim _GoInfoTabState
