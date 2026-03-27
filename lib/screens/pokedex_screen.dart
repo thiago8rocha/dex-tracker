@@ -457,17 +457,6 @@ class _PokedexScreenState extends State<PokedexScreen>
     HapticFeedback.mediumImpact();
     setState(() => _caughtMap[speciesId] = newVal);
     await _storage.setCaught(_effectivePokedexId, speciesId, newVal);
-
-    if (!mounted) return;
-    final name = PokedexDataService.instance.getName(speciesId);
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(newVal
-          ? (_isPokopia ? '$name encontrado!' : '$name capturado!')
-          : '$name removido'),
-      duration: const Duration(seconds: 2),
-      behavior: SnackBarBehavior.floating,
-    ));
   }
 
   // ─── DETALHE ──────────────────────────────────────────────────────
@@ -1040,6 +1029,7 @@ class _PokedexScreenState extends State<PokedexScreen>
                 caught: _caughtMap[entry.speciesId] ?? false,
                 defaultSprite: sprite,
                 onLongPress: () => _toggleCatch(entry.speciesId),
+                onToggle: () => _toggleCatch(entry.speciesId),
                 onTap: () => _openDetail(entry),
               ),
             );
@@ -1526,6 +1516,7 @@ class _PokemonCard extends StatelessWidget {
   final bool caught;
   final String defaultSprite;
   final VoidCallback onLongPress;
+  final VoidCallback onToggle;
   final VoidCallback onTap;
 
   const _PokemonCard({
@@ -1534,6 +1525,7 @@ class _PokemonCard extends StatelessWidget {
     required this.caught,
     required this.defaultSprite,
     required this.onLongPress,
+    required this.onToggle,
     required this.onTap,
   });
 
@@ -1650,13 +1642,18 @@ class _PokemonCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (caught)
-              Positioned(
-                top: 5,
-                right: 5,
-                child: CustomPaint(
-                  size: const Size(14, 14),
-                  painter: _PokeballPainter(),
+            Positioned(
+                top: 4,
+                right: 4,
+                child: GestureDetector(
+                  onTap: onToggle,
+                  child: Opacity(
+                    opacity: caught ? 1.0 : 0.25,
+                    child: CustomPaint(
+                      size: const Size(16, 16),
+                      painter: _PokeballPainter(),
+                    ),
+                  ),
                 ),
               ),
           ],
