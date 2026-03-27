@@ -240,6 +240,18 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
                       ]),
                     ),
 
+                  // ── Habilidades ───────────────────────────────
+                  if (_detail != null && _detail!.abilities.isNotEmpty) ...[
+                    _buildAbilities(scheme),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // ── Ataques ───────────────────────────────────
+                  if (_detail != null && _detail!.attacks.isNotEmpty) ...[
+                    _buildAttacks(scheme, isDark),
+                    const SizedBox(height: 16),
+                  ],
+
                   // ── Descrição do Pokédex ──────────────────────
                   if (_displayDescription != null && _displayDescription!.isNotEmpty) ...[
                     Text('Descrição do Pokédex',
@@ -251,18 +263,6 @@ class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
                       style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic,
                           color: scheme.onSurfaceVariant, height: 1.5),
                     ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // ── Habilidades ───────────────────────────────
-                  if (_detail != null && _detail!.abilities.isNotEmpty) ...[
-                    _buildAbilities(scheme),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // ── Ataques ───────────────────────────────────
-                  if (_detail != null && _detail!.attacks.isNotEmpty) ...[
-                    _buildAttacks(scheme, isDark),
                     const SizedBox(height: 16),
                   ],
 
