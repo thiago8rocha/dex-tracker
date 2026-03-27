@@ -23,9 +23,10 @@ class PocketCardDetailScreen extends StatefulWidget {
 
 class _PocketCardDetailScreenState extends State<PocketCardDetailScreen> {
   PocketCardDetail?    _detail;
-  bool                 _loadingDetail = true;
-  Map<String, String>  _pt            = {};
+  bool                 _loadingDetail   = true;
+  Map<String, String>  _pt              = {};
   String?              _descriptionPt;
+  String?              _trainerEffectPt;
 
   @override
   void initState() {
