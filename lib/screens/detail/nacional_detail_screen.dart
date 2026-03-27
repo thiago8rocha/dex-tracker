@@ -104,9 +104,11 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
     _flavorTextPt = svc.getFlavorText(id);
     if (mounted) setState(() => _loading = false);
 
-    // Busca flavor text correto para o jogo ativo em background
-    _api.fetchFlavorText(id, widget.pokedexId).then((text) {
-      if (text.isNotEmpty && mounted) setState(() => _flavorTextPt = text);
+    // Busca flavor text correto para o jogo ativo e traduz para PT
+    _api.fetchFlavorText(id, widget.pokedexId).then((text) async {
+      if (text.isEmpty || !mounted) return;
+      final translated = await translateFlavorText(text);
+      if (mounted) setState(() => _flavorTextPt = translated.isNotEmpty ? translated : text);
     });
 
     // Carrega moves em background

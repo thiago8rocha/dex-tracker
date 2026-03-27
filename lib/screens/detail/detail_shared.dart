@@ -773,23 +773,40 @@ class _DetailHeaderState extends State<DetailHeader> {
                   children: [
                     // Espaço para não sobrepor botões do topo
                     const SizedBox(height: 8),
-                    // Sprite
+                    // Sprite — SizedBox fixo garante tamanho consistente
+                    // independente da resolução da imagem (local vs rede, shiny vs normal)
                     Expanded(
-                      child: _spriteUrl.startsWith('assets/')
-                          ? Image.asset(
-                              _spriteUrl,
-                              fit: BoxFit.contain,
-                              filterQuality: defaultSpriteNotifier.value == 'pixel' ? FilterQuality.none : FilterQuality.medium,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
-                            )
-                          : Image.network(
-                              _spriteUrl,
-                              fit: BoxFit.contain,
-                              filterQuality: defaultSpriteNotifier.value == 'pixel' ? FilterQuality.none : FilterQuality.medium,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
-                            ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: _spriteUrl.startsWith('assets/')
+                              ? Image.asset(
+                                  _spriteUrl,
+                                  key: ValueKey(_spriteUrl),
+                                  fit: BoxFit.contain,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  filterQuality: defaultSpriteNotifier.value == 'pixel'
+                                      ? FilterQuality.none
+                                      : FilterQuality.medium,
+                                  errorBuilder: (_, __, ___) =>
+                                      const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
+                                )
+                              : Image.network(
+                                  _spriteUrl,
+                                  key: ValueKey(_spriteUrl),
+                                  fit: BoxFit.contain,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  filterQuality: defaultSpriteNotifier.value == 'pixel'
+                                      ? FilterQuality.none
+                                      : FilterQuality.medium,
+                                  errorBuilder: (_, __, ___) =>
+                                      const Icon(Icons.catching_pokemon, size: 100, color: Colors.white),
+                                ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 6),
                     // Linha inferior: prev (esq) | nome atual (centro) | next (dir)

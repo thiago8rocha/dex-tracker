@@ -94,9 +94,11 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
 
     // Flavor text do bundle como fallback imediato
     _flavorTextPt = svc.getFlavorText(id);
-    // Busca flavor text correto para o jogo ativo em background
-    _api.fetchFlavorText(id, widget.pokedexId).then((text) {
-      if (text.isNotEmpty && mounted) setState(() => _flavorTextPt = text);
+    // Busca flavor text correto para o jogo ativo e traduz para PT
+    _api.fetchFlavorText(id, widget.pokedexId).then((text) async {
+      if (text.isEmpty || !mounted) return;
+      final translated = await translateFlavorText(text);
+      if (mounted) setState(() => _flavorTextPt = translated.isNotEmpty ? translated : text);
     });
 
     if (mounted) setState(() => _loading = false);
