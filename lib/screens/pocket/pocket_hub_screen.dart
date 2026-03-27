@@ -24,12 +24,17 @@ class _PocketHubScreenState extends State<PocketHubScreen> {
 
   Future<void> _loadSets() async {
     setState(() { _loading = true; _error = null; });
+
+    // Warm-up das 3 coleções mais recentes em background enquanto carrega o hub
+    // Na segunda visita já estão em cache — abertura instantânea
+    TcgPocketService.warmupRecentSets(count: 3);
+
     try {
       final sets = await TcgPocketService.fetchSeries();
       if (!mounted) return;
 
-      // Precache ANTES do setState — quando a grid renderizar as imagens
-      // já estão decodificadas na memória, sem jank
+      // Precache dos assets de booster ANTES do setState
+      // Quando a grid renderizar, as imagens já estão decodificadas
       await Future.wait(
         sets.map((s) => precacheImage(
           AssetImage('assets/pocket/boosters/${s.id}.png'), context,

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pokedex_tracker/services/tcg_pocket_service.dart';
@@ -60,40 +59,8 @@ class _PocketCardListScreenState extends State<PocketCardListScreen> {
   Future<void> _loadSet() async {
     setState(() { _loading = true; _error = null; });
     try {
-      // Tentar cache local primeiro — elimina rede no segundo acesso
-      final prefs    = await SharedPreferences.getInstance();
-      final cacheKey = '_pocket_set_' + widget.setId;
-      final cached   = prefs.getString(cacheKey);
-
-      PocketSet? set;
-      if (cached != null) {
-        try {
-          set = PocketSet.fromJson(
-            jsonDecode(cached) as Map<String, dynamic>,
-            overrideName: kPocketSetMeta[widget.setId]?.namePt,
-          );
-        } catch (_) {}
-      }
-
-      if (set == null) {
-        // Cache miss — busca na rede e persiste
-        set = await TcgPocketService.fetchSet(widget.setId);
-        if (set != null) {
-          prefs.setString(cacheKey, jsonEncode({
-            'id': set.id,
-            'name': set.name,
-            'totalCards': set.totalCards,
-            'cards': set.cards.map((c) => {
-              'id': c.id,
-              'localId': c.localId,
-              'name': c.name,
-              'image': c.imageUrlLow?.replaceAll('/low.webp', ''),
-              'rarity': c.rarity,
-            }).toList(),
-          }));
-        }
-      }
-
+      // fetchSet já verifica cache em memória → cache persistente → rede
+      final set = await TcgPocketService.fetchSet(widget.setId);
       if (mounted) {
         setState(() {
           _set     = set;

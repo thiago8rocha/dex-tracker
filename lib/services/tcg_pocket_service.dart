@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 const String _kBase   = 'https://api.tcgdex.net/v2/en';
 const String _kAssets = 'https://assets.tcgdex.net/en';
@@ -287,14 +288,74 @@ class TcgPocketService {
 
   static Future<PocketSet?> fetchSet(String setId) async {
     if (_setCache.containsKey(setId)) return _setCache[setId];
+
+    // 1. Tentar cache persistente (SharedPreferences)
+    final cached = await _loadCachedSet(setId);
+    if (cached != null) {
+      _setCache[setId] = cached;
+      return cached;
+    }
+
+    // 2. Buscar da rede e persistir
     try {
       final res = await http.get(Uri.parse('$_kBase/sets/$setId'), headers: _headers).timeout(_timeout);
       if (res.statusCode != 200) return null;
       final set = PocketSet.fromJson(jsonDecode(res.body) as Map<String, dynamic>,
           overrideName: kPocketSetMeta[setId]?.namePt);
       _setCache[setId] = set;
+      _persistSet(setId, set); // salva em background, sem await
       return set;
     } catch (_) { return null; }
+  }
+
+  /// Carrega um set do cache persistente (SharedPreferences).
+  static Future<PocketSet?> _loadCachedSet(String setId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString('_pocket_set_$setId');
+      if (raw == null) return null;
+      return PocketSet.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+        overrideName: kPocketSetMeta[setId]?.namePt,
+      );
+    } catch (_) { return null; }
+  }
+
+  /// Persiste um set no cache local (sem bloquear — unawaited).
+  static void _persistSet(String setId, PocketSet set) {
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('_pocket_set_$setId', jsonEncode({
+        'id':         set.id,
+        'name':       set.name,
+        'totalCards': set.totalCards,
+        'cards': set.cards.map((c) => {
+          'id':      c.id,
+          'localId': c.localId,
+          'name':    c.name,
+          'image':   c.imageUrlLow?.replaceAll('/low.webp', ''),
+          'rarity':  c.rarity,
+        }).toList(),
+      }));
+    });
+  }
+
+  /// Warm-up das N coleções mais recentes em background.
+  /// Chamado ao abrir a aba Pocket — prepara o cache antes do usuário clicar.
+  static void warmupRecentSets({int count = 3}) {
+    final recent = kPocketSetOrder
+        .where((id) => !id.startsWith('P-'))
+        .toList()
+        .reversed
+        .take(count)
+        .toList();
+
+    Future(() async {
+      for (final id in recent) {
+        if (_setCache.containsKey(id)) continue; // já em memória
+        await fetchSet(id); // carrega e persiste automaticamente
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+    });
   }
 
   /// Busca detalhes de uma carta pelo setId + localId.
