@@ -1625,7 +1625,7 @@ class _PokemonCard extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(2, 1, 5, 1),
                         decoration: BoxDecoration(
                           color: color,
-                          borderRadius: BorderRadius.circular(3),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           Image.asset(
