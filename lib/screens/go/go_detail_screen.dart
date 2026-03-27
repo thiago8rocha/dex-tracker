@@ -4,7 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:pokedex_tracker/models/pokemon.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
 import 'package:pokedex_tracker/theme/type_colors.dart';
-import 'package:pokedex_tracker/screens/detail/detail_shared.dart';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
+    show DetailHeader, SectionCard, TypeBadge, FormsTab, PokeballLoader,
+         secTitle, neutralBg, neutralBorder, ptType, typeTextColor,
+         calculateWeaknesses, StatBar;
 
 // ─── DADOS ESTÁTICOS DO GO ────────────────────────────────────────
 
@@ -306,25 +309,50 @@ class _GoSobreTab extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
 
-        if (category.isNotEmpty)
-          Text(category, textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic,
-              color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        // ── Descrição (igual à aba Sobre das outras telas) ──────
+        SectionCard(
+          title: 'DESCRIÇÃO',
+          pokemonTypes: types,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            if (category.isNotEmpty)
+              Text(category, textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            if (flavorText.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(flavorText, textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13.5, height: 1.5)),
+            ],
+            const SizedBox(height: 16),
+            // Altura | Tipo | Peso
+            Row(children: [
+              Expanded(child: Column(children: [
+                Text('Altura', style: TextStyle(fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 4),
+                Text('${(pokemon.height / 10).toStringAsFixed(1)} m',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ])),
+              Expanded(child: Column(children: [
+                Text('Tipo', style: TextStyle(fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 6),
+                ...types.map((t) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: TypeBadge(type: t))),
+              ])),
+              Expanded(child: Column(children: [
+                Text('Peso', style: TextStyle(fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 4),
+                Text('${(pokemon.weight / 10).toStringAsFixed(1)} kg',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ])),
+            ]),
+          ]),
+        ),
 
-        if (flavorText.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Text(flavorText, textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13.5, height: 1.5)),
-        ],
-
-        const SizedBox(height: 20),
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          for (int i = 0; i < types.length; i++) ...[
-            TypeBadge(type: types[i]),
-            if (i < types.length - 1) const SizedBox(width: 8),
-          ],
-        ]),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
 
         SectionCard(
           title: 'DISPONIBILIDADE',
@@ -366,10 +394,12 @@ class _GoSobreTab extends StatelessWidget {
               }
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: Row(children: [
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                   Icon(icon, size: 18, color: color),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(method,
+                  const SizedBox(width: 8),
+                  Flexible(child: Text(method, textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 13))),
                 ]),
               );
@@ -386,12 +416,15 @@ class _GoSobreTab extends StatelessWidget {
 
   Widget _availCell(BuildContext ctx, String label, String value, Color color) =>
     Expanded(child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: TextStyle(fontSize: 10,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center, children: [
+        Text(label, textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 10,
           color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
         const SizedBox(height: 2),
-        Text(value, style: TextStyle(fontSize: 12,
+        Text(value, textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12,
           fontWeight: FontWeight.w600, color: color)),
       ]),
     ));
@@ -517,6 +550,8 @@ class _CandyChip extends StatelessWidget {
 }
 
 // ─── ABA STATUS GO ───────────────────────────────────────────────
+// Stats do bundle local (pokemon_stats.json) — números fixos, sem loading
+// Efetividade com multiplicadores GO, mesmo padrão visual do StatusTab
 
 class _GoStatusTab extends StatefulWidget {
   final Pokemon pokemon;
@@ -526,27 +561,18 @@ class _GoStatusTab extends StatefulWidget {
   State<_GoStatusTab> createState() => _GoStatusTabState();
 }
 
-class _GoStatusTabState extends State<_GoStatusTab>
-    with SingleTickerProviderStateMixin {
+class _GoStatusTabState extends State<_GoStatusTab> {
 
   int _goAtk = 0, _goDef = 0, _goSta = 0;
-  bool _loaded = false;
-  late TabController _tabController;
-
   static Map<String, dynamic>? _statsData;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _loadStats();
   }
 
-  @override
-  void dispose() { _tabController.dispose(); super.dispose(); }
-
   Future<void> _loadStats() async {
-    // Cache estático — carrega o JSON uma única vez em toda a sessão
     try {
       _statsData ??= json.decode(
         await rootBundle.loadString('assets/data/pokemon_stats.json'),
@@ -557,280 +583,98 @@ class _GoStatusTabState extends State<_GoStatusTab>
           _goAtk = (s['go_atk'] as num).toInt();
           _goDef = (s['go_def'] as num).toInt();
           _goSta = (s['go_sta'] as num).toInt();
-          _loaded = true;
         });
-        return;
       }
-    } catch (_) {}
-    if (mounted) setState(() {
-      _goAtk = widget.pokemon.baseAttack;
-      _goDef = widget.pokemon.baseDefense;
-      _goSta = (widget.pokemon.baseHp * 1.75 + 50).floor();
-      _loaded = true;
-    });
-  }
-
-  int get _maxCp {
-    if (_goAtk == 0) return 0;
-    const cpm = 0.7903;
-    double sq(num n) {
-      if (n <= 0) return 0;
-      double x = n.toDouble();
-      for (int i = 0; i < 30; i++) x = (x + n / x) / 2;
-      return x;
+    } catch (_) {
+      if (mounted) setState(() {
+        _goAtk = widget.pokemon.baseAttack;
+        _goDef = widget.pokemon.baseDefense;
+        _goSta = (widget.pokemon.baseHp * 1.75 + 50).floor();
+      });
     }
-    final cp = ((_goAtk + 15) * sq(_goDef + 15) *
-        sq(_goSta + 15) * cpm * cpm / 10).floor();
-    return cp < 10 ? 10 : cp;
   }
 
+  // Efetividade com multiplicadores GO — mesma tabela, labels sem dano
   Map<String, double> _effectiveness() {
-    const table = <String, Map<String, double>>{
-      'normal':   {'fighting': 2, 'ghost': 0},
-      'fire':     {'water': 2, 'ground': 2, 'rock': 2, 'fire': .5,
-                   'grass': .5, 'ice': .5, 'bug': .5, 'steel': .5, 'fairy': .5},
-      'water':    {'electric': 2, 'grass': 2, 'fire': .5,
-                   'water': .5, 'ice': .5, 'steel': .5},
-      'electric': {'ground': 2, 'electric': .5, 'flying': .5, 'steel': .5},
-      'grass':    {'fire': 2, 'ice': 2, 'poison': 2, 'flying': 2, 'bug': 2,
-                   'water': .5, 'electric': .5, 'grass': .5, 'ground': .5},
-      'ice':      {'fire': 2, 'fighting': 2, 'rock': 2, 'steel': 2, 'ice': .5},
-      'fighting': {'flying': 2, 'psychic': 2, 'fairy': 2,
-                   'bug': .5, 'rock': .5, 'dark': .5, 'ghost': 0},
-      'poison':   {'ground': 2, 'psychic': 2,
-                   'grass': .5, 'fighting': .5, 'poison': .5, 'bug': .5, 'fairy': .5,
-                   'steel': 0},
-      'ground':   {'water': 2, 'grass': 2, 'ice': 2,
-                   'poison': .5, 'rock': .5, 'electric': 0},
-      'flying':   {'electric': 2, 'ice': 2, 'rock': 2,
-                   'grass': .5, 'fighting': .5, 'bug': .5, 'ground': 0},
-      'psychic':  {'bug': 2, 'ghost': 2, 'dark': 2,
-                   'fighting': .5, 'psychic': .5},
-      'bug':      {'fire': 2, 'flying': 2, 'rock': 2,
-                   'grass': .5, 'fighting': .5, 'ground': .5},
-      'rock':     {'water': 2, 'grass': 2, 'fighting': 2, 'ground': 2, 'steel': 2,
-                   'normal': .5, 'fire': .5, 'poison': .5, 'flying': .5},
-      'ghost':    {'ghost': 2, 'dark': 2,
-                   'poison': .5, 'bug': .5, 'normal': 0, 'fighting': 0},
-      'dragon':   {'ice': 2, 'dragon': 2, 'fairy': 2,
-                   'fire': .5, 'water': .5, 'electric': .5, 'grass': .5},
-      'dark':     {'fighting': 2, 'bug': 2, 'fairy': 2,
-                   'ghost': .5, 'dark': .5, 'psychic': 0},
-      'steel':    {'fire': 2, 'fighting': 2, 'ground': 2,
-                   'normal': .5, 'grass': .5, 'ice': .5, 'flying': .5,
-                   'psychic': .5, 'bug': .5, 'rock': .5, 'dragon': .5,
-                   'steel': .5, 'fairy': .5, 'poison': 0},
-      'fairy':    {'poison': 2, 'steel': 2,
-                   'fighting': .5, 'bug': .5, 'dark': .5, 'dragon': 0},
-    };
-    const all = ['normal','fire','water','electric','grass','ice','fighting',
-      'poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
-
-    final types = widget.pokemon.types;
-    final result = <String, double>{};
-    for (final atk in all) {
-      double m = 1;
-      for (final def in types) {
-        m *= (table[def] ?? {})[atk] ?? 1;
-      }
+    final wk = calculateWeaknesses(widget.pokemon.types);
+    // Converter para GO: imune(0)/quart(0.25)→0.391x, half→0.625x, 2x→1.6x, 4x→2.56x
+    return wk.map((type, m) {
       double go;
-      if (m == 0 || m == .25) go = .391;
-      else if (m == .5)  go = .625;
-      else if (m == 2)   go = 1.6;
-      else if (m == 4)   go = 2.56;
+      if (m == 0 || m == 0.25) go = 0.391;
+      else if (m == 0.5)  go = 0.625;
+      else if (m == 2.0)  go = 1.6;
+      else if (m == 4.0)  go = 2.56;
       else go = m;
-      if (go != 1.0) result[atk] = go;
-    }
-    return result;
+      return MapEntry(type, go);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final p         = widget.pokemon;
-    final types     = p.types;
+    final types     = widget.pokemon.types;
     final typeColor = types.isNotEmpty
         ? TypeColors.fromType(ptType(types[0]))
         : Theme.of(context).colorScheme.primary;
 
     final eff  = _effectiveness();
-    final quad = eff.entries.where((e) => e.value == 2.56).map((e) => e.key).toList()..sort();
-    final frac = eff.entries.where((e) => e.value == 1.6).map((e) => e.key).toList()..sort();
-    final half = eff.entries.where((e) => e.value == .625).map((e) => e.key).toList()..sort();
-    final qurt = eff.entries.where((e) => e.value == .391).map((e) => e.key).toList()..sort();
+    final quad = eff.entries.where((e) => e.value == 2.56).toList()..sort((a,b) => a.key.compareTo(b.key));
+    final frac = eff.entries.where((e) => e.value == 1.6).toList()..sort((a,b) => a.key.compareTo(b.key));
+    final half = eff.entries.where((e) => e.value == .625).toList()..sort((a,b) => a.key.compareTo(b.key));
+    final qurt = eff.entries.where((e) => e.value == .391).toList()..sort((a,b) => a.key.compareTo(b.key));
 
-    // Stats para as barras (mesmo padrão das outras telas)
-    final stats = [
-      _GoStatRow('Ataque GO',  _goAtk, const Color(0xFFE24B4A), 350),
-      _GoStatRow('Defesa GO',  _goDef, const Color(0xFF378ADD), 350),
-      _GoStatRow('Stamina GO', _goSta, const Color(0xFF5a9e5a), 500),
-    ];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
 
         SectionCard(
-          title: 'STATS POKÉMON GO',
+          title: 'STATUS',
           pokemonTypes: types,
-          child: Column(children: [
-            if (!_loaded)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: PokeballLoader.small()))
-            else ...[
-              // Abas Base / Mínimo / Máximo (mesmo padrão visual)
-              Row(children: [
-                for (final e in [(0,'Base'),(1,'Mínimo'),(2,'Máximo')]) ...[
-                  Expanded(child: GestureDetector(
-                    onTap: () => _tabController.animateTo(e.$1),
-                    child: AnimatedBuilder(
-                      animation: _tabController,
-                      builder: (_, __) {
-                        final active = _tabController.index == e.$1;
-                        return Container(
-                          padding: const EdgeInsets.symmetric(vertical: 7),
-                          decoration: BoxDecoration(
-                            color: active ? typeColor : typeColor.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: active ? typeColor : typeColor.withOpacity(0.35)),
-                          ),
-                          child: Text(e.$2, textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                              color: active ? typeTextColor(typeColor) : typeColor)),
-                        );
-                      },
-                    ),
-                  )),
-                  if (e.$1 < 2) const SizedBox(width: 5),
-                ],
-              ]),
-              const SizedBox(height: 14),
-              // Barras de stat
-              ...stats.map((s) => _GoStatBarRow(
-                row: s, tabController: _tabController)),
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    'CP Máx. Nv.40: $_maxCp',
-                    style: TextStyle(fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                ),
-              ),
-            ],
-          ]),
+          child: _goAtk == 0
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: PokeballLoader.small()))
+              : Column(children: [
+                  StatBar(label: 'Ataque GO',  value: _goAtk, color: const Color(0xFFE24B4A)),
+                  StatBar(label: 'Defesa GO',  value: _goDef, color: const Color(0xFF378ADD)),
+                  StatBar(label: 'Stamina GO', value: _goSta, color: const Color(0xFF5a9e5a)),
+                ]),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
         SectionCard(
           title: 'EFETIVIDADE DE TIPOS',
           pokemonTypes: types,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (quad.isNotEmpty) ...[
-              _effRow(context, 'Muito fraco a', '2.56×',
-                const Color(0xFFB71C1C), quad),
-              const SizedBox(height: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (quad.isNotEmpty) _DmgGroup('Muito fraco a',       quad),
+              if (frac.isNotEmpty) _DmgGroup('Fraco a',             frac),
+              if (half.isNotEmpty) _DmgGroup('Resistente a',        half),
+              if (qurt.isNotEmpty) _DmgGroup('Muito resistente a',  qurt),
             ],
-            if (frac.isNotEmpty) ...[
-              _effRow(context, 'Fraco a', '1.6×',
-                const Color(0xFFE53935), frac),
-              const SizedBox(height: 12),
-            ],
-            if (half.isNotEmpty) ...[
-              _effRow(context, 'Resistente a', '0.625×',
-                const Color(0xFF388E3C), half),
-              const SizedBox(height: 12),
-            ],
-            if (qurt.isNotEmpty)
-              _effRow(context, 'Muito resistente a', '0.391×',
-                const Color(0xFF1B5E20), qurt),
-          ]),
+          ),
         ),
 
       ]),
     );
   }
 
-  Widget _effRow(BuildContext ctx, String label, String mult,
-      Color color, List<String> types) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Text(label, style: TextStyle(fontSize: 12,
-          fontWeight: FontWeight.w700, color: color)),
-        const SizedBox(width: 6),
-        Text(mult, style: TextStyle(fontSize: 10,
-          color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
+  Widget _DmgGroup(String title, List<MapEntry<String, double>> entries) =>
+    Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        Text(title, style: TextStyle(
+          fontSize: 12, fontWeight: FontWeight.w700,
+          color: Theme.of(context).colorScheme.onSurface)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6, runSpacing: 6,
+          alignment: WrapAlignment.center,
+          children: entries.map((e) => TypeBadge(type: e.key)).toList(),
+        ),
       ]),
-      const SizedBox(height: 6),
-      Wrap(spacing: 4, runSpacing: 4,
-        children: types.map((t) => TypeBadge(type: t)).toList()),
-    ]);
-  }
-}
-
-// Modelo de linha de stat GO
-class _GoStatRow {
-  final String label;
-  final int value;
-  final Color color;
-  final int maxVal;
-  const _GoStatRow(this.label, this.value, this.color, this.maxVal);
-}
-
-// Barra de stat GO com animação por aba (Base/Mínimo/Máximo)
-class _GoStatBarRow extends StatelessWidget {
-  final _GoStatRow row;
-  final TabController tabController;
-  const _GoStatBarRow({required this.row, required this.tabController});
-
-  // Fórmulas GO (sem IVs, com IVs min, com IVs max)
-  int _min() => row.value;              // base sem IVs
-  int _max() => row.value + 15;         // base + IV máx
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: tabController,
-      builder: (context, _) {
-        final idx = tabController.index;
-        final val = idx == 0 ? row.value
-                  : idx == 1 ? _min()
-                  : _max();
-        final pct = (val / row.maxVal).clamp(0.0, 1.0);
-        final scheme = Theme.of(context).colorScheme;
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 5),
-          child: Row(children: [
-            SizedBox(width: 90,
-              child: Text(row.label,
-                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant))),
-            SizedBox(width: 36,
-              child: Text('$val',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.right)),
-            const SizedBox(width: 8),
-            Expanded(child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: pct),
-                duration: const Duration(milliseconds: 400),
-                curve: Curves.easeOut,
-                builder: (_, v, __) => LinearProgressIndicator(
-                  value: v,
-                  minHeight: 6,
-                  backgroundColor: scheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation(row.color),
-                ),
-              ),
-            )),
-          ]),
-        );
-      },
     );
-  }
 }
+

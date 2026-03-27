@@ -1472,7 +1472,14 @@ class _PokedexScreenState extends State<PokedexScreen>
                 : Theme.of(context).colorScheme.onSurfaceVariant;
             return Expanded(child: InkWell(
               onTap: () {
-                if (item.$1 == 0) { setState(() => _navIndex = 0); return; }
+                if (item.$1 == 0) {
+                  if (Navigator.canPop(context)) {
+                    Navigator.popUntil(context, (r) => r.isFirst);
+                  } else {
+                    setState(() => _navIndex = 0);
+                  }
+                  return;
+                }
                 if (item.$1 == 1) {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const PocketHubScreen()));
                   return;

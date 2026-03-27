@@ -5,6 +5,8 @@ import 'package:pokedex_tracker/screens/go/go_raids_screen.dart';
 import 'package:pokedex_tracker/screens/go/go_mega_screen.dart';
 import 'package:pokedex_tracker/screens/go/go_gigantamax_screen.dart';
 import 'package:pokedex_tracker/screens/go/go_regional_forms_screen.dart';
+import 'package:pokedex_tracker/screens/pocket/pocket_hub_screen.dart';
+import 'package:pokedex_tracker/screens/pokopia/pokopia_hub_screen.dart';
 
 class GoHubScreen extends StatelessWidget {
   const GoHubScreen({super.key});
@@ -84,6 +86,7 @@ class GoHubScreen extends StatelessWidget {
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
+      bottomNavigationBar: _GoBottomNav(),
       body: GridView.builder(
         padding: const EdgeInsets.all(16),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -195,5 +198,79 @@ class _HubCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ─── Bottom Nav (mesmo padrão do PokedexScreen) ───────────────────
+
+class _GoBottomNav extends StatelessWidget {
+  const _GoBottomNav();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(child: Container(
+      height: 62,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(top: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant, width: 0.5))),
+      child: Row(children: [
+        // Início — pop de volta à raiz
+        Expanded(child: InkWell(
+          onTap: () => Navigator.popUntil(context, (r) => r.isFirst),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.home_outlined, size: 22,
+              color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(height: 2),
+            Text('Início', style: TextStyle(fontSize: 10,
+              color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ]),
+        )),
+        // Pocket
+        Expanded(child: InkWell(
+          onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const PocketHubScreen())),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.style_outlined, size: 22,
+              color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(height: 2),
+            Text('Pocket', style: TextStyle(fontSize: 10,
+              color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ]),
+        )),
+        // GO — ativo
+        Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.public_outlined, size: 22,
+            color: Theme.of(context).colorScheme.primary),
+          const SizedBox(height: 2),
+          Text('GO', style: TextStyle(fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.primary)),
+        ])),
+        // Pokopia
+        Expanded(child: InkWell(
+          onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const PokopiaHubScreen())),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.nature_people_outlined, size: 22,
+              color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(height: 2),
+            Text('Pokopia', style: TextStyle(fontSize: 10,
+              color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ]),
+        )),
+        // Menu
+        Expanded(child: Builder(builder: (ctx) => InkWell(
+          onTap: () => Scaffold.of(ctx).openEndDrawer(),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.menu, size: 22,
+              color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(height: 2),
+            Text('Menu', style: TextStyle(fontSize: 10,
+              color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ]),
+        ))),
+      ]),
+    ));
   }
 }
