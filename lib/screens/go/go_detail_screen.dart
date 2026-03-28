@@ -994,8 +994,7 @@ class _GoStatusTabState extends State<_GoStatusTab> {
     // O NestedScrollView do pai captura qualquer ScrollView filho.
     // Padding + Column é completamente estático, sem área rolável.
     return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
