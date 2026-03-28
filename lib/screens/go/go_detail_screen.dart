@@ -243,44 +243,54 @@ class _GoDetailScreenState extends State<GoDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Só a aba "Sobre" (índice 0) permite scroll.
+    // Nas demais, o NestedScrollView fica com NeverScrollableScrollPhysics
+    // impedindo qualquer gesto de scroll — no header e no conteúdo.
     return Scaffold(
-      body: NestedScrollView(
-        headerSliverBuilder: (_, __) => [
-          DetailHeader(
-            pokemon: widget.pokemon,
-            caught: _caught,
-            onToggleCaught: () {
-              setState(() => _caught = !_caught);
-              widget.onToggleCaught();
-            },
-            prevName: widget.prevName, prevId: widget.prevId,
-            nextName: widget.nextName, nextId: widget.nextId,
-            onPrev: widget.onPrev, onNext: widget.onNext,
-          ),
-        ],
-        body: Column(children: [
-          Material(
-            elevation: 0,
-            child: TabBar(
-              controller: _tabController,
-              tabs: _tabs.map((t) => Tab(text: t)).toList(),
-              labelColor: Theme.of(context).colorScheme.primary,
-              unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
-              indicatorColor: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          Expanded(child: TabBarView(
-            controller: _tabController,
-            children: [
-              _GoSobreTab(pokemon: widget.pokemon),
-              // PrimaryScrollController.none() isola a aba Status
-              // do NestedScrollView — ela não participa do scroll do pai
-              _GoStatusTab(pokemon: widget.pokemon),
-              _GoMovesTab(pokemon: widget.pokemon),
-              FormsTab(forms: _forms, loading: _loadingForms),
+      body: AnimatedBuilder(
+        animation: _tabController,
+        builder: (context, _) {
+          final allowScroll = _tabController.index == 0;
+          return NestedScrollView(
+            physics: allowScroll
+                ? const ClampingScrollPhysics()
+                : const NeverScrollableScrollPhysics(),
+            headerSliverBuilder: (_, __) => [
+              DetailHeader(
+                pokemon: widget.pokemon,
+                caught: _caught,
+                onToggleCaught: () {
+                  setState(() => _caught = !_caught);
+                  widget.onToggleCaught();
+                },
+                prevName: widget.prevName, prevId: widget.prevId,
+                nextName: widget.nextName, nextId: widget.nextId,
+                onPrev: widget.onPrev, onNext: widget.onNext,
+              ),
             ],
-          )),
-        ]),
+            body: Column(children: [
+              Material(
+                elevation: 0,
+                child: TabBar(
+                  controller: _tabController,
+                  tabs: _tabs.map((t) => Tab(text: t)).toList(),
+                  labelColor: Theme.of(context).colorScheme.primary,
+                  unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                  indicatorColor: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              Expanded(child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _GoSobreTab(pokemon: widget.pokemon),
+                  _GoStatusTab(pokemon: widget.pokemon),
+                  _GoMovesTab(pokemon: widget.pokemon),
+                  FormsTab(forms: _forms, loading: _loadingForms),
+                ],
+              )),
+            ]),
+          );
+        },
       ),
     );
   }
@@ -326,8 +336,7 @@ class _GoSobreTabState extends State<_GoSobreTab> {
     }
 
     return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
 
         // ── Descrição (igual à aba Sobre das outras telas) ──────
