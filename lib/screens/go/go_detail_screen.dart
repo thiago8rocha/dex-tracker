@@ -529,9 +529,13 @@ class _GoMovesTabState extends State<_GoMovesTab> {
         Uri.parse('https://pogoapi.net/api/v1/pokemon_moves.json'),
       ).timeout(const Duration(seconds: 8));
       if (r.statusCode == 200 && mounted) {
-        final body = json.decode(r.body) as Map<String, dynamic>;
-        final data = body[id.toString()] as Map<String, dynamic>?;
-        if (data != null) {
+        // A API retorna uma lista de objetos, não um mapa por ID
+        final body = json.decode(r.body) as List<dynamic>;
+        final data = body.cast<Map<String, dynamic>>().firstWhere(
+          (e) => (e['id'] as num?)?.toInt() == id,
+          orElse: () => <String, dynamic>{},
+        );
+        if (data.isNotEmpty) {
           final fast    = (data['fast_moves']    as List? ?? []).cast<String>();
           final charged = (data['charged_moves'] as List? ?? []).cast<String>();
           _cache[id] = {'fast': fast, 'charged': charged};
@@ -857,10 +861,9 @@ class _GoStatusTabState extends State<_GoStatusTab> {
     final qurt = eff.entries.where((e) => e.value == .391).toList()..sort((a,b) => a.key.compareTo(b.key));
 
 
-    // Golpes GO — lidos do estado da aba Sobre via chave global
-    // Como a aba Status é instanciada junto com a Sobre, buscamos os moves aqui também
-    return LayoutBuilder(builder: (context, constraints) {
-      final content = Column(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -898,19 +901,8 @@ class _GoStatusTabState extends State<_GoStatusTab> {
           ),
 
         ],
-      );
-
-      // Só rolar se o conteúdo ultrapassar a altura disponível
-      final contentHeight = constraints.maxHeight;
-      return SingleChildScrollView(
-        physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: contentHeight - 40),
-          child: IntrinsicHeight(child: content),
-        ),
-      );
-    });
+      ),
+    );
   }
 
   Widget _statBox(BuildContext ctx, String label, String value, Color color) =>
