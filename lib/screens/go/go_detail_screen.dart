@@ -261,52 +261,56 @@ class _GoDetailScreenState extends State<GoDetailScreen>
     // - TabBar fixo
     // - TabBarView ocupa o restante — cada aba tem tamanho exato do seu conteúdo
     // Resultado: nenhuma aba tem espaço vazio abaixo do conteúdo
+    // Calcular altura do header: 280 + status bar height
+    // Sem SafeArea no topo para a cor do header chegar até as bordas
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return Scaffold(
-      body: SafeArea(
-        child: Column(children: [
-          // Header fixo com CustomScrollView interno apenas para o SliverAppBar
-          SizedBox(
-            height: 280,
-            child: CustomScrollView(
-              physics: const NeverScrollableScrollPhysics(),
-              slivers: [
-                DetailHeader(
-                  pokemon: widget.pokemon,
-                  caught: _caught,
-                  onToggleCaught: () {
-                    setState(() => _caught = !_caught);
-                    widget.onToggleCaught();
-                  },
-                  prevName: widget.prevName, prevId: widget.prevId,
-                  nextName: widget.nextName, nextId: widget.nextId,
-                  onPrev: widget.onPrev, onNext: widget.onNext,
-                ),
-              ],
-            ),
-          ),
-          // TabBar fixo
-          Material(
-            elevation: 0,
-            child: TabBar(
-              controller: _tabController,
-              tabs: _tabs.map((t) => Tab(text: t)).toList(),
-              labelColor: Theme.of(context).colorScheme.primary,
-              unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
-              indicatorColor: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          // Abas: ocupam o espaço restante
-          Expanded(child: TabBarView(
-            controller: _tabController,
-            children: [
-              _GoSobreTab(pokemon: widget.pokemon),
-              _GoStatusTab(pokemon: widget.pokemon),
-              _GoMovesTab(pokemon: widget.pokemon),
-              FormsTab(forms: _forms, loading: _loadingForms),
+      body: Column(children: [
+        // Header fixo — altura inclui status bar para cor cobrir tudo
+        SizedBox(
+          height: 280 + topPadding,
+          child: CustomScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            slivers: [
+              DetailHeader(
+                pokemon: widget.pokemon,
+                caught: _caught,
+                onToggleCaught: () {
+                  setState(() => _caught = !_caught);
+                  widget.onToggleCaught();
+                },
+                prevName: widget.prevName, prevId: widget.prevId,
+                nextName: widget.nextName, nextId: widget.nextId,
+                onPrev: widget.onPrev, onNext: widget.onNext,
+              ),
             ],
-          )),
-        ]),
-      ),
+          ),
+        ),
+        // TabBar fixo
+        Material(
+          elevation: 0,
+          child: TabBar(
+            controller: _tabController,
+            tabs: _tabs.map((t) => Tab(text: t)).toList(),
+            labelColor: Theme.of(context).colorScheme.primary,
+            unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            indicatorColor: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        // Abas: ocupam exatamente o espaço restante, sem overflow
+        Expanded(child: TabBarView(
+          controller: _tabController,
+          children: [
+            _GoSobreTab(pokemon: widget.pokemon),
+            _GoStatusTab(pokemon: widget.pokemon),
+            _GoMovesTab(pokemon: widget.pokemon),
+            FormsTab(forms: _forms, loading: _loadingForms),
+          ],
+        )),
+        // SafeArea só no fundo
+        SizedBox(height: MediaQuery.of(context).padding.bottom),
+      ]),
     );
   }
 }
@@ -989,11 +993,11 @@ class _GoStatusTabState extends State<_GoStatusTab> {
     // Sem nenhum widget de scroll — Padding direto + Column.
     // O NestedScrollView do pai captura qualquer ScrollView filho.
     // Padding + Column é completamente estático, sem área rolável.
-    return Padding(
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
 
