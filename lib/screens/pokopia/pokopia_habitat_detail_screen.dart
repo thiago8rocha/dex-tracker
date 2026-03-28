@@ -120,10 +120,6 @@ class _PokopiaHabitatDetailScreenState
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final habitat = widget.habitat;
-    final biomeColorVal =
-        biomeColor[habitat.biomes.isNotEmpty ? habitat.biomes.first : ''] ?? 0xFF607D8B;
-    final color = Color(biomeColorVal);
-
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -179,8 +175,17 @@ class _PokopiaHabitatDetailScreenState
                         fontWeight: FontWeight.w700,
                       ),
                 ),
-                const SizedBox(height: 12),
-                _BiomeBadge(biomes: habitat.biomes, color: color),
+                if (habitat.flavorText.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    habitat.flavorText,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
 
                 // Itens necessários

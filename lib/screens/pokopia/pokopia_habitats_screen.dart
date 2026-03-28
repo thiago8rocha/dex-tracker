@@ -37,8 +37,8 @@ class _PokopiaHabitatsScreenState extends State<PokopiaHabitatsScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Standard'),
-            Tab(text: 'Evento'),
+            Tab(text: 'Padrão'),
+            Tab(text: 'Eventos'),
           ],
         ),
       ),
@@ -65,33 +65,18 @@ class _StandardHabitatsTab extends StatefulWidget {
 class _StandardHabitatsTabState extends State<_StandardHabitatsTab>
     with AutomaticKeepAliveClientMixin {
   String _search = '';
-  String? _selectedBiome;
 
   @override
   bool get wantKeepAlive => true;
 
-  // Todos os biomas presentes nos dados
-  List<String> get _biomes {
-    final all = <String>{};
-    for (final h in pokopiaHabitats) {
-      all.addAll(h.biomes);
-    }
-    final sorted = all.toList()..sort();
-    return ['Todos', ...sorted];
-  }
-
   List<PokopiaHabitat> get _filtered {
-    return pokopiaHabitats.where((h) {
-      final q = _search.toLowerCase();
-      final matchSearch = _search.isEmpty ||
-          h.name.toLowerCase().contains(q) ||
-          h.items.any((i) => i.toLowerCase().contains(q)) ||
-          h.pokemon.any((p) => p.name.toLowerCase().contains(q));
-      final matchBiome = _selectedBiome == null ||
-          _selectedBiome == 'Todos' ||
-          h.biomes.contains(_selectedBiome);
-      return matchSearch && matchBiome;
-    }).toList()
+    if (_search.isEmpty) return pokopiaHabitats;
+    final q = _search.toLowerCase();
+    return pokopiaHabitats.where((h) =>
+      h.name.toLowerCase().contains(q) ||
+      h.items.any((i) => i.toLowerCase().contains(q)) ||
+      h.pokemon.any((p) => p.name.toLowerCase().contains(q))
+    ).toList()
       ..sort((a, b) => a.id.compareTo(b.id));
   }
 
@@ -101,41 +86,13 @@ class _StandardHabitatsTabState extends State<_StandardHabitatsTab>
     final scheme = Theme.of(context).colorScheme;
 
     return Column(children: [
-      // Info
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: scheme.outlineVariant, width: 0.5),
-          ),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(Icons.info_outline, size: 14, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Habitats sao criados posicionando objetos e mobiliario '
-                'proximos entre si. Pokemon diferentes aparecem dependendo '
-                'do horario e clima.',
-                style: TextStyle(
-                    fontSize: 11,
-                    color: scheme.onSurfaceVariant,
-                    height: 1.4),
-              ),
-            ),
-          ]),
-        ),
-      ),
-
       // Busca
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
         child: TextField(
           onChanged: (v) => setState(() => _search = v),
           decoration: InputDecoration(
-            hintText: 'Buscar habitat, item ou Pokemon...',
+            hintText: 'Buscar por Habitat, Item ou Pokémon...',
             prefixIcon: const Icon(Icons.search, size: 20),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -152,49 +109,8 @@ class _StandardHabitatsTabState extends State<_StandardHabitatsTab>
         ),
       ),
 
-      // Filtro por bioma
-      SizedBox(
-        height: 44,
-        child: ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          scrollDirection: Axis.horizontal,
-          itemCount: _biomes.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (ctx, i) {
-            final biome = _biomes[i];
-            final selected = (_selectedBiome ?? 'Todos') == biome;
-            return GestureDetector(
-              onTap: () => setState(
-                  () => _selectedBiome = biome == 'Todos' ? null : biome),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? scheme.primary
-                      : scheme.surfaceContainer,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: selected
-                        ? scheme.primary
-                        : scheme.outlineVariant,
-                  ),
-                ),
-                child: Text(
-                  biome,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: selected
-                        ? scheme.onPrimary
-                        : scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
+
+      const SizedBox(height: 8),
 
       // Lista
       Expanded(
@@ -232,10 +148,6 @@ class _StandardHabitatTileState extends State<_StandardHabitatTile> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final h = widget.habitat;
-    final colorVal =
-        biomeColor[h.biomes.isNotEmpty ? h.biomes.first : ''] ?? 0xFF607D8B;
-    final color = Color(colorVal);
-
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
@@ -306,28 +218,18 @@ class _StandardHabitatTileState extends State<_StandardHabitatTile> {
                       ),
                     ),
                   ]),
-                  const SizedBox(height: 6),
-
-                  // Biomas
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: h.biomes
-                        .map((b) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: color.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(b,
-                                  style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w600,
-                                      color: color)),
-                            ))
-                        .toList(),
-                  ),
+                  if (h.flavorText.isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      h.flavorText,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: scheme.onSurfaceVariant,
+                        height: 1.4,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
 
                   if (_expanded) ...[
                     const SizedBox(height: 8),
@@ -436,40 +338,13 @@ class _EventHabitatsTabState extends State<_EventHabitatsTab>
     final scheme = Theme.of(context).colorScheme;
 
     return Column(children: [
-      // Info
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: scheme.outlineVariant, width: 0.5),
-          ),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(Icons.info_outline, size: 14, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Habitats de evento ficam disponiveis apenas durante eventos '
-                'temporarios. Os eventos se repetem anualmente.',
-                style: TextStyle(
-                    fontSize: 11,
-                    color: scheme.onSurfaceVariant,
-                    height: 1.4),
-              ),
-            ),
-          ]),
-        ),
-      ),
-
       // Busca
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
         child: TextField(
           onChanged: (v) => setState(() => _search = v),
           decoration: InputDecoration(
-            hintText: 'Buscar habitat ou Pokemon...',
+            hintText: 'Buscar por Habitat, Item ou Pokémon...',
             prefixIcon: const Icon(Icons.search, size: 20),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
