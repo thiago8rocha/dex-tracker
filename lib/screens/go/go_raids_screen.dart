@@ -608,22 +608,22 @@ class _RaidCardState extends State<_RaidCard> {
             Padding(
               padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Sprite — bundle local, sem spinner
                   SizedBox(
-                    height: 56, width: double.infinity,
+                    height: 64, width: double.infinity,
                     child: Image.asset(
                       spritePath,
-                      width: 56, height: 56, fit: BoxFit.contain,
+                      width: 64, height: 64, fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => Image.asset(
                         'assets/sprites/artwork/${boss.id}.webp',
-                        width: 56, height: 56, fit: BoxFit.contain,
+                        width: 64, height: 64, fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => Icon(
                           Icons.catching_pokemon,
                           color: scheme.onSurfaceVariant.withOpacity(0.4),
-                          size: 32,
+                          size: 36,
                         ),
                       ),
                     ),
