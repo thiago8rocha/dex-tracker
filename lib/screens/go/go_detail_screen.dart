@@ -324,7 +324,8 @@ class _GoSobreTabState extends State<_GoSobreTab> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
 
         // ── Descrição (igual à aba Sobre das outras telas) ──────
@@ -628,7 +629,10 @@ class _GoMovesTabState extends State<_GoMovesTab> {
             pokemonTypes: types,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _fast.map((m) => _GoMoveRow(move: m)).toList(),
+              children: [
+                _GoMovesHeader(),
+                ..._fast.map((m) => _GoMoveRow(move: m)),
+              ],
             ),
           ),
 
@@ -641,10 +645,38 @@ class _GoMovesTabState extends State<_GoMovesTab> {
             pokemonTypes: types,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _charged.map((m) => _GoMoveRow(move: m)).toList(),
+              children: [
+                _GoMovesHeader(),
+                ..._charged.map((m) => _GoMoveRow(move: m)),
+              ],
             ),
           ),
 
+      ]),
+    );
+  }
+}
+
+
+// Cabeçalho das colunas de golpes
+class _GoMovesHeader extends StatelessWidget {
+  const _GoMovesHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.5,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(children: [
+        const SizedBox(width: 36), // espaço do ícone
+        Expanded(child: Text('Nome', style: style)),
+        SizedBox(width: 36, child: Text('Dano',
+          textAlign: TextAlign.right, style: style)),
       ]),
     );
   }
@@ -685,19 +717,19 @@ class _GoMoveRow extends StatelessWidget {
         // Nome traduzido
         Expanded(child: Text(namePt,
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-        // Poder
-        if (power > 0)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: typeColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: typeColor.withOpacity(0.3)),
+        // Dano — só o número, sem caixa
+        SizedBox(
+          width: 36,
+          child: Text(
+            power > 0 ? '$power' : '—',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
-            child: Text('$power',
-              style: TextStyle(fontSize: 11,
-                fontWeight: FontWeight.w700, color: typeColor)),
           ),
+        ),
       ]),
     );
   }
@@ -924,7 +956,8 @@ class _GoStatusTabState extends State<_GoStatusTab> {
 
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
 
         SectionCard(
