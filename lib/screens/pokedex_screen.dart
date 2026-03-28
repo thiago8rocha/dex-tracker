@@ -438,21 +438,22 @@ class _PokedexScreenState extends State<PokedexScreen>
       ).toList();
     } else if (!_isNacional && _selectedSections.isNotEmpty) {
       // Mostra apenas as seções selecionadas, mescladas sem duplicatas
-      final seen = <int>{};
+      // Usa catchKey (não speciesId) para permitir forma base + regional do mesmo pokemon
+      final seen = <String>{};
       entries = [];
       for (final apiName in _selectedSections) {
         for (final e in (_entriesBySection[apiName] ?? [])) {
-          if (seen.add(e.speciesId)) entries.add(e);
+          if (seen.add(e.catchKey)) entries.add(e);
         }
       }
       entries.sort((a, b) => a.entryNumber.compareTo(b.entryNumber));
     } else {
       // Todas as seções sem duplicatas
-      final seen = <int>{};
+      final seen = <String>{};
       entries = [];
       for (final list in _entriesBySection.values) {
         for (final e in list) {
-          if (seen.add(e.speciesId)) entries.add(e);
+          if (seen.add(e.catchKey)) entries.add(e);
         }
       }
     }
