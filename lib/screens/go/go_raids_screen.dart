@@ -22,16 +22,55 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
   Future<void> _loadRaids() async {
     setState(() { _loading = true; _error = null; });
     try {
+      // pogoapi.net — JSON oficial, sem scraping
+      // Estrutura: { "current": { "1": [...], "3": [...], "5": [...], "6": [...] } }
       final res = await http.get(
-        Uri.parse('https://leekduck.com/raid-bosses/'),
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Android 14; Mobile) AppleWebKit/537.36',
-          'Accept': 'text/html',
-        },
+        Uri.parse('https://pogoapi.net/api/v1/raid_bosses.json'),
       ).timeout(const Duration(seconds: 12));
 
-      if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
-      final raids = _parseLeekDuck(res.body);
+      if (res.statusCode != 200) throw Exception('HTTP \${res.statusCode}');
+
+      final body    = json.decode(res.body) as Map<String, dynamic>;
+      final current = body['current'] as Map<String, dynamic>? ?? {};
+      final raids   = <_RaidBoss>[];
+
+      // Tiers normais: 1, 3, 5, 6 (Mega)
+      // Shadow raids: shadow_lvl1, shadow_lvl3, shadow_lvl5
+      const tierKeys = {
+        '1': (1, false), '3': (3, false), '5': (5, false), '6': (6, false),
+        'shadow_lvl1': (1, true), 'shadow_lvl3': (3, true), 'shadow_lvl5': (5, true),
+      };
+
+      for (final entry in tierKeys.entries) {
+        final key        = entry.key;
+        final (tier, shadow) = entry.value;
+        final list       = current[key] as List<dynamic>? ?? [];
+        for (final b in list) {
+          final m      = b as Map<String, dynamic>;
+          final id     = (m['id'] as num?)?.toInt() ?? 0;
+          var   name   = m['name'] as String? ?? '';
+          if (id == 0 || name.isEmpty) continue;
+
+          // Remover "Shadow " do nome — a seção já indica
+          name = name.replaceFirst(RegExp(r'^Shadow\s+', caseSensitive: false), '');
+
+          // Tipos da API (ex: ["Grass", "Fairy"])
+          final rawTypes = (m['type'] as List<dynamic>? ?? [])
+              .map((t) => (t as String).toLowerCase())
+              .toList();
+
+          final minCp = (m['min_unboosted_cp'] as num?)?.toInt() ?? 0;
+          final maxCp = (m['max_unboosted_cp'] as num?)?.toInt() ?? 0;
+          final shiny = m['possible_shiny'] as bool? ?? false;
+
+          raids.add(_RaidBoss(
+            id: id, name: name, tier: tier,
+            isShadow: shadow, minCp: minCp, maxCp: maxCp,
+            apiTypes: rawTypes, shiny: shiny,
+          ));
+        }
+      }
+
       if (raids.isEmpty) throw Exception('Sem dados');
       if (mounted) setState(() { _raids = raids; _loading = false; });
     } catch (e) {
@@ -41,84 +80,6 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
       });
     }
   }
-
-  List<_RaidBoss> _parseLeekDuck(String html) {
-    final raids = <_RaidBoss>[];
-    final tierMap = <String, int>{
-      '1-Star Raids': 1,
-      '3-Star Raids': 3,
-      '5-Star Raids': 5,
-      'Mega Raids':   6,
-    };
-
-    final h2Pattern = RegExp(
-      r'<h2[^>]*>([\s\S]*?)<\/h2>([\s\S]*?)(?=<h2|$)',
-      caseSensitive: false,
-    );
-
-    bool inShadow = false;
-
-    for (final match in h2Pattern.allMatches(html)) {
-      final header  = _strip(match.group(1) ?? '').trim();
-      final content = match.group(2) ?? '';
-
-      if (header.toLowerCase().contains('shadow raid')) {
-        inShadow = true;
-        continue;
-      }
-
-      int? tier;
-      for (final e in tierMap.entries) {
-        if (header.contains(e.key)) { tier = e.value; break; }
-      }
-      if (tier == null) continue;
-
-      final bossPattern = RegExp(
-        r'<img[^>]+src="([^"]*(?:pm\d|poke_capture)[^"]*)"[^>]*>\s*'
-        r'([\s\S]*?)(?=<img[^>]+src="[^"]*(?:pm\d|poke_capture)[^"]*"|$)',
-        caseSensitive: false,
-      );
-
-      for (final bm in bossPattern.allMatches(content)) {
-        final imgSrc   = bm.group(1) ?? '';
-        final bossHtml = bm.group(2) ?? '';
-
-        final idFromPm   = RegExp(r'pm(\d+)\.').firstMatch(imgSrc);
-        final idFromPoke = RegExp(r'poke_capture_(\d+)').firstMatch(imgSrc);
-        final idStr      = idFromPm?.group(1) ?? idFromPoke?.group(1) ?? '0';
-        final pokeId     = int.tryParse(idStr) ?? 0;
-
-        final nameMatch = RegExp(r'>([A-Za-zÀ-ú][^<\n]+?)<')
-            .allMatches(bossHtml)
-            .firstWhere(
-              (m) => m.group(1)!.trim().isNotEmpty
-                  && !m.group(1)!.contains('CP')
-                  && !RegExp(r'^\d').hasMatch(m.group(1)!.trim()),
-              orElse: () => RegExp(r'x').firstMatch('') as RegExpMatch,
-            );
-        // Remover "Shadow " do nome — a coluna já indica isso
-        var name = (nameMatch.group(1)?.trim() ?? '')
-            .replaceFirst(RegExp(r'^Shadow\s+', caseSensitive: false), '');
-        if (name.isEmpty || pokeId == 0) continue;
-
-        final cpMatch = RegExp(r'CP\s*([\d,]+)\s*-\s*([\d,]+)')
-            .firstMatch(bossHtml);
-        final minCp = int.tryParse(
-            (cpMatch?.group(1) ?? '').replaceAll(',', '')) ?? 0;
-        final maxCp = int.tryParse(
-            (cpMatch?.group(2) ?? '').replaceAll(',', '')) ?? 0;
-
-        raids.add(_RaidBoss(
-          id: pokeId, name: name, tier: tier,
-          isShadow: inShadow, minCp: minCp, maxCp: maxCp,
-        ));
-      }
-    }
-    return raids;
-  }
-
-  String _strip(String html) =>
-      html.replaceAll(RegExp(r'<[^>]+>'), '').trim();
 
   @override
   Widget build(BuildContext context) {
@@ -141,16 +102,7 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
                   onRetry: _loadRaids)
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                  children: [
-                    ..._buildSections(),
-                    const SizedBox(height: 8),
-                    Text('Fonte: LeekDuck.com',
-                      style: TextStyle(fontSize: 10,
-                        color: Theme.of(context)
-                            .colorScheme.onSurfaceVariant
-                            .withOpacity(0.5)),
-                      textAlign: TextAlign.center),
-                  ],
+                  children: _buildSections(),
                 ),
     );
   }
@@ -159,14 +111,14 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
     final widgets = <Widget>[];
 
     // Raids normais: 1★ → 3★ → 5★ → Mega
-    bool normalHeaderAdded = false;
+    bool normalAdded = false;
     for (final tier in [1, 3, 5, 6]) {
       final list = _raids.where((r) => r.tier == tier && !r.isShadow).toList();
       if (list.isEmpty) continue;
-      if (!normalHeaderAdded) {
+      if (!normalAdded) {
         widgets.add(_SectionDivider(label: 'RAIDS', color: const Color(0xFF1565C0)));
         widgets.add(const SizedBox(height: 12));
-        normalHeaderAdded = true;
+        normalAdded = true;
       }
       widgets.add(_TierHeader(tier: tier, isShadow: false));
       widgets.add(const SizedBox(height: 10));
@@ -174,16 +126,16 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
       widgets.add(const SizedBox(height: 20));
     }
 
-    // Shadow raids: 1★ → 3★ → 5★ → Mega
-    bool shadowHeaderAdded = false;
-    for (final tier in [1, 3, 5, 6]) {
+    // Shadow raids: 1★ → 3★ → 5★
+    bool shadowAdded = false;
+    for (final tier in [1, 3, 5]) {
       final list = _raids.where((r) => r.tier == tier && r.isShadow).toList();
       if (list.isEmpty) continue;
-      if (!shadowHeaderAdded) {
+      if (!shadowAdded) {
         widgets.add(_SectionDivider(
             label: 'SHADOW RAIDS', color: const Color(0xFF6A1FAB)));
         widgets.add(const SizedBox(height: 12));
-        shadowHeaderAdded = true;
+        shadowAdded = true;
       }
       widgets.add(_TierHeader(tier: tier, isShadow: true));
       widgets.add(const SizedBox(height: 10));
@@ -198,16 +150,26 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
 // ─── Modelo ───────────────────────────────────────────────────────
 
 class _RaidBoss {
-  final int    id;
-  final String name;
-  final int    tier;
-  final bool   isShadow;
-  final int    minCp;
-  final int    maxCp;
+  final int          id;
+  final String       name;
+  final int          tier;
+  final bool         isShadow;
+  final int          minCp;
+  final int          maxCp;
+  final List<String> apiTypes; // tipos vindos da API (lowercase inglês)
+  final bool         shiny;
+
   const _RaidBoss({
     required this.id, required this.name, required this.tier,
     required this.isShadow, required this.minCp, required this.maxCp,
+    required this.apiTypes, required this.shiny,
   });
+
+  // Tipos: prefere bundle local; fallback para os da API
+  List<String> types(PokedexDataService svc) {
+    final local = svc.getTypes(id);
+    return local.isNotEmpty ? local : apiTypes;
+  }
 }
 
 // ─── Divisor de seção ─────────────────────────────────────────────
@@ -258,8 +220,7 @@ class _TierHeader extends StatelessWidget {
         border: Border.all(color: c.withOpacity(0.4)),
       ),
       child: Text(label,
-        style: TextStyle(
-          fontSize: 11, fontWeight: FontWeight.w700, color: c)),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c)),
     );
   }
 }
@@ -297,13 +258,12 @@ class _RaidCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final svc    = PokedexDataService.instance;
-    final types  = svc.getTypes(boss.id);
+    final types  = boss.types(svc);
 
-    // Cor de fundo baseada no tipo primário
     final typeColor = types.isNotEmpty
         ? TypeColors.fromType(ptType(types[0]))
         : scheme.primary;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark  = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark
         ? typeColor.withOpacity(0.12)
         : typeColor.withOpacity(0.08);
@@ -320,7 +280,7 @@ class _RaidCard extends StatelessWidget {
           const SizedBox(height: 8),
           // Sprite
           Image.asset(
-            'assets/sprites/artwork/${boss.id}.webp',
+            'assets/sprites/artwork/\${boss.id}.webp',
             width: 64, height: 64, fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => SizedBox(
               width: 64, height: 64,
@@ -328,15 +288,24 @@ class _RaidCard extends StatelessWidget {
                 color: scheme.onSurfaceVariant.withOpacity(0.4), size: 36)),
           ),
           const SizedBox(height: 6),
-          // Nome
+          // Nome + shiny indicator
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Text(boss.name,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w600, height: 1.2)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(child: Text(boss.name,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600, height: 1.2))),
+                if (boss.shiny) ...[
+                  const SizedBox(width: 3),
+                  const Icon(Icons.auto_awesome, size: 10, color: Color(0xFFFFCC00)),
+                ],
+              ],
+            ),
           ),
           const SizedBox(height: 5),
           // Tipos
@@ -347,14 +316,13 @@ class _RaidCard extends StatelessWidget {
               children: types.map((t) => _TypePill(type: t)).toList(),
             ),
           const SizedBox(height: 5),
-          // CP range
+          // CP range (unboosted)
           if (boss.minCp > 0)
             Text(
-              'CP ${boss.minCp}–${boss.maxCp}',
+              'CP \${boss.minCp}–\${boss.maxCp}',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
+                fontSize: 10, fontWeight: FontWeight.w500,
                 color: scheme.onSurfaceVariant),
             ),
           const SizedBox(height: 8),
@@ -364,33 +332,33 @@ class _RaidCard extends StatelessWidget {
   }
 }
 
-// ─── Pill de tipo (compacto para o card) ──────────────────────────
+// ─── Pill de tipo ─────────────────────────────────────────────────
 
 class _TypePill extends StatelessWidget {
   final String type;
   const _TypePill({required this.type});
 
+  static const _names = {
+    'normal': 'Normal', 'fire': 'Fogo', 'water': 'Água',
+    'electric': 'Elétrico', 'grass': 'Planta', 'ice': 'Gelo',
+    'fighting': 'Lutador', 'poison': 'Veneno', 'ground': 'Terreno',
+    'flying': 'Voador', 'psychic': 'Psíquico', 'bug': 'Inseto',
+    'rock': 'Pedra', 'ghost': 'Fantasma', 'dragon': 'Dragão',
+    'dark': 'Sombrio', 'steel': 'Aço', 'fairy': 'Fada',
+  };
+
   @override
   Widget build(BuildContext context) {
     final color = TypeColors.fromType(ptType(type));
-    final nameMap = const {
-      'normal': 'Normal', 'fire': 'Fogo', 'water': 'Água',
-      'electric': 'Elétrico', 'grass': 'Planta', 'ice': 'Gelo',
-      'fighting': 'Lutador', 'poison': 'Veneno', 'ground': 'Terreno',
-      'flying': 'Voador', 'psychic': 'Psíquico', 'bug': 'Inseto',
-      'rock': 'Pedra', 'ghost': 'Fantasma', 'dragon': 'Dragão',
-      'dark': 'Sombrio', 'steel': 'Aço', 'fairy': 'Fada',
-    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(3),
       ),
-      child: Text(nameMap[type] ?? type,
+      child: Text(_names[type] ?? type,
         style: const TextStyle(
-          fontSize: 8, fontWeight: FontWeight.w600,
-          color: Colors.white)),
+          fontSize: 8, fontWeight: FontWeight.w600, color: Colors.white)),
     );
   }
 }
@@ -408,8 +376,7 @@ class _EmptyState extends StatelessWidget {
         color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4)),
       const SizedBox(height: 16),
       Text(message, textAlign: TextAlign.center,
-        style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
       const SizedBox(height: 16),
       OutlinedButton(
         onPressed: onRetry,
