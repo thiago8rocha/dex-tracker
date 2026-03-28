@@ -305,6 +305,8 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
         pageBuilder: (_, __, ___) => GoDetailScreen(
           pokemon: pokemon,
           caught: caught,
+          // Regionais já são a forma — sem aba Formas
+          hideFormsTab: boss.isRegional,
           onToggleCaught: () async {
             caught = !caught;
             await _storage.setCaught('pokémon_go', boss.id, caught);
@@ -404,7 +406,40 @@ class _RaidBoss {
     required this.types, required this.shinyAvailable,
   });
 
+  // Mapa formaKey → nome PT — evita depender do nome EN do LeekDuck
+  static const _regionalNames = {
+    '26_ALOLA': 'Raichu de Alola', '27_ALOLA': 'Sandshrew de Alola',
+    '28_ALOLA': 'Sandslash de Alola', '37_ALOLA': 'Vulpix de Alola',
+    '38_ALOLA': 'Ninetales de Alola', '50_ALOLA': 'Diglett de Alola',
+    '51_ALOLA': 'Dugtrio de Alola', '52_ALOLA': 'Meowth de Alola',
+    '53_ALOLA': 'Persian de Alola', '74_ALOLA': 'Geodude de Alola',
+    '75_ALOLA': 'Graveler de Alola', '76_ALOLA': 'Golem de Alola',
+    '88_ALOLA': 'Grimer de Alola', '89_ALOLA': 'Muk de Alola',
+    '103_ALOLA': 'Exeggutor de Alola', '105_ALOLA': 'Marowak de Alola',
+    '52_GALARIAN': 'Meowth de Galar', '77_GALARIAN': 'Ponyta de Galar',
+    '78_GALARIAN': 'Rapidash de Galar', '79_GALARIAN': 'Slowpoke de Galar',
+    '80_GALARIAN': 'Slowbro de Galar', '83_GALARIAN': "Farfetch'd de Galar",
+    '110_GALARIAN': 'Weezing de Galar', '122_GALARIAN': 'Mr. Mime de Galar',
+    '144_GALARIAN': 'Articuno de Galar', '145_GALARIAN': 'Zapdos de Galar',
+    '146_GALARIAN': 'Moltres de Galar', '199_GALARIAN': 'Slowking de Galar',
+    '222_GALARIAN': 'Corsola de Galar', '263_GALARIAN': 'Zigzagoon de Galar',
+    '264_GALARIAN': 'Linoone de Galar', '618_GALARIAN': 'Stunfisk de Galar',
+    '58_HISUI': 'Growlithe de Hisui', '59_HISUI': 'Arcanine de Hisui',
+    '100_HISUI': 'Voltorb de Hisui', '101_HISUI': 'Electrode de Hisui',
+    '157_HISUI': 'Typhlosion de Hisui', '211_HISUI': 'Qwilfish de Hisui',
+    '215_HISUI': 'Sneasel de Hisui', '503_HISUI': 'Samurott de Hisui',
+    '549_HISUI': 'Lilligant de Hisui', '570_HISUI': 'Zorua de Hisui',
+    '571_HISUI': 'Zoroark de Hisui', '628_HISUI': 'Braviary de Hisui',
+    '705_HISUI': 'Sliggoo de Hisui', '706_HISUI': 'Goodra de Hisui',
+    '724_HISUI': 'Decidueye de Hisui',
+  };
+
   String get displayName {
+    // Regional: usa nome PT do mapa, ignorando o nome EN do LeekDuck
+    if (isRegional && formaKey != null) {
+      final ptName = _regionalNames[formaKey!];
+      if (ptName != null) return isShadow ? 'Shadow $ptName' : ptName;
+    }
     var n = name;
     if (isMega)   n = 'Mega $n';
     if (isShadow) n = 'Shadow $n';

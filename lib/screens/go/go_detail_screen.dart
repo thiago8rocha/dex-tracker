@@ -188,12 +188,18 @@ class GoDetailScreen extends StatefulWidget {
   final String? prevName; final int? prevId;
   final String? nextName; final int? nextId;
   final VoidCallback? onPrev; final VoidCallback? onNext;
+  /// Oculta a aba Formas — usar para formas regionais que já são a forma
+  final bool hideFormsTab;
+  /// Índice da aba inicial (0=Sobre, 1=Status, 2=Golpes, 3=Formas)
+  final int initialTab;
 
   const GoDetailScreen({
     super.key,
     required this.pokemon, required this.caught, required this.onToggleCaught,
     this.prevName, this.prevId, this.nextName, this.nextId,
     this.onPrev, this.onNext,
+    this.hideFormsTab = false,
+    this.initialTab = 0,
   });
 
   @override
@@ -206,29 +212,24 @@ class _GoDetailScreenState extends State<GoDetailScreen>
   late TabController _tabController;
   List<Map<String, dynamic>> _forms = [];
   bool _loadingForms = true;
-  static const _tabs = ['Sobre', 'Status', 'Golpes', 'Formas'];
 
-  // Controllers explícitos para abas que NÃO devem participar do
-  // PrimaryScrollController do NestedScrollView.
-  // Solução documentada para NestedScrollView+TabBarView scroll sync bug.
-  final _statusCtrl = ScrollController();
-  final _movesCtrl  = ScrollController();
-  final _formsCtrl  = ScrollController();
+  List<String> get _tabs => widget.hideFormsTab
+      ? ['Sobre', 'Status', 'Golpes']
+      : ['Sobre', 'Status', 'Golpes', 'Formas'];
 
   @override
   void initState() {
     super.initState();
     _caught = widget.caught;
-    _tabController = TabController(length: 4, vsync: this);
-    _loadForms();
+    final tabCount = widget.hideFormsTab ? 3 : 4;
+    final initial  = widget.initialTab.clamp(0, tabCount - 1);
+    _tabController = TabController(length: tabCount, vsync: this, initialIndex: initial);
+    if (!widget.hideFormsTab) _loadForms();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _statusCtrl.dispose();
-    _movesCtrl.dispose();
-    _formsCtrl.dispose();
     super.dispose();
   }
 
@@ -305,7 +306,8 @@ class _GoDetailScreenState extends State<GoDetailScreen>
             _GoSobreTab(pokemon: widget.pokemon),
             _GoStatusTab(pokemon: widget.pokemon),
             _GoMovesTab(pokemon: widget.pokemon),
-            FormsTab(forms: _forms, loading: _loadingForms),
+            if (!widget.hideFormsTab)
+              FormsTab(forms: _forms, loading: _loadingForms),
           ],
         )),
         // SafeArea só no fundo

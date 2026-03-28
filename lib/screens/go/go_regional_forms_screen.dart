@@ -73,6 +73,7 @@ class _GoRegionalFormsScreenState extends State<GoRegionalFormsScreen> {
     Navigator.push(ctx, PageRouteBuilder(
       pageBuilder: (_, __, ___) => GoDetailScreen(
         pokemon: pokemon, caught: caught,
+        hideFormsTab: true, // regional já é a forma — aba Formas não faz sentido
         onToggleCaught: () async {
           caught = !caught;
           await _storage.setCaught('pokémon_go', form.id, caught);
