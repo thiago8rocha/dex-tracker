@@ -2,9 +2,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
-    show PokeballLoader, TypeBadge, ptType;
+    show PokeballLoader, ptType;
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
 import 'package:pokedex_tracker/theme/type_colors.dart';
+
+// PENDÊNCIA — Créditos/Fontes (registrado em 6.4 do doc de projeto):
+// - Raids Ativas: dados via scraping de leekduck.com
+//   LeekDuck é a fonte mais completa e atualizada para raids do Pokémon GO,
+//   cobrindo shadow raids, nome do evento e datas de início/fim.
+//   Quando a tela de Créditos for implementada, incluir LeekDuck como fonte.
 
 class GoRaidsScreen extends StatefulWidget {
   const GoRaidsScreen({super.key});
@@ -12,8 +18,9 @@ class GoRaidsScreen extends StatefulWidget {
 }
 
 class _GoRaidsScreenState extends State<GoRaidsScreen> {
-  List<_RaidBoss> _raids   = [];
-  bool            _loading = true;
+  List<_RaidBoss> _raids      = [];
+  _EventInfo?     _event;
+  bool            _loading    = true;
   String?         _error;
 
   @override
@@ -22,58 +29,27 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
   Future<void> _loadRaids() async {
     setState(() { _loading = true; _error = null; });
     try {
-      // pogoapi.net — JSON oficial, sem scraping
-      // Estrutura: { "current": { "1": [...], "3": [...], "5": [...], "6": [...] } }
       final res = await http.get(
-        Uri.parse('https://pogoapi.net/api/v1/raid_bosses.json'),
+        Uri.parse('https://leekduck.com/raid-bosses/'),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Android 14; Mobile) AppleWebKit/537.36',
+          'Accept': 'text/html',
+        },
       ).timeout(const Duration(seconds: 12));
 
-      if (res.statusCode != 200) throw Exception('HTTP \${res.statusCode}');
+      if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
 
-      final body    = json.decode(res.body) as Map<String, dynamic>;
-      final current = body['current'] as Map<String, dynamic>? ?? {};
-      final raids   = <_RaidBoss>[];
-
-      // Tiers normais: 1, 3, 5, 6 (Mega)
-      // Shadow raids: shadow_lvl1, shadow_lvl3, shadow_lvl5
-      const tierKeys = {
-        '1': (1, false), '3': (3, false), '5': (5, false), '6': (6, false),
-        'shadow_lvl1': (1, true), 'shadow_lvl3': (3, true), 'shadow_lvl5': (5, true),
-      };
-
-      for (final entry in tierKeys.entries) {
-        final key        = entry.key;
-        final (tier, shadow) = entry.value;
-        final list       = current[key] as List<dynamic>? ?? [];
-        for (final b in list) {
-          final m      = b as Map<String, dynamic>;
-          final id     = (m['id'] as num?)?.toInt() ?? 0;
-          var   name   = m['name'] as String? ?? '';
-          if (id == 0 || name.isEmpty) continue;
-
-          // Remover "Shadow " do nome — a seção já indica
-          name = name.replaceFirst(RegExp(r'^Shadow\s+', caseSensitive: false), '');
-
-          // Tipos da API (ex: ["Grass", "Fairy"])
-          final rawTypes = (m['type'] as List<dynamic>? ?? [])
-              .map((t) => (t as String).toLowerCase())
-              .toList();
-
-          final minCp = (m['min_unboosted_cp'] as num?)?.toInt() ?? 0;
-          final maxCp = (m['max_unboosted_cp'] as num?)?.toInt() ?? 0;
-          final shiny = m['possible_shiny'] as bool? ?? false;
-
-          raids.add(_RaidBoss(
-            id: id, name: name, tier: tier,
-            isShadow: shadow, minCp: minCp, maxCp: maxCp,
-            apiTypes: rawTypes, shiny: shiny,
-          ));
-        }
-      }
+      final html  = res.body;
+      final raids = _parseRaids(html);
+      final event = _parseEvent(html);
 
       if (raids.isEmpty) throw Exception('Sem dados');
-      if (mounted) setState(() { _raids = raids; _loading = false; });
-    } catch (e) {
+      if (mounted) setState(() {
+        _raids   = raids;
+        _event   = event;
+        _loading = false;
+      });
+    } catch (_) {
       if (mounted) setState(() {
         _error   = 'Não foi possível carregar as raids';
         _loading = false;
@@ -81,6 +57,106 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
     }
   }
 
+  // ── Parser de raids ───────────────────────────────────────────────
+  List<_RaidBoss> _parseRaids(String html) {
+    final raids   = <_RaidBoss>[];
+    final tierMap = {
+      '1-Star Raids': 1, '3-Star Raids': 3,
+      '5-Star Raids': 5, 'Mega Raids':   6,
+    };
+
+    final h2 = RegExp(
+      r'<h2[^>]*>([\s\S]*?)<\/h2>([\s\S]*?)(?=<h2|$)',
+      caseSensitive: false,
+    );
+
+    bool inShadow = false;
+
+    for (final m in h2.allMatches(html)) {
+      final header  = _strip(m.group(1) ?? '').trim();
+      final content = m.group(2) ?? '';
+
+      if (header.toLowerCase().contains('shadow raid')) {
+        inShadow = true;
+        continue;
+      }
+
+      int? tier;
+      for (final e in tierMap.entries) {
+        if (header.contains(e.key)) { tier = e.value; break; }
+      }
+      if (tier == null) continue;
+
+      final bossRx = RegExp(
+        r'<img[^>]+src="([^"]*(?:pm\d|poke_capture)[^"]*)"[^>]*>\s*'
+        r'([\s\S]*?)(?=<img[^>]+src="[^"]*(?:pm\d|poke_capture)[^"]*"|$)',
+        caseSensitive: false,
+      );
+
+      for (final bm in bossRx.allMatches(content)) {
+        final img     = bm.group(1) ?? '';
+        final chunk   = bm.group(2) ?? '';
+
+        final pmId    = RegExp(r'pm(\d+)\.').firstMatch(img);
+        final pokeId  = RegExp(r'poke_capture_(\d+)').firstMatch(img);
+        final id      = int.tryParse(
+            pmId?.group(1) ?? pokeId?.group(1) ?? '0') ?? 0;
+        if (id == 0) continue;
+
+        final nameM = RegExp(r'>([A-Za-zÀ-ú][^<\n]+?)<')
+            .allMatches(chunk)
+            .firstWhere(
+              (x) => x.group(1)!.trim().isNotEmpty
+                  && !x.group(1)!.contains('CP')
+                  && !RegExp(r'^\d').hasMatch(x.group(1)!.trim()),
+              orElse: () => RegExp(r'x').firstMatch('') as RegExpMatch,
+            );
+        var name = (nameM.group(1)?.trim() ?? '')
+            .replaceFirst(RegExp(r'^Shadow\s+', caseSensitive: false), '');
+        if (name.isEmpty) continue;
+
+        final cpM  = RegExp(r'CP\s*([\d,]+)\s*-\s*([\d,]+)').firstMatch(chunk);
+        final minCp = int.tryParse((cpM?.group(1) ?? '').replaceAll(',', '')) ?? 0;
+        final maxCp = int.tryParse((cpM?.group(2) ?? '').replaceAll(',', '')) ?? 0;
+
+        raids.add(_RaidBoss(
+          id: id, name: name, tier: tier,
+          isShadow: inShadow, minCp: minCp, maxCp: maxCp,
+        ));
+      }
+    }
+    return raids;
+  }
+
+  // ── Parser de evento atual ────────────────────────────────────────
+  _EventInfo? _parseEvent(String html) {
+    // LeekDuck exibe o evento no topo: nome + datas de início/fim
+    final nameM = RegExp(
+      r'<h[12][^>]*class="[^"]*event[^"]*"[^>]*>([\s\S]*?)<\/h[12]>',
+      caseSensitive: false,
+    ).firstMatch(html);
+
+    final startM = RegExp(
+      r'(?:start|starts?)[^:]*:\s*([A-Za-z]+ \d{1,2},?\s*\d{4}[^<\n]*)',
+      caseSensitive: false,
+    ).firstMatch(html);
+
+    final endM = RegExp(
+      r'(?:end|ends?)[^:]*:\s*([A-Za-z]+ \d{1,2},?\s*\d{4}[^<\n]*)',
+      caseSensitive: false,
+    ).firstMatch(html);
+
+    final name  = nameM != null ? _strip(nameM.group(1) ?? '') : null;
+    final start = startM?.group(1)?.trim();
+    final end   = endM?.group(1)?.trim();
+
+    if (name == null || name.isEmpty) return null;
+    return _EventInfo(name: name, start: start, end: end);
+  }
+
+  String _strip(String s) => s.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+
+  // ── Build ─────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,8 +166,8 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
         surfaceTintColor: Colors.transparent,
         actions: [
           IconButton(
-              icon: const Icon(Icons.refresh_outlined),
-              onPressed: _loadRaids),
+            icon: const Icon(Icons.refresh_outlined),
+            onPressed: _loadRaids),
         ],
       ),
       body: _loading
@@ -102,7 +178,13 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
                   onRetry: _loadRaids)
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                  children: _buildSections(),
+                  children: [
+                    if (_event != null) ...[
+                      _EventBanner(event: _event!),
+                      const SizedBox(height: 16),
+                    ],
+                    ..._buildSections(),
+                  ],
                 ),
     );
   }
@@ -110,13 +192,13 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
   List<Widget> _buildSections() {
     final widgets = <Widget>[];
 
-    // Raids normais: 1★ → 3★ → 5★ → Mega
     bool normalAdded = false;
     for (final tier in [1, 3, 5, 6]) {
       final list = _raids.where((r) => r.tier == tier && !r.isShadow).toList();
       if (list.isEmpty) continue;
       if (!normalAdded) {
-        widgets.add(_SectionDivider(label: 'RAIDS', color: const Color(0xFF1565C0)));
+        widgets.add(_SectionDivider(
+            label: 'RAIDS', color: const Color(0xFF1565C0)));
         widgets.add(const SizedBox(height: 12));
         normalAdded = true;
       }
@@ -126,9 +208,8 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
       widgets.add(const SizedBox(height: 20));
     }
 
-    // Shadow raids: 1★ → 3★ → 5★
     bool shadowAdded = false;
-    for (final tier in [1, 3, 5]) {
+    for (final tier in [1, 3, 5, 6]) {
       final list = _raids.where((r) => r.tier == tier && r.isShadow).toList();
       if (list.isEmpty) continue;
       if (!shadowAdded) {
@@ -147,28 +228,63 @@ class _GoRaidsScreenState extends State<GoRaidsScreen> {
   }
 }
 
-// ─── Modelo ───────────────────────────────────────────────────────
+// ─── Modelos ──────────────────────────────────────────────────────
 
 class _RaidBoss {
-  final int          id;
-  final String       name;
-  final int          tier;
-  final bool         isShadow;
-  final int          minCp;
-  final int          maxCp;
-  final List<String> apiTypes; // tipos vindos da API (lowercase inglês)
-  final bool         shiny;
-
+  final int    id;
+  final String name;
+  final int    tier;
+  final bool   isShadow;
+  final int    minCp;
+  final int    maxCp;
   const _RaidBoss({
     required this.id, required this.name, required this.tier,
     required this.isShadow, required this.minCp, required this.maxCp,
-    required this.apiTypes, required this.shiny,
   });
+}
 
-  // Tipos: prefere bundle local; fallback para os da API
-  List<String> types(PokedexDataService svc) {
-    final local = svc.getTypes(id);
-    return local.isNotEmpty ? local : apiTypes;
+class _EventInfo {
+  final String  name;
+  final String? start;
+  final String? end;
+  const _EventInfo({required this.name, this.start, this.end});
+}
+
+// ─── Banner do evento ─────────────────────────────────────────────
+
+class _EventBanner extends StatelessWidget {
+  final _EventInfo event;
+  const _EventBanner({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant, width: 0.5),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(event.name,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        if (event.start != null || event.end != null) ...[
+          const SizedBox(height: 4),
+          Row(children: [
+            if (event.start != null)
+              Text('Início: ${event.start}',
+                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+            if (event.start != null && event.end != null)
+              Text('  ·  ',
+                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+            if (event.end != null)
+              Text('Fim: ${event.end}',
+                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+          ]),
+        ],
+      ]),
+    );
   }
 }
 
@@ -185,10 +301,9 @@ class _SectionDivider extends StatelessWidget {
       Expanded(child: Divider(color: color.withOpacity(0.3), thickness: 1)),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Text(label,
-          style: TextStyle(
-            fontSize: 11, fontWeight: FontWeight.w800,
-            letterSpacing: 1.2, color: color)),
+        child: Text(label, style: TextStyle(
+          fontSize: 11, fontWeight: FontWeight.w800,
+          letterSpacing: 1.2, color: color)),
       ),
       Expanded(child: Divider(color: color.withOpacity(0.3), thickness: 1)),
     ]);
@@ -219,8 +334,8 @@ class _TierHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: c.withOpacity(0.4)),
       ),
-      child: Text(label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c)),
+      child: Text(label, style: TextStyle(
+        fontSize: 11, fontWeight: FontWeight.w700, color: c)),
     );
   }
 }
@@ -237,13 +352,13 @@ class _RaidGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+        crossAxisCount:   3,
         crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        mainAxisSpacing:  8,
         childAspectRatio: 0.72,
       ),
       itemCount: bosses.length,
-      itemBuilder: (context, i) => _RaidCard(boss: bosses[i]),
+      itemBuilder: (_, i) => _RaidCard(boss: bosses[i]),
     );
   }
 }
@@ -256,59 +371,44 @@ class _RaidCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final svc    = PokedexDataService.instance;
-    final types  = boss.types(svc);
-
+    final scheme    = Theme.of(context).colorScheme;
+    final svc       = PokedexDataService.instance;
+    final types     = svc.getTypes(boss.id);
     final typeColor = types.isNotEmpty
         ? TypeColors.fromType(ptType(types[0]))
         : scheme.primary;
-    final isDark  = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
-        ? typeColor.withOpacity(0.12)
-        : typeColor.withOpacity(0.08);
+    final isDark    = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
-        color: bgColor,
+        color: isDark
+            ? typeColor.withOpacity(0.12)
+            : typeColor.withOpacity(0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: typeColor.withOpacity(0.25), width: 1),
+        border: Border.all(color: typeColor.withOpacity(0.25)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 8),
-          // Sprite
           Image.asset(
-            'assets/sprites/artwork/\${boss.id}.webp',
+            'assets/sprites/artwork/${boss.id}.webp',
             width: 64, height: 64, fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => SizedBox(
-              width: 64, height: 64,
+            errorBuilder: (_, __, ___) => SizedBox(width: 64, height: 64,
               child: Icon(Icons.catching_pokemon,
                 color: scheme.onSurfaceVariant.withOpacity(0.4), size: 36)),
           ),
           const SizedBox(height: 6),
-          // Nome + shiny indicator
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(child: Text(boss.name,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w600, height: 1.2))),
-                if (boss.shiny) ...[
-                  const SizedBox(width: 3),
-                  const Icon(Icons.auto_awesome, size: 10, color: Color(0xFFFFCC00)),
-                ],
-              ],
-            ),
+            child: Text(boss.name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600, height: 1.2)),
           ),
           const SizedBox(height: 5),
-          // Tipos
           if (types.isNotEmpty)
             Wrap(
               spacing: 3, runSpacing: 3,
@@ -316,15 +416,12 @@ class _RaidCard extends StatelessWidget {
               children: types.map((t) => _TypePill(type: t)).toList(),
             ),
           const SizedBox(height: 5),
-          // CP range (unboosted)
           if (boss.minCp > 0)
-            Text(
-              'CP \${boss.minCp}–\${boss.maxCp}',
+            Text('CP ${boss.minCp}–${boss.maxCp}',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10, fontWeight: FontWeight.w500,
-                color: scheme.onSurfaceVariant),
-            ),
+              style: TextStyle(fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: scheme.onSurfaceVariant)),
           const SizedBox(height: 8),
         ],
       ),
@@ -332,7 +429,7 @@ class _RaidCard extends StatelessWidget {
   }
 }
 
-// ─── Pill de tipo ─────────────────────────────────────────────────
+// ─── Pill de tipo compacto ────────────────────────────────────────
 
 class _TypePill extends StatelessWidget {
   final String type;
