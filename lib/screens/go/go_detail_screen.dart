@@ -526,7 +526,7 @@ class _GoMovesTabState extends State<_GoMovesTab> {
     }
     try {
       final r = await http.get(
-        Uri.parse('https://pogoapi.net/api/v1/pokemon_moves.json'),
+        Uri.parse('https://pogoapi.net/api/v1/current_pokemon_moves.json'),
       ).timeout(const Duration(seconds: 8));
       if (r.statusCode == 200 && mounted) {
         // A API retorna uma lista de objetos, não um mapa por ID
@@ -861,47 +861,53 @@ class _GoStatusTabState extends State<_GoStatusTab> {
     final qurt = eff.entries.where((e) => e.value == .391).toList()..sort((a,b) => a.key.compareTo(b.key));
 
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
+    // Usar CustomScrollView com SliverFillRemaining(hasScrollBody: false)
+    // → o conteúdo ocupa exatamente o espaço que precisa, sem scroll vazio
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
 
-          SectionCard(
-            title: 'STATUS',
-            pokemonTypes: types,
-            child: _goAtk == 0
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(child: PokeballLoader.small()))
-                : Row(children: [
-                    _statBox(context, 'PS',     '$_goSta', typeColor),
-                    Container(width: 0.5, height: 56, color: neutralBorder(context)),
-                    _statBox(context, 'Ataque', '$_goAtk', typeColor),
-                    Container(width: 0.5, height: 56, color: neutralBorder(context)),
-                    _statBox(context, 'Defesa', '$_goDef', typeColor),
-                  ]),
+              SectionCard(
+                title: 'STATUS',
+                pokemonTypes: types,
+                child: _goAtk == 0
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: PokeballLoader.small()))
+                    : Row(children: [
+                        _statBox(context, 'PS',     '$_goSta', typeColor),
+                        Container(width: 0.5, height: 56, color: neutralBorder(context)),
+                        _statBox(context, 'Ataque', '$_goAtk', typeColor),
+                        Container(width: 0.5, height: 56, color: neutralBorder(context)),
+                        _statBox(context, 'Defesa', '$_goDef', typeColor),
+                      ]),
+              ),
+
+              const SizedBox(height: 20),
+
+              SectionCard(
+                title: 'EFETIVIDADE DE TIPOS',
+                pokemonTypes: types,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (quad.isNotEmpty) _DmgGroup('Muito fraco a',       quad),
+                    if (frac.isNotEmpty) _DmgGroup('Fraco a',             frac),
+                    if (half.isNotEmpty) _DmgGroup('Resistente a',        half),
+                    if (qurt.isNotEmpty) _DmgGroup('Muito resistente a',  qurt),
+                  ],
+                ),
+              ),
+
+            ]),
           ),
-
-          const SizedBox(height: 20),
-
-          SectionCard(
-            title: 'EFETIVIDADE DE TIPOS',
-            pokemonTypes: types,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (quad.isNotEmpty) _DmgGroup('Muito fraco a',       quad),
-                if (frac.isNotEmpty) _DmgGroup('Fraco a',             frac),
-                if (half.isNotEmpty) _DmgGroup('Resistente a',        half),
-                if (qurt.isNotEmpty) _DmgGroup('Muito resistente a',  qurt),
-              ],
-            ),
-          ),
-
-        ],
-      ),
+        ),
+        // Preenche o espaço restante sem criar scroll vazio
+        const SliverFillRemaining(hasScrollBody: false, child: SizedBox()),
+      ],
     );
   }
 
