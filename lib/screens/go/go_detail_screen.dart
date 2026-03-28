@@ -275,15 +275,9 @@ class _GoDetailScreenState extends State<GoDetailScreen>
               _GoSobreTab(pokemon: widget.pokemon),
               // PrimaryScrollController.none() isola a aba Status
               // do NestedScrollView — ela não participa do scroll do pai
-              PrimaryScrollController.none(
-                child: _GoStatusTab(pokemon: widget.pokemon),
-              ),
-              PrimaryScrollController.none(
-                child: _GoMovesTab(pokemon: widget.pokemon),
-              ),
-              PrimaryScrollController.none(
-                child: FormsTab(forms: _forms, loading: _loadingForms),
-              ),
+              _GoStatusTab(pokemon: widget.pokemon),
+              _GoMovesTab(pokemon: widget.pokemon),
+              FormsTab(forms: _forms, loading: _loadingForms),
             ],
           )),
         ]),
@@ -971,7 +965,8 @@ class _GoStatusTabState extends State<_GoStatusTab> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
 
