@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 class PokedexDataService {
   static const String _assetPath  = 'assets/data/pokedex_data.json';
   static const String _namesPath  = 'assets/data/pokemon_names.json';
+  static const String _formsPath  = 'assets/data/forms_map.json';
 
   static PokedexDataService? _instance;
   static PokedexDataService get instance =>
@@ -14,6 +15,8 @@ class PokedexDataService {
 
   Map<int, Map<String, dynamic>> _data  = {};
   Map<int, String>               _names = {};
+  // forms_map keyed por speciesId — lista de formas alternativas
+  Map<int, List<dynamic>>        _forms = {};
   bool _loaded = false;
 
   /// Carrega o JSON do bundle em memória. Chamar uma vez no main().
@@ -28,6 +31,11 @@ class PokedexDataService {
       final rawNames = await rootBundle.loadString(_namesPath);
       final decodedNames = json.decode(rawNames) as Map<String, dynamic>;
       _names = decodedNames.map((k, v) => MapEntry(int.parse(k), v as String));
+
+      final rawForms = await rootBundle.loadString(_formsPath);
+      final decodedForms = json.decode(rawForms) as Map<String, dynamic>;
+      _forms = decodedForms.map((k, v) =>
+          MapEntry(int.parse(k), v as List<dynamic>));
 
       _loaded = true;
     } catch (_) {}
@@ -55,22 +63,6 @@ class PokedexDataService {
   String getFlavorText(int id) =>
       get(id)?['flavorText'] as String? ?? '';
 
-  /// Retorna a lista de grupos de flavor text (novo bundle).
-  /// Cada grupo: {textPt, textEn, games: [...]}
-  /// Fallback: converte o flavorText antigo (string) para lista com 1 grupo.
-  List<Map<String, dynamic>> getFlavorTexts(int id) {
-    final raw = get(id)?['flavorTexts'];
-    if (raw is List && raw.isNotEmpty) {
-      return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-    }
-    // Fallback para bundle antigo com flavorText como string
-    final legacy = get(id)?['flavorText'] as String? ?? '';
-    if (legacy.isNotEmpty) {
-      return [{'textPt': legacy, 'textEn': '', 'games': <String>[]}];
-    }
-    return [];
-  }
-
   String getGeneration(int id) =>
       get(id)?['generation'] as String? ?? '';
 
@@ -95,4 +87,14 @@ class PokedexDataService {
 
   /// Nome em inglês no formato "Bulbasaur" (ex: para exibição na grid)
   String getName(int id) => _names[id] ?? '#$id';
+
+  /// Retorna true se o pokémon tem formas alternativas no forms_map.json.
+  /// Síncrono — pode ser chamado no initState sem async.
+  bool hasForms(int id) {
+    final list = _forms[id];
+    return list != null && list.isNotEmpty;
+  }
+
+  /// Lista de formas alternativas para um pokémon.
+  List<dynamic> getForms(int id) => _forms[id] ?? [];
 }

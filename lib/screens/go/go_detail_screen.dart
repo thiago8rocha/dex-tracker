@@ -213,18 +213,25 @@ class _GoDetailScreenState extends State<GoDetailScreen>
   List<Map<String, dynamic>> _forms = [];
   bool _loadingForms = true;
 
-  List<String> get _tabs => widget.hideFormsTab
-      ? ['Sobre', 'Status', 'Golpes']
-      : ['Sobre', 'Status', 'Golpes', 'Formas'];
+  // A aba Formas aparece apenas quando não está explicitamente ocultada
+  // e o pokemon tem formas registradas no forms_map.json (verificação síncrona)
+  late final bool _showFormsTab;
+
+  List<String> get _tabs => _showFormsTab
+      ? ['Sobre', 'Status', 'Golpes', 'Formas']
+      : ['Sobre', 'Status', 'Golpes'];
 
   @override
   void initState() {
     super.initState();
     _caught = widget.caught;
-    final tabCount = widget.hideFormsTab ? 3 : 4;
-    final initial  = widget.initialTab.clamp(0, tabCount - 1);
-    _tabController = TabController(length: tabCount, vsync: this, initialIndex: initial);
-    if (!widget.hideFormsTab) _loadForms();
+    // Verificação síncrona — PokedexDataService já carregou o forms_map no load()
+    _showFormsTab = !widget.hideFormsTab &&
+        PokedexDataService.instance.hasForms(widget.pokemon.id);
+    final tabCount = _showFormsTab ? 4 : 3;
+    _tabController = TabController(length: tabCount, vsync: this,
+        initialIndex: widget.initialTab.clamp(0, tabCount - 1));
+    if (_showFormsTab) _loadForms();
   }
 
   @override
@@ -235,11 +242,8 @@ class _GoDetailScreenState extends State<GoDetailScreen>
 
   Future<void> _loadForms() async {
     try {
-      final raw = await rootBundle.loadString('assets/data/forms_map.json');
-      final map = json.decode(raw) as Map<String, dynamic>;
-      final id  = widget.pokemon.id.toString();
-      final svc = PokedexDataService.instance;
-      final list = (map[id] as List<dynamic>? ?? []).map((v) {
+      final svc  = PokedexDataService.instance;
+      final list = svc.getForms(widget.pokemon.id).map((v) {
         final m   = v as Map<String, dynamic>;
         final pid = m['id'] as int;
         return <String, dynamic>{
@@ -306,7 +310,7 @@ class _GoDetailScreenState extends State<GoDetailScreen>
             _GoSobreTab(pokemon: widget.pokemon),
             _GoStatusTab(pokemon: widget.pokemon),
             _GoMovesTab(pokemon: widget.pokemon),
-            if (!widget.hideFormsTab)
+            if (_showFormsTab)
               FormsTab(forms: _forms, loading: _loadingForms),
           ],
         )),
