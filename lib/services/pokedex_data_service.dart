@@ -63,6 +63,13 @@ class PokedexDataService {
   String getFlavorText(int id) =>
       get(id)?['flavorText'] as String? ?? '';
 
+  /// Lista de flavor texts por jogo — usado pelas telas de detalhe.
+  /// Cada item tem: textPt, textEn, games (List<String>).
+  List<Map<String, dynamic>> getFlavorTexts(int id) {
+    final raw = get(id)?['flavorTexts'] as List<dynamic>?;
+    return raw?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
+  }
+
   String getGeneration(int id) =>
       get(id)?['generation'] as String? ?? '';
 
