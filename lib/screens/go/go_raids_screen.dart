@@ -544,7 +544,7 @@ class _RaidGrid extends StatelessWidget {
         crossAxisCount:   3,
         crossAxisSpacing: 8,
         mainAxisSpacing:  8,
-        childAspectRatio: 0.82,
+        mainAxisExtent:   158, // altura fixa — suporta 2 linhas de nome + 2 tipos
       ),
       itemCount: bosses.length,
       itemBuilder: (ctx, i) => _RaidCard(boss: bosses[i], onTap: onTap),
