@@ -173,10 +173,10 @@ class _StandardHabitatTileState extends State<_StandardHabitatTile> {
                 h.imageAsset,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
-                  color: color.withOpacity(0.08),
-                  child: Center(
+                  color: scheme.surfaceContainerHighest,
+                  child: const Center(
                     child: Icon(Icons.landscape_outlined,
-                        size: 28, color: color.withOpacity(0.3)),
+                        size: 28, color: Color(0x4D607D8B)),
                   ),
                 ),
               ),

@@ -158,7 +158,7 @@ class _PokopiaHabitatDetailScreenState
               title: null,
               background: _HabitatImage(
                 habitat: habitat,
-                biomeColor: color,
+                biomeColor: const Color(0xFF607D8B),
                 name: habitat.name,
               ),
             ),
