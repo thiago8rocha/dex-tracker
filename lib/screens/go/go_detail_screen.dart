@@ -529,20 +529,20 @@ class _GoMovesTabState extends State<_GoMovesTab> {
         Uri.parse('https://pogoapi.net/api/v1/current_pokemon_moves.json'),
       ).timeout(const Duration(seconds: 8));
       if (r.statusCode == 200 && mounted) {
-        // A API retorna uma lista de objetos, não um mapa por ID
+        // Estrutura confirmada: array de objetos com pokemon_id (int),
+        // fast_moves (List<String>) e charged_moves (List<String>)
         final body = json.decode(r.body) as List<dynamic>;
-        final data = body.cast<Map<String, dynamic>>().firstWhere(
-          (e) => (e['id'] as num?)?.toInt() == id,
-          orElse: () => <String, dynamic>{},
-        );
-        if (data.isNotEmpty) {
-          final fast    = (data['fast_moves']    as List? ?? []).cast<String>();
-          final charged = (data['charged_moves'] as List? ?? []).cast<String>();
-          _cache[id] = {'fast': fast, 'charged': charged};
-          if (mounted) setState(() {
-            _fast = fast; _charged = charged; _loading = false;
-          });
-          return;
+        for (final entry in body) {
+          final e = entry as Map<String, dynamic>;
+          if ((e['pokemon_id'] as num?)?.toInt() == id) {
+            final fast    = List<String>.from(e['fast_moves']    as List? ?? []);
+            final charged = List<String>.from(e['charged_moves'] as List? ?? []);
+            _cache[id] = {'fast': fast, 'charged': charged};
+            if (mounted) setState(() {
+              _fast = fast; _charged = charged; _loading = false;
+            });
+            return;
+          }
         }
       }
     } catch (_) {}
@@ -861,53 +861,49 @@ class _GoStatusTabState extends State<_GoStatusTab> {
     final qurt = eff.entries.where((e) => e.value == .391).toList()..sort((a,b) => a.key.compareTo(b.key));
 
 
-    // Usar CustomScrollView com SliverFillRemaining(hasScrollBody: false)
-    // → o conteúdo ocupa exatamente o espaço que precisa, sem scroll vazio
-    return CustomScrollView(
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
+    // Sem SingleChildScrollView — o conteúdo do Status sempre cabe na tela.
+    // Padding + Column alinhado ao topo: sem scroll, sem espaço vazio.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
 
-              SectionCard(
-                title: 'STATUS',
-                pokemonTypes: types,
-                child: _goAtk == 0
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Center(child: PokeballLoader.small()))
-                    : Row(children: [
-                        _statBox(context, 'PS',     '$_goSta', typeColor),
-                        Container(width: 0.5, height: 56, color: neutralBorder(context)),
-                        _statBox(context, 'Ataque', '$_goAtk', typeColor),
-                        Container(width: 0.5, height: 56, color: neutralBorder(context)),
-                        _statBox(context, 'Defesa', '$_goDef', typeColor),
-                      ]),
-              ),
-
-              const SizedBox(height: 20),
-
-              SectionCard(
-                title: 'EFETIVIDADE DE TIPOS',
-                pokemonTypes: types,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (quad.isNotEmpty) _DmgGroup('Muito fraco a',       quad),
-                    if (frac.isNotEmpty) _DmgGroup('Fraco a',             frac),
-                    if (half.isNotEmpty) _DmgGroup('Resistente a',        half),
-                    if (qurt.isNotEmpty) _DmgGroup('Muito resistente a',  qurt),
-                  ],
-                ),
-              ),
-
-            ]),
+          SectionCard(
+            title: 'STATUS',
+            pokemonTypes: types,
+            child: _goAtk == 0
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: PokeballLoader.small()))
+                : Row(children: [
+                    _statBox(context, 'PS',     '$_goSta', typeColor),
+                    Container(width: 0.5, height: 56, color: neutralBorder(context)),
+                    _statBox(context, 'Ataque', '$_goAtk', typeColor),
+                    Container(width: 0.5, height: 56, color: neutralBorder(context)),
+                    _statBox(context, 'Defesa', '$_goDef', typeColor),
+                  ]),
           ),
-        ),
-        // Preenche o espaço restante sem criar scroll vazio
-        const SliverFillRemaining(hasScrollBody: false, child: SizedBox()),
-      ],
+
+          const SizedBox(height: 20),
+
+          SectionCard(
+            title: 'EFETIVIDADE DE TIPOS',
+            pokemonTypes: types,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (quad.isNotEmpty) _DmgGroup('Muito fraco a',       quad),
+                if (frac.isNotEmpty) _DmgGroup('Fraco a',             frac),
+                if (half.isNotEmpty) _DmgGroup('Resistente a',        half),
+                if (qurt.isNotEmpty) _DmgGroup('Muito resistente a',  qurt),
+              ],
+            ),
+          ),
+
+        ],
+      ),
     );
   }
 
