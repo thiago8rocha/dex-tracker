@@ -171,20 +171,16 @@ class _GmaxTileState extends State<_GmaxTile> {
           border: Border.all(color: color.withOpacity(0.3), width: 0.5),
         ),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          _loading
-              ? SizedBox(width: 64, height: 64,
-                  child: Center(child: SizedBox(width: 22, height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: color))))
-              : Image.asset(
-                  _gmaxSprite(widget.entry.spriteKey, widget.entry.id, 'artwork'),
-                  width: 64, height: 64, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Image.asset(
-                    'assets/sprites/artwork/${widget.entry.id}.webp',
-                    width: 64, height: 64, fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Icon(Icons.catching_pokemon,
-                        size: 40, color: widget.scheme.onSurfaceVariant),
-                  ),
-                ),
+          Image.asset(
+            _gmaxSprite(widget.entry.spriteKey, widget.entry.id, 'artwork'),
+            width: 64, height: 64, fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Image.asset(
+              'assets/sprites/artwork/${widget.entry.id}.webp',
+              width: 64, height: 64, fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Icon(Icons.catching_pokemon,
+                  size: 40, color: widget.scheme.onSurfaceVariant),
+            ),
+          ),
           const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),

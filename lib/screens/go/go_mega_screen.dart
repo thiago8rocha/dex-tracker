@@ -211,20 +211,16 @@ class _MegaTileState extends State<_MegaTile> {
           border: Border.all(color: color.withOpacity(0.3), width: 0.5),
         ),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          _loading
-              ? SizedBox(width: 64, height: 64,
-                  child: Center(child: SizedBox(width: 22, height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: color))))
-              : Image.asset(
-                  _megaSprite(widget.mega.spriteKey, widget.mega.id, 'artwork'),
-                  width: 64, height: 64, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Image.asset(
-                    'assets/sprites/artwork/${widget.mega.id}.webp',
-                    width: 64, height: 64, fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Icon(Icons.catching_pokemon,
-                        size: 40, color: widget.scheme.onSurfaceVariant),
-                  ),
-                ),
+          Image.asset(
+            _megaSprite(widget.mega.spriteKey, widget.mega.id, 'artwork'),
+            width: 64, height: 64, fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Image.asset(
+              'assets/sprites/artwork/${widget.mega.id}.webp',
+              width: 64, height: 64, fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Icon(Icons.catching_pokemon,
+                  size: 40, color: widget.scheme.onSurfaceVariant),
+            ),
+          ),
           const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),

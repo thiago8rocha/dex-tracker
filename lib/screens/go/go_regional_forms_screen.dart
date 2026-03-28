@@ -345,22 +345,17 @@ class _FormTileState extends State<_FormTile> {
           border: Border.all(color: widget.scheme.outlineVariant, width: 0.5),
         ),
         child: Row(children: [
-          _loading
-              ? SizedBox(width: 40, height: 40,
-                  child: Center(child: SizedBox(width: 18, height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2,
-                      color: widget.scheme.primary))))
-              : Image.asset(
-                  spritePath,
-                  width: 40, height: 40, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Image.asset(
-                    'assets/sprites/artwork/${widget.form.id}.webp',
-                    width: 40, height: 40, fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => SizedBox(width: 40, height: 40,
-                      child: Icon(Icons.catching_pokemon, size: 24,
-                          color: widget.scheme.onSurfaceVariant.withOpacity(0.4))),
-                  ),
-                ),
+          Image.asset(
+            spritePath,
+            width: 40, height: 40, fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Image.asset(
+              'assets/sprites/artwork/${widget.form.id}.webp',
+              width: 40, height: 40, fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => SizedBox(width: 40, height: 40,
+                child: Icon(Icons.catching_pokemon, size: 24,
+                    color: widget.scheme.onSurfaceVariant.withOpacity(0.4))),
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(widget.form.name,
