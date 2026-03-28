@@ -544,7 +544,7 @@ class _RaidGrid extends StatelessWidget {
         crossAxisCount:   3,
         crossAxisSpacing: 8,
         mainAxisSpacing:  8,
-        mainAxisExtent:   158, // altura fixa — suporta 2 linhas de nome + 2 tipos
+        mainAxisExtent:   170,
       ),
       itemCount: bosses.length,
       itemBuilder: (ctx, i) => _RaidCard(boss: bosses[i], onTap: onTap),
@@ -608,22 +608,22 @@ class _RaidCardState extends State<_RaidCard> {
             Padding(
               padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Sprite — bundle local, sem spinner
                   SizedBox(
-                    height: 64, width: double.infinity,
+                    height: 56, width: double.infinity,
                     child: Image.asset(
                       spritePath,
-                      width: 64, height: 64, fit: BoxFit.contain,
+                      width: 56, height: 56, fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => Image.asset(
                         'assets/sprites/artwork/${boss.id}.webp',
-                        width: 64, height: 64, fit: BoxFit.contain,
+                        width: 56, height: 56, fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => Icon(
                           Icons.catching_pokemon,
                           color: scheme.onSurfaceVariant.withOpacity(0.4),
-                          size: 36,
+                          size: 32,
                         ),
                       ),
                     ),
