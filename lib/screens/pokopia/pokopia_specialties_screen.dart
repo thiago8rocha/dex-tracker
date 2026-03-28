@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pokedex_tracker/screens/detail/detail_shared.dart' show specialtyIconPath;
 
 class PokopiaSpecialtiesScreen extends StatefulWidget {
   const PokopiaSpecialtiesScreen({super.key});
@@ -94,7 +95,7 @@ class _SpecialtyTile extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: Image.asset(
-            'assets/pokopia/specialties/${data.asset}.png',
+            specialtyIconPath(data.name),
             width: 44, height: 44,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Icon(

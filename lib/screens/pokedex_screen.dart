@@ -6,7 +6,7 @@ import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/dex_bundle_service.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
-    show defaultSpriteNotifier, typeNamePt, typeIconColors, TypeBadge, PokeballLoader;
+    show defaultSpriteNotifier, typeNamePt, typeIconColors, TypeBadge, PokeballLoader, specialtyIconPath;
 import 'package:pokedex_tracker/screens/detail/nacional_detail_screen.dart';
 import 'package:pokedex_tracker/screens/detail/mainline_detail_screen.dart';
 import 'package:pokedex_tracker/screens/go/go_detail_screen.dart';
@@ -2205,18 +2205,30 @@ class _FilterSheetState extends State<_FilterSheet> {
           color: selected
               ? scheme.primary
               : scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(
             color: selected ? scheme.primary : scheme.outlineVariant,
             width: selected ? 0 : 1,
           ),
         ),
-        child: Text(specialty,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
-          )),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              specialtyIconPath(specialty),
+              width: 16,
+              height: 16,
+              errorBuilder: (_, __, ___) => const SizedBox(width: 16, height: 16),
+            ),
+            const SizedBox(width: 5),
+            Text(specialty,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
+              )),
+          ],
+        ),
       ),
     );
   }
@@ -2403,7 +2415,7 @@ class _SpecialtyDropSheetState extends State<_SpecialtyDropSheet> {
                       }),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: isSelected
                               ? scheme.primary
@@ -2414,14 +2426,26 @@ class _SpecialtyDropSheetState extends State<_SpecialtyDropSheet> {
                             width: isSelected ? 0 : 1,
                           ),
                         ),
-                        child: Text(sp,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: isSelected
-                                ? scheme.onPrimary
-                                : scheme.onSurfaceVariant,
-                          )),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              specialtyIconPath(sp),
+                              width: 18,
+                              height: 18,
+                              errorBuilder: (_, __, ___) => const SizedBox(width: 18, height: 18),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(sp,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: isSelected
+                                    ? scheme.onPrimary
+                                    : scheme.onSurfaceVariant,
+                              )),
+                          ],
+                        ),
                       ),
                     );
                   }).toList(),

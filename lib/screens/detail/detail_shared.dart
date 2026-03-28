@@ -15,6 +15,48 @@ const String kApiBase = 'https://pokeapi.co/api/v2';
 // SVGs em assets/types/<type>.svg (MIT — duiker101/pokemon-type-svg-icons)
 String typeIconAsset(String type) => 'assets/types/${type.toLowerCase()}.png';
 
+// ─── ÍCONES DE ESPECIALIDADE POKOPIA ─────────────────────────────
+// Converte nome da especialidade para path do asset PNG
+// Ex: 'Gather Honey' → 'assets/pokopia/specialties/gatherhoney.png'
+const Map<String, String> _specialtyFileNames = {
+  'Appraise':     'appraise',
+  'Build':        'build',
+  'Bulldoze':     'bulldoze',
+  'Burn':         'burn',
+  'Chop':         'chop',
+  'Collect':      'collect',
+  'Crush':        'crush',
+  'DJ':           'dj',
+  'Dream Island': 'dreamisland',
+  'Eat':          'eat',
+  'Engineer':     'engineer',
+  'Explode':      'explode',
+  'Fly':          'fly',
+  'Gather':       'gather',
+  'Gather Honey': 'gatherhoney',
+  'Generate':     'generate',
+  'Grow':         'grow',
+  'Hype':         'hype',
+  'Illuminate':   'illuminate',
+  'Litter':       'litter',
+  'Paint':        'paint',
+  'Party':        'party',
+  'Rarify':       'rarify',
+  'Recycle':      'recycle',
+  'Search':       'search',
+  'Storage':      'storage',
+  'Teleport':     'teleport',
+  'Trade':        'trade',
+  'Transform':    'transform',
+  'Water':        'water',
+  'Yawn':         'yawn',
+};
+
+String specialtyIconPath(String specialty) {
+  final file = _specialtyFileNames[specialty] ?? specialty.toLowerCase().replaceAll(' ', '');
+  return 'assets/pokopia/specialties/$file.png';
+}
+
 // Nomes traduzidos dos tipos
 const Map<String, String> typeNamePt = {
   'normal':   'Normal',

@@ -296,7 +296,7 @@ class _AmigosTab extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Image.asset(
-                        'assets/pokopia/specialties/$sp.png',
+                        specialtyIconPath(sp),
                         width: 36,
                         height: 36,
                         errorBuilder: (_, __, ___) => Icon(
