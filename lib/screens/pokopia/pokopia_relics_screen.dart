@@ -101,17 +101,13 @@ class _PokopiaRelicsScreenState extends State<PokopiaRelicsScreen>
                 items: _largeRelics
                     .where((r) => r.toLowerCase().contains(_search.toLowerCase()))
                     .toList(),
-                icon: Icons.chair_outlined,
                 emptyMessage: 'Nenhuma relíquia grande encontrada.',
-                isSmall: false,
               ),
               _RelicList(
                 items: _smallRelics
                     .where((r) => r.toLowerCase().contains(_search.toLowerCase()))
                     .toList(),
-                icon: Icons.diamond_outlined,
                 emptyMessage: 'Nenhuma relíquia pequena encontrada.',
-                isSmall: true,
               ),
             ],
           ),
@@ -125,14 +121,10 @@ class _PokopiaRelicsScreenState extends State<PokopiaRelicsScreen>
 
 class _RelicList extends StatelessWidget {
   final List<String> items;
-  final IconData icon;
   final String emptyMessage;
-  final bool isSmall;
   const _RelicList({
     required this.items,
-    required this.icon,
     required this.emptyMessage,
-    required this.isSmall,
   });
 
   @override
@@ -156,21 +148,7 @@ class _RelicList extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: scheme.outlineVariant, width: 1),
         ),
-        child: Row(children: [
-          Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 12),
-          Expanded(child: Text(items[i],
-            style: const TextStyle(fontSize: 13))),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(isSmall ? 'Small' : 'Large',
-              style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant)),
-          ),
-        ]),
+        child: Text(items[i], style: const TextStyle(fontSize: 13)),
       ),
     );
   }

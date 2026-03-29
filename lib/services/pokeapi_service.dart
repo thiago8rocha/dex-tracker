@@ -340,278 +340,35 @@ class _PokedexEntry {
 // Fontes cruzadas: Serebii (#001-#300), Bulbapedia, Nintendo Life, NintendoReporters, Dexerto (março 2026)
 // IDs são da PokeAPI (National Dex)
 const List<int> pokopiaSpeciesIds = [
-  // Pokopia #001-#009 — Starters (Bulbasaur, Charmander, Squirtle)
-  1, 2, 3, 4, 5, 6, 7, 8, 9,
-  // #010-#012 — Pidgey line
-  16, 17, 18,
-  // #013-#016 — Oddish line + Bellossom
-  43, 44, 45, 182,
-  // #017-#018 — Paras line
-  46, 47,
-  // #019-#020 — Venonat line
-  48, 49,
-  // #021-#023 — Bellsprout line
-  69, 70, 71,
-  // #024-#026 — Slowpoke line (Slowking = 199)
-  79, 80, 199,
-  // #027-#029 — Magnemite line (Magnezone = 462)
-  81, 82, 462,
-  // #030-#031 — Onix + Steelix
-  95, 208,
-  // #032-#033 — Cubone + Marowak
-  104, 105,
-  // #034-#037 — Tyrogue + Hitmonlee + Hitmonchan + Hitmontop
-  236, 106, 107, 237,
-  // #038-#039 — Koffing + Weezing
-  109, 110,
-  // #040-#041 — Tangela + Tangrowth (465)
-  114, 465,
-  // #042-#044 — Scyther + Scizor + Pinsir
-  123, 212, 127,
-  // #045-#046 — Magikarp + Gyarados
-  129, 130,
-  // #047 — Ditto (você, o jogador)
-  132,
-  // #048-#049 — Hoothoot + Noctowl
-  163, 164,
-  // #050 — Heracross
-  214,
-  // #051-#052 — Volbeat + Illumise
-  313, 314,
-  // #053-#054 — Gulpin + Swalot
-  316, 317,
-  // #055-#056 — Cacnea + Cacturne
-  331, 332,
-  // #057-#058 — Combee + Vespiquen
-  415, 416,
-  // #059-#060 — Shellos + Gastrodon
-  422, 423,
-  // #061-#062 — Drifloon + Drifblim
-  425, 426,
-  // #063-#064 — Drilbur + Excadrill
-  529, 530,
-  // #065-#067 — Timburr + Gurdurr + Conkeldurr
-  532, 533, 534,
-  // #068-#070 — Litwick + Lampent + Chandelure
-  607, 608, 609,
-  // #071-#073 — Axew + Fraxure + Haxorus
-  610, 611, 612,
-  // #074-#076 — Goomy + Sliggoo + Goodra
-  704, 705, 706,
-  // #077 — Cramorant
-  845,
-  // #078-#081 — Pichu + Peakychu(=25) + Pikachu + Raichu
-  172, 25, 26,
-  // #082-#084 — Zubat + Golbat + Crobat
-  41, 42, 169,
-  // #085-#086 — Meowth + Persian
-  52, 53,
-  // #087-#088 — Psyduck + Golduck
-  54, 55,
-  // #089-#090 — Growlithe + Arcanine
-  58, 59,
-  // #091 — Farfetch'd
-  83,
-  // #092-#093 — Grimer + Muk
-  88, 89,
-  // #094-#096 — Gastly + Haunter + Gengar
-  92, 93, 94,
-  // #097-#098 — Voltorb + Electrode
-  100, 101,
-  // #099-#100 — Exeggcute + Exeggutor
-  102, 103,
-  // #101-#103 — Happiny + Chansey + Blissey
-  440, 113, 242,
-  // #104-#106 — Elekid + Electabuzz + Electivire
-  239, 125, 466,
-  // #107 — Lapras
-  131,
-  // #108-#109 — Munchlax + Snorlax
-  446, 143,
-  // #110-#111 — Spinarak + Ariados
-  167, 168,
-  // #112-#114 — Mareep + Flaaffy + Ampharos
-  179, 180, 181,
-  // #115-#117 — Azurill + Marill + Azumarill
-  298, 183, 184,
-  // #118-#119 — Wooper (Paldean=194) + Clodsire
-  194, 980,
-  // #120 — Smeargle
-  235,
-  // #121-#123 — Torchic + Combusken + Blaziken
-  255, 256, 257,
-  // #124-#125 — Wingull + Pelipper
-  278, 279,
-  // #126-#127 — Makuhita + Hariyama
-  296, 297,
-  // #128 — Absol
-  359,
-  // #129-#131 — Piplup + Prinplup + Empoleon
-  393, 394, 395,
-  // #132 — Audino
-  531,
-  // #133-#134 — Trubbish + Garbodor
-  568, 569,
-  // #135-#136 — Zorua + Zoroark
-  570, 571,
-  // #137-#138 — Minccino + Cinccino
-  572, 573,
-  // #139-#141 — Grubbin + Charjabug + Vikavolt
-  736, 737, 738,
-  // #142 — Mimikyu
-  778,
-  // #143-#145 — Pawmi + Pawmo + Pawmot
-  921, 922, 923,
-  // #146 — Tatsugiri
-  978,
-  // #147-#148 — Ekans + Arbok
-  23, 24,
-  // #149-#151 — Cleffa + Clefairy + Clefable
-  173, 35, 36,
-  // #152-#154 — Igglybuff + Jigglypuff + Wigglytuff
-  174, 39, 40,
-  // #154-#155 — Diglett + Dugtrio
-  50, 51,
-  // #156-#158 — Geodude + Graveler + Golem
-  74, 75, 76,
-  // #159-#161 — Magby + Magmar + Magmortar
-  240, 126, 467,
-  // #162-#163 — Bonsly + Sudowoodo
-  438, 185,
-  // #164-#165 — Murkrow + Honchkrow
-  198, 430,
-  // #166-#168 — Larvitar + Pupitar + Tyranitar
-  246, 247, 248,
-  // #169-#171 — Lotad + Lombre + Ludicolo
-  270, 271, 272,
-  // #172 — Mawile
-  303,
-  // #173-#174 — Kricketot + Kricketune
-  401, 402,
-  // #175 — Chatot
-  441,
-  // #176-#177 — Riolu + Lucario
-  447, 448,
-  // #178 — Rotom
-  479,
-  // #179-#180 — Larvesta + Volcarona
-  636, 637,
-  // #181-#183 — Rowlet + Dartrix + Decidueye
-  722, 723, 724,
-  // #184-#186 — Scorbunny + Raboot + Cinderace
-  813, 814, 815,
-  // #187-#188 — Skwovet + Greedent
-  819, 820,
-  // #189-#191 — Rookidee + Corvisquire + Corviknight
-  821, 822, 823,
-  // #192-#194 — Rolycoly + Carkol + Coalossal
-  838, 839, 840,
-  // #195-#196 — Toxel + Toxtricity
-  848, 849,
-  // #197-#199 — Frigibax + Arctibax + Baxcalibur
-  936, 937, 998,
-  // #200-#204 — Eevee + Vaporeon + Jolteon + Flareon
-  133, 134, 135, 136,
-  // #205-#206 — Espeon + Umbreon
-  196, 197,
-  // #207-#208 — Glaceon + Leafeon
-  471, 470,
-  // #209 — Sylveon
-  700,
-  // #210-#212 — Togepi + Togetic + Togekiss
-  175, 176, 468,
-  // #213-#214 — Natu + Xatu
-  177, 178,
-  // #215-#218 — Ralts + Kirlia + Gardevoir + Gallade
-  280, 281, 282, 475,
-  // #219-#220 — Swablu + Altaria
-  333, 334,
-  // #221-#223 — Dratini + Dragonair + Dragonite
-  147, 148, 149,
-  // #224-#225 — Misdreavus + Mismagius
-  200, 429,
-  // #226-#227 — Snubbull + Granbull
-  209, 210,
-  // #228-#229 — Phanpy + Donphan
-  231, 232,
-  // #230-#231 — Girafarig + Farigiraf
-  203, 981,
-  // #232-#233 — Dunsparce + Dudunsparce
-  206, 982,
-  // #234-#235 — Yanma + Yanmega
-  193, 469,
-  // #236-#237 — Aipom + Ambipom
-  190, 424,
-  // #238-#239 — Sneasel + Weavile
-  215, 461,
-  // #240-#242 — Swinub + Piloswine + Mamoswine
-  220, 221, 473,
-  // #243-#245 — Snorunt + Glalie + Froslass
-  361, 362, 478,
-  // #246-#248 — Duskull + Dusclops + Dusknoir
-  355, 356, 477,
-  // #249-#250 — Shuppet + Banette
-  353, 354,
-  // #251 — Sableye
-  302,
-  // #252-#254 — Mudkip + Marshtomp + Swampert
-  258, 259, 260,
-  // #255-#257 — Treecko + Grovyle + Sceptile
-  252, 253, 254,
-  // #258-#260 — Cyndaquil + Quilava + Typhlosion
-  155, 156, 157,
-  // #261-#263 — Totodile + Croconaw + Feraligatr
-  158, 159, 160,
-  // #264-#266 — Chikorita + Bayleef + Meganium
-  152, 153, 154,
-  // #267-#269 — Porygon + Porygon2 + Porygon-Z
-  137, 233, 474,
-  // #270-#272 — Dreepy + Drakloak + Dragapult
-  885, 886, 887,
-  // #273-#275 — Sprigatito + Floragato + Meowscarada
-  906, 907, 908,
-  // #276-#277 — Fidough + Dachsbun
-  924, 925,
-  // #278-#280 — Charcadet + Armarouge + Ceruledge
-  855, 901, 902,
-  // #281-#282 — Wattrel + Kilowattrel
-  939, 940,
-  // #283-#285 — Snivy + Servine + Serperior
-  495, 496, 497,
-  // #286-#288 — Froakie + Frogadier + Greninja
-  656, 657, 658,
-  // #289-#291 — Trapinch + Vibrava + Flygon
-  328, 329, 330,
-  // #292-#293 — Tyrunt + Tyrantrum
-  696, 697,
-  // #294-#295 — Amaura + Aurorus
-  698, 699,
-  // #296-#297 — Noibat + Noivern
-  714, 715,
-  // #298-#300 — Tinkatink + Tinkatuff + Tinkaton
-  957, 958, 959,
-  // Extras confirmados por fontes (fora da numeração principal):
-  // Poliwag line + Politoed
-  60, 61, 186,
-  // Abra + Kadabra + Alakazam
-  63, 64, 65,
-  // Machop + Machoke + Machamp
-  66, 67, 68,
-  // Flabebe + Floette + Florges
-  669, 670, 671,
-  // Dedenne + Carbink
-  702, 703,
-  // Poltchageist
-  970,
-  // Gimmighoul + Gholdengo
-  999, 1000,
-  // Kyogre
-  382,
-  // Volcanion
-  721,
-  // Lake guardians
-  480, 481, 482,
-  // Legendaries
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 16,
+  17, 18, 43, 44, 45, 182, 46, 47, 48, 49,
+  69, 70, 71, 79, 80, 199, 81, 82, 462, 95,
+  208, 104, 105, 236, 106, 107, 237, 109, 110, 114,
+  465, 123, 212, 127, 129, 130, 132, 163, 164, 214,
+  313, 314, 316, 317, 331, 332, 415, 416, 422, 423,
+  425, 426, 529, 530, 532, 533, 534, 607, 608, 609,
+  610, 611, 612, 704, 705, 706, 845, 172, 25, 26,
+  41, 42, 169, 52, 53, 54, 55, 58, 59, 83,
+  88, 89, 92, 93, 94, 100, 101, 102, 103, 440,
+  113, 242, 239, 125, 466, 131, 446, 143, 167, 168,
+  179, 180, 181, 298, 183, 184, 194, 980, 235, 255,
+  256, 257, 278, 279, 296, 297, 359, 393, 394, 395,
+  531, 568, 569, 570, 571, 572, 573, 736, 737, 738,
+  778, 921, 922, 923, 978, 23, 24, 173, 35, 36,
+  174, 39, 40, 50, 51, 66, 67, 68, 74, 75,
+  76, 240, 126, 467, 438, 185, 198, 430, 246, 247,
+  248, 270, 271, 272, 303, 324, 401, 402, 441, 447,
+  448, 479, 636, 637, 722, 723, 724, 813, 814, 815,
+  819, 820, 821, 822, 823, 838, 839, 840, 848, 849,
+  133, 134, 135, 136, 196, 197, 471, 470, 700, 280,
+  281, 282, 475, 311, 312, 333, 334, 147, 148, 149,
+  200, 429, 203, 981, 355, 356, 477, 885, 886, 887,
+  906, 907, 908, 924, 925, 855, 901, 902, 939, 940,
+  495, 496, 497, 656, 657, 658, 328, 329, 330, 374,
+  375, 376, 408, 409, 410, 411, 439, 122, 696, 697,
+  698, 699, 714, 715, 957, 958, 959, 60, 61, 62,
+  186, 63, 64, 65, 37, 38, 142, 969, 970, 999,
+  1000, 137, 233, 474, 155, 156, 157, 702, 382, 721,
   243, 244, 245, 249, 250, 144, 145, 146, 150, 151,
 ];
 
