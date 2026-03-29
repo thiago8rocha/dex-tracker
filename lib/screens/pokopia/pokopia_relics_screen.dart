@@ -241,136 +241,66 @@ class _FossilTile extends StatelessWidget {
 
 // ─── DADOS ────────────────────────────────────────────────────────
 
-// 37 relíquias grandes — mobiliário temático
+// ─── DADOS ────────────────────────────────────────────────────────
+// Fonte: RankedBoost, Nintendo Life, Game8 (Março 2026)
+
+// 19 relíquias grandes — mobiliário decorativo
 const _largeRelics = [
-  'Polygonal Shelf',
-  'Avalugg Table',
-  'Naptime Bed',
-  'Wiggly Mirror',
-  'Pitcher-plant Pot',
-  'Arcade Machine',
+  'Bike',
+  'Boo-in-the-Box',
+  'Bouncy Blue Bathtub',
+  'Charizard Rug',
+  'Fiery Magby Statue',
   'Funky Diffuser',
   'Gold Teeth',
-  'Big Nugget',
-  'Boo-in-the-Box',
-  'Mysterious Statue',
-  'Fiery Magby Statue',
   'Gym Emblem Statue',
-  'Spacesuit',
-  'Model Space Shuttle',
-  'Spaceship',
-  'Rowlet Clock',
-  'Castform Weather Charm',
-  'Eerie Candle',
-  'Garden Ornament',
-  'Bike',
-  'Horsea Fountain',
-  'Fishing Rod',
-  'Raichu Sign',
-  'Photo Cutout Board',
   'Meteor Lamp',
-  'Slowpoke Rug',
-  'Town Map',
+  'Mysterious Statue',
+  'Naptime Bed',
+  'Photo Cutout Board',
+  'Polygonal Shelf',
+  'Seedot Lamp',
+  'Spaceship',
+  'Team Rocket Wall Hanging',
+  'Wobbuffet Wobbler',
 ];
 
-// 46 relíquias pequenas — itens de jogos anteriores
+// 36 relíquias pequenas — itens dos jogos principais da série
 const _smallRelics = [
-  'Miracle Seed',
-  'Hard Stone',
-  'Black Glasses',
+  'Ability Shield',
+  'Big Root',
   'Black Belt',
-  'Spell Tag',
-  'Destiny Knot',
-  'Life Orb',
-  'Iron Ball',
-  'Metal Powder',
-  'Adrenaline Orb',
-  'Throat Spray',
-  'Flame Orb',
-  'Room Service',
-  'Choice Band',
-  'Choice Scarf',
-  'Choice Specs',
-  'Toxic Orb',
-  'Weakness Policy',
-  'Assault Vest',
-  'Rocky Helmet',
-  'Safety Goggles',
-  'Eject Button',
-  'Red Card',
-  'Eject Pack',
-  'Heavy-Duty Boots',
+  'Charcoal',
   'Clear Amulet',
-  'Covert Cloak',
-  'Loaded Dice',
-  'Booster Energy',
-];
-
-class _FossilData {
-  final String name;
-  final String pokemon;
-  final String? description;
-  const _FossilData({
-    required this.name,
-    required this.pokemon,
-    this.description,
-  });
-}
-
-const _fossils = [
-  _FossilData(
-    name: 'Dome Fossil',
-    pokemon: 'Kabuto',
-    description: 'Fóssil em forma de cúpula. Kabuto habitou os oceanos antigos.',
-  ),
-  _FossilData(
-    name: 'Helix Fossil',
-    pokemon: 'Omanyte',
-    description: 'Fóssil espiral encontrado nas rochas costeiras.',
-  ),
-  _FossilData(
-    name: 'Old Amber',
-    pokemon: 'Aerodactyl',
-    description: 'Âmbar translúcido com inseto preservado. Registra um Pokémon voador dos tempos primordiais.',
-  ),
-  _FossilData(
-    name: 'Root Fossil',
-    pokemon: 'Lileep',
-    description: 'Fóssil de raiz antiga. O Pokémon se enraizava no fundo do mar.',
-  ),
-  _FossilData(
-    name: 'Claw Fossil',
-    pokemon: 'Anorith',
-    description: 'Garra fossilizada de um crustáceo primitivo.',
-  ),
-  _FossilData(
-    name: 'Skull Fossil',
-    pokemon: 'Cranidos',
-    description: 'Crânio com protuberância dura. Usado para investidas.',
-  ),
-  _FossilData(
-    name: 'Armor Fossil',
-    pokemon: 'Shieldon',
-    description: 'Armadura craniana fossilizada. Usada como defesa.',
-  ),
-  _FossilData(
-    name: 'Cover Fossil',
-    pokemon: 'Tirtouga',
-    description: 'Fóssil de carapaça de tartaruga marinha pré-histórica.',
-  ),
-  _FossilData(
-    name: 'Plume Fossil',
-    pokemon: 'Archen',
-    description: 'Fóssil de penas. Pertenceu a um dos primeiros Pokémon voadores.',
-  ),
-  _FossilData(
-    name: 'Jaw Fossil',
-    pokemon: 'Tyrunt',
-    description: 'Mandíbula fossilizada com dentes imponentes.',
-  ),
-  _FossilData(
-    name: 'Sail Fossil',
-    pokemon: 'Amaura',
-    description: 'Fóssil de uma vela dorsal. Pertenceu a um Pokémon do tipo Gelo.',
-  ),
+  'Destiny Knot',
+  'Fairy Feather',
+  'Gold Bottle Cap',
+  'Hard Stone',
+  'Heart Scale',
+  'Indigo Meteor Lamp',
+  'Iron Ball',
+  'Leftovers',
+  'Life Orb',
+  'Light Clay',
+  'Lucky Egg',
+  'Metal Coat',
+  'Metal Powder',
+  'Miracle Seed',
+  'Model Space Shuttle',
+  'Nugget',
+  'Poison Barb',
+  'Quick Claw',
+  'Red Meteor Lamp',
+  'Ring Target',
+  'Room Service',
+  'Sharp Beak',
+  'Silk Scarf',
+  'Silver Powder',
+  'Soft Sand',
+  'Spacesuit',
+  'Spell Tag',
+  'Sticky Barb',
+  'Terrain Extender',
+  'Twisted Spoon',
+  'Weakness Policy',
 ];
