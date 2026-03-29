@@ -7,6 +7,12 @@ import 'package:pokedex_tracker/screens/go/go_gigantamax_screen.dart';
 import 'package:pokedex_tracker/screens/go/go_regional_forms_screen.dart';
 import 'package:pokedex_tracker/screens/pocket/pocket_hub_screen.dart';
 import 'package:pokedex_tracker/screens/pokopia/pokopia_hub_screen.dart';
+import 'package:pokedex_tracker/screens/menu/moves_list_screen.dart';
+import 'package:pokedex_tracker/screens/menu/abilities_list_screen.dart';
+import 'package:pokedex_tracker/screens/menu/natures_list_screen.dart';
+import 'package:pokedex_tracker/screens/menu/teams_screen.dart';
+import 'package:pokedex_tracker/screens/menu/items_list_screen.dart';
+import 'package:pokedex_tracker/screens/settings_screen.dart';
 
 class GoHubScreen extends StatelessWidget {
   const GoHubScreen({super.key});
@@ -85,7 +91,15 @@ class GoHubScreen extends StatelessWidget {
         title: const Text('Pokémon GO'),
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          ),
+        ],
       ),
+      endDrawer: _buildGoDrawer(context),
       bottomNavigationBar: _GoBottomNav(),
       body: GridView.builder(
         padding: const EdgeInsets.all(16),
@@ -199,6 +213,63 @@ class _HubCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Drawer lateral ───────────────────────────────────────────────
+
+Widget _buildGoDrawer(BuildContext context) {
+  final scheme = Theme.of(context).colorScheme;
+  return Drawer(child: SafeArea(child: Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        child: Text('Menu', style: Theme.of(context).textTheme.titleMedium
+            ?.copyWith(fontWeight: FontWeight.w700, fontSize: 18)),
+      ),
+      Divider(color: scheme.outlineVariant),
+      ListTile(
+        leading: const Icon(Icons.sports_martial_arts_outlined, size: 22),
+        title: const Text('Golpes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () { Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const MovesListScreen())); }),
+      ListTile(
+        leading: const Icon(Icons.auto_awesome_outlined, size: 22),
+        title: const Text('Habilidades', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () { Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const AbilitiesListScreen())); }),
+      ListTile(
+        leading: const Icon(Icons.psychology_outlined, size: 22),
+        title: const Text('Naturezas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () { Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const NaturesListScreen())); }),
+      Divider(color: scheme.outlineVariant),
+      ListTile(
+        leading: const Icon(Icons.groups_2_outlined, size: 22),
+        title: const Text('Times', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () { Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const TeamsScreen())); }),
+      ListTile(
+        leading: const Icon(Icons.inventory_2_outlined, size: 22),
+        title: const Text('Itens', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () { Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ItemsListScreen())); }),
+      const Spacer(),
+      Divider(color: scheme.outlineVariant),
+      ListTile(
+        leading: const Icon(Icons.settings_outlined, size: 22),
+        title: const Text('Configurações', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () async { Navigator.pop(context);
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())); }),
+      const SizedBox(height: 8),
+    ],
+  )));
 }
 
 // ─── Bottom Nav (mesmo padrão do PokedexScreen) ───────────────────
