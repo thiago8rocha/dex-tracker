@@ -4,6 +4,7 @@ class PokopiaEventHabitat {
   final int id;           // número no Event Habitat Dex (1, 2, 3...)
   final String name;      // nome em inglês
   final String eventName; // nome do evento ao qual pertence
+  final String flavorText;
   final List<String> items;
   final List<PokopiaHabitatEntry> pokemon;
   // imagem local: assets/pokopia/habitats/event/habitat_NNN.png
@@ -13,6 +14,7 @@ class PokopiaEventHabitat {
     required this.id,
     required this.name,
     required this.eventName,
+    this.flavorText = '',
     required this.items,
     required this.pokemon,
   });
@@ -703,34 +705,48 @@ const List<PokopiaHabitat> pokopiaHabitats = [
 ];
 
 // ─── HABITATS DE EVENTO ───────────────────────────────────────────────────────
-// Fonte: Serebii Event Habitat Dex (março 2026)
+// Fonte: Serebii Event Habitat Dex + screenshots do usuário (março 2026)
 // Imagens: assets/pokopia/habitats/event/habitat_NNN.png
 const List<PokopiaEventHabitat> pokopiaEventHabitats = [
   PokopiaEventHabitat(
     id: 1,
     name: 'Yellow Carpet',
     eventName: 'More Spores for Hoppip',
-    items: [],
+    flavorText: 'Um campo de flores amarelas quentes e desabrochadas. Só de olhar parece encher você de energia.',
+    items: ['Dandy flowers x4'],
     pokemon: [
-      PokopiaHabitatEntry(speciesId: 187, name: 'Hoppip', rarity: 'Comum'),
+      PokopiaHabitatEntry(speciesId: 187, name: 'Hoppip',   rarity: 'Comum'),
+      PokopiaHabitatEntry(speciesId: 188, name: 'Skiploom',  rarity: 'Raro'),
+      PokopiaHabitatEntry(speciesId: 189, name: 'Jumpluff',  rarity: 'Muito Raro'),
     ],
   ),
   PokopiaEventHabitat(
     id: 2,
-    name: 'Field-trip Friends',
+    name: 'Dandelion Lunchtime',
     eventName: 'More Spores for Hoppip',
-    items: [],
+    flavorText: 'Lancheira? Pronta. Louças? Prontas. Hora do almoço no piquenique!',
+    items: [
+      'Dandy flowers x1',
+      'Flower cushion x1',
+      'Lunch box x1',
+      'Flowery table setting x1',
+    ],
     pokemon: [
-      PokopiaHabitatEntry(speciesId: 188, name: 'Skiploom', rarity: 'Incomum'),
+      PokopiaHabitatEntry(speciesId: 189, name: 'Jumpluff', rarity: 'Raro'),
     ],
   ),
   PokopiaEventHabitat(
     id: 3,
-    name: 'Dandelion Lunchtime',
+    name: 'Field-trip Friends',
     eventName: 'More Spores for Hoppip',
-    items: [],
+    flavorText: 'Coloque a lancheira e a cantil na mochila, e está tudo pronto para a excursão.',
+    items: [
+      'Flower backpack x1',
+      'Hoppip water bottle x1',
+      'Lunch box x1',
+    ],
     pokemon: [
-      PokopiaHabitatEntry(speciesId: 189, name: 'Jumpluff', rarity: 'Raro'),
+      PokopiaHabitatEntry(speciesId: 188, name: 'Skiploom', rarity: 'Raro'),
     ],
   ),
 ];

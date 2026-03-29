@@ -435,6 +435,18 @@ class _EventHabitatTileState extends State<_EventHabitatTile> {
           Text(h.eventName,
               style:
                   TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+          if (h.flavorText.isNotEmpty) ...[
+            const SizedBox(height: 5),
+            Text(
+              h.flavorText,
+              style: TextStyle(
+                fontSize: 11,
+                color: scheme.onSurfaceVariant,
+                height: 1.4,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
           if (h.items.isNotEmpty) ...[
             const SizedBox(height: 6),
             Wrap(
