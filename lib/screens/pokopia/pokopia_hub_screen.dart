@@ -94,7 +94,19 @@ class PokopiaHubScreen extends StatelessWidget {
         title: const Text('Pokopia'),
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          ),
+          Builder(builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(ctx).openEndDrawer(),
+          )),
+        ],
       ),
+      endDrawer: _buildPokopiaDrawer(context),
       bottomNavigationBar: _PokopiaBottomNav(),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -139,6 +151,63 @@ class PokopiaHubScreen extends StatelessWidget {
   }
 }
 
+
+// ─── Drawer lateral ───────────────────────────────────────────────
+
+Widget _buildPokopiaDrawer(BuildContext context) {
+  final scheme = Theme.of(context).colorScheme;
+  return Drawer(child: SafeArea(child: Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        child: Text('Menu', style: Theme.of(context).textTheme.titleMedium
+            ?.copyWith(fontWeight: FontWeight.w700, fontSize: 18)),
+      ),
+      Divider(color: scheme.outlineVariant),
+      ListTile(
+        leading: const Icon(Icons.sports_martial_arts_outlined, size: 22),
+        title: const Text('Golpes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () { Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const MovesListScreen())); }),
+      ListTile(
+        leading: const Icon(Icons.auto_awesome_outlined, size: 22),
+        title: const Text('Habilidades', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () { Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const AbilitiesListScreen())); }),
+      ListTile(
+        leading: const Icon(Icons.psychology_outlined, size: 22),
+        title: const Text('Naturezas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () { Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const NaturesListScreen())); }),
+      Divider(color: scheme.outlineVariant),
+      ListTile(
+        leading: const Icon(Icons.groups_2_outlined, size: 22),
+        title: const Text('Times', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () { Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const TeamsScreen())); }),
+      ListTile(
+        leading: const Icon(Icons.inventory_2_outlined, size: 22),
+        title: const Text('Itens', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () { Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ItemsListScreen())); }),
+      const Spacer(),
+      Divider(color: scheme.outlineVariant),
+      ListTile(
+        leading: const Icon(Icons.settings_outlined, size: 22),
+        title: const Text('Configurações', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20), dense: true,
+        onTap: () async { Navigator.pop(context);
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())); }),
+      const SizedBox(height: 8),
+    ],
+  )));
+}
 
 // ─── Bottom Nav ───────────────────────────────────────────────────
 
@@ -191,14 +260,13 @@ class _PokopiaBottomNav extends StatelessWidget {
           Text('Pokopia', style: TextStyle(fontSize: 10,
               fontWeight: FontWeight.w600, color: scheme.primary)),
         ])),
-        // Configurações
+        // Menu
         Expanded(child: Builder(builder: (ctx) => InkWell(
-          onTap: () => Navigator.push(ctx,
-              MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          onTap: () => Scaffold.of(ctx).openEndDrawer(),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.settings_outlined, size: 22, color: scheme.onSurfaceVariant),
+            Icon(Icons.menu, size: 22, color: scheme.onSurfaceVariant),
             const SizedBox(height: 2),
-            Text('Config', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+            Text('Menu', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
           ]),
         ))),
       ]),
