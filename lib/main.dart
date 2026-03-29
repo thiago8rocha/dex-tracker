@@ -5,21 +5,19 @@ import 'package:pokedex_tracker/theme/app_theme.dart';
 import 'package:pokedex_tracker/screens/pokedex_screen.dart';
 import 'package:pokedex_tracker/services/storage_service.dart';
 import 'package:pokedex_tracker/services/pokedex_data_service.dart';
-import 'package:pokedex_tracker/services/translation_warmup.dart';
-import 'package:pokedex_tracker/services/move_warmup_service.dart';
+import 'package:pokedex_tracker/services/pokedex_silent_refresh_service.dart';
 import 'package:pokedex_tracker/screens/detail/detail_shared.dart'
-    show initBilingualMode, initDefaultSprite, PokeballLoader;
+    show initBilingualMode, initDefaultSprite;
+import 'package:pokedex_tracker/screens/disclaimer_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Aumentar cache de imagens: 256MB e 1000 entradas
-  // Evita re-decodificação de sprites ao navegar entre pokedexes
-  PaintingBinding.instance.imageCache.maximumSize      = 1000;
+  PaintingBinding.instance.imageCache.maximumSize = 1000;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 256 * 1024 * 1024;
 
-  // Limpar cache antigo do PokemonCacheService (prefixo pkcache_)
-  // que causava OutOfMemoryError ao ser carregado pelo SharedPreferences.
+  // Limpar cache legado do PokemonCacheService (pkcache_*)
   await _clearLegacyCacheIfNeeded();
 
   final savedThemeId = await StorageService().getThemeId();
@@ -31,9 +29,13 @@ void main() async {
   // Carrega dados locais instantaneamente antes de mostrar qualquer tela
   await PokedexDataService.instance.load();
 
-  runApp(const PokedexTrackerApp());
-  TranslationWarmup.start();
-  MoveWarmupService.start();
+  // Verificar se o disclaimer já foi aceito
+  final disclaimerSeen = await StorageService().isDisclaimerSeen();
+
+  runApp(PokedexTrackerApp(showDisclaimer: !disclaimerSeen));
+
+  // Verificação silenciosa em background — sem impacto visual
+  PokedexSilentRefreshService.instance.startInBackground();
 }
 
 Future<void> _clearLegacyCacheIfNeeded() async {
@@ -41,13 +43,11 @@ Future<void> _clearLegacyCacheIfNeeded() async {
   final prefs = await SharedPreferences.getInstance();
   if (prefs.getBool(sentinelKey) == true) return;
 
-  final legacyKeys = prefs.getKeys()
-      .where((k) => k.startsWith('pkcache_'))
-      .toList();
-
-  // Remove todas as chaves legadas em paralelo
-  await Future.wait(legacyKeys.map((k) => prefs.remove(k)));
-
+  final legacyKeys =
+      prefs.getKeys().where((k) => k.startsWith('pkcache_')).toList();
+  for (final k in legacyKeys) {
+    await prefs.remove(k);
+  }
   await prefs.setBool(sentinelKey, true);
 }
 
@@ -57,112 +57,88 @@ ThemeMode _themeModeFromId(String id) {
   return darkIds.contains(id) ? ThemeMode.dark : ThemeMode.light;
 }
 
-class PokedexTrackerApp extends StatefulWidget {
-  const PokedexTrackerApp({super.key});
+// ─── APP ─────────────────────────────────────────────────────────
 
-  @override
-  State<PokedexTrackerApp> createState() => _PokedexTrackerAppState();
-}
-
-class _PokedexTrackerAppState extends State<PokedexTrackerApp> {
-  @override
-  void initState() {
-    super.initState();
-    appThemeController.addListener(_onThemeChanged);
-  }
-
-  @override
-  void dispose() {
-    appThemeController.removeListener(_onThemeChanged);
-    super.dispose();
-  }
-
-  void _onThemeChanged() => setState(() {});
+class PokedexTrackerApp extends StatelessWidget {
+  final bool showDisclaimer;
+  const PokedexTrackerApp({super.key, this.showDisclaimer = false});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Pokedex Tracker',
-      debugShowCheckedModeBanner: false,
-      themeMode: appThemeController.themeMode,
-      theme:     AppThemes.light(appThemeController.themeId),
-      darkTheme: AppThemes.dark(appThemeController.themeId),
-      home: _LastDexLoader(),
+    return AnimatedBuilder(
+      animation: appThemeController,
+      builder: (_, __) => MaterialApp(
+        title: 'DexCurator',
+        debugShowCheckedModeBanner: false,
+        theme: appThemeController.lightTheme,
+        darkTheme: appThemeController.darkTheme,
+        themeMode: appThemeController.themeMode,
+        home: showDisclaimer
+            ? const _DisclaimerGate()
+            : const _LastDexLoader(),
+      ),
     );
   }
 }
 
-// ─── LOADER DA ÚLTIMA POKEDEX ─────────────────────────────────────
+// ─── DISCLAIMER GATE ─────────────────────────────────────────────
+// Exibe o disclaimer no primeiro acesso e redireciona para a Pokédex
+// após o usuário confirmar.
 
-class _LastDexLoader extends StatefulWidget {
-  const _LastDexLoader();
-  @override State<_LastDexLoader> createState() => _LastDexLoaderState();
-}
-
-class _LastDexLoaderState extends State<_LastDexLoader> {
-  // Mapa de id → nome/total para restaurar a tela certa
-  static const _idToName = <String, String>{
-    'nacional': 'Nacional',
-    'pokémon_go': 'Pokémon GO',
-    'red___blue': 'Red / Blue',
-    'yellow': 'Yellow',
-    'gold___silver': 'Gold / Silver',
-    'crystal': 'Crystal',
-    'ruby___sapphire': 'Ruby / Sapphire',
-    'firered___leafgreen_(gba)': 'FireRed / LeafGreen (GBA)',
-    'emerald': 'Emerald',
-    'diamond___pearl': 'Diamond / Pearl',
-    'platinum': 'Platinum',
-    'heartgold___soulsilver': 'HeartGold / SoulSilver',
-    'black___white': 'Black / White',
-    'black_2___white_2': 'Black 2 / White 2',
-    'x___y': 'X / Y',
-    'omega_ruby___alpha_sapphire': 'Omega Ruby / Alpha Sapphire',
-    'sun___moon': 'Sun / Moon',
-    'ultra_sun___ultra_moon': 'Ultra Sun / Ultra Moon',
-    "let's_go_pikachu___eevee": "Let's Go Pikachu / Eevee",
-    'sword___shield': 'Sword / Shield',
-    'brilliant_diamond___shining_pearl': 'Brilliant Diamond / Shining Pearl',
-    'legends:_arceus': 'Legends: Arceus',
-    'scarlet___violet': 'Scarlet / Violet',
-    'legends:_z-a': 'Legends: Z-A',
-    'firered___leafgreen': 'FireRed / LeafGreen',
-  };
-
-  static const _idToTotal = <String, int>{
-    'nacional': 1025, 'pokémon_go': 941,
-    'red___blue': 151, 'yellow': 151,
-    'gold___silver': 251, 'crystal': 251,
-    'ruby___sapphire': 386, 'firered___leafgreen_(gba)': 386, 'emerald': 386,
-    'diamond___pearl': 493, 'platinum': 493, 'heartgold___soulsilver': 493,
-    'black___white': 649, 'black_2___white_2': 649,
-    'x___y': 721, 'omega_ruby___alpha_sapphire': 721,
-    'sun___moon': 807, 'ultra_sun___ultra_moon': 807,
-    "let's_go_pikachu___eevee": 153,
-    'sword___shield': 400, 'brilliant_diamond___shining_pearl': 493,
-    'legends:_arceus': 242, 'scarlet___violet': 400,
-    'legends:_z-a': 132, 'firered___leafgreen': 386,
-  };
+class _DisclaimerGate extends StatelessWidget {
+  const _DisclaimerGate();
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String?>(
-      future: StorageService().getLastPokedexId(),
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: PokeballLoader()));
-        }
-        final lastId = snap.data;
-        final id    = (lastId != null && _idToName.containsKey(lastId)) ? lastId : 'nacional';
-        final name  = _idToName[id] ?? 'Nacional';
-        final total = _idToTotal[id] ?? 1025;
-        return PokedexScreen(
-          pokedexId: id,
-          pokedexName: name,
-          totalPokemon: total,
-        );
-      },
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: DisclaimerScreen(isFromSettings: false),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── LAST DEX LOADER ─────────────────────────────────────────────
+// Restaura a última Pokédex visitada pelo usuário.
+
+class _LastDexLoader extends StatefulWidget {
+  const _LastDexLoader();
+
+  @override
+  State<_LastDexLoader> createState() => _LastDexLoaderState();
+}
+
+class _LastDexLoaderState extends State<_LastDexLoader> {
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final lastId = await StorageService().getLastPokedexId();
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => PokedexScreen(
+          pokedexId: lastId ?? 'national',
+          pokedexName: lastId == null ? 'Nacional' : null,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: SizedBox.shrink(),
     );
   }
 }
