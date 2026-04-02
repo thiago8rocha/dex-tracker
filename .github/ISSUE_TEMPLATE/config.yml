@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Before you open an issue
+    url: https://github.com/thiago8rocha/DexCurator/blob/main/README.md
+    about: Please read the project documentation before submitting an issue
