@@ -4,8 +4,35 @@ import 'package:dexcurator/screens/detail/detail_shared.dart';
 import 'package:dexcurator/services/pokedex_data_service.dart';
 import 'package:dexcurator/services/pokeapi_service.dart';
 import 'package:dexcurator/services/storage_service.dart';
-import 'package:dexcurator/theme/type_colors.dart';
 import 'package:dexcurator/translations.dart';
+
+const Map<String, String> _kGameToPokedexId = {
+  'Red / Blue':                        'red___blue',
+  'Yellow':                            'yellow',
+  'Gold / Silver':                     'gold___silver',
+  'Crystal':                           'crystal',
+  'Ruby / Sapphire':                   'ruby___sapphire',
+  'FireRed / LeafGreen (GBA)':         'firered___leafgreen_(gba)',
+  'Emerald':                           'emerald',
+  'Diamond / Pearl':                   'diamond___pearl',
+  'Platinum':                          'platinum',
+  'HeartGold / SoulSilver':            'heartgold___soulsilver',
+  'Black / White':                     'black___white',
+  'Black 2 / White 2':                 'black_2___white_2',
+  'X / Y':                             'x___y',
+  'Omega Ruby / Alpha Sapphire':       'omega_ruby___alpha_sapphire',
+  'Sun / Moon':                        'sun___moon',
+  'Ultra Sun / Ultra Moon':            'ultra_sun___ultra_moon',
+  "Let's Go Pikachu / Eevee":          "let's_go_pikachu___eevee",
+  'Sword / Shield':                    'sword___shield',
+  'Brilliant Diamond / Shining Pearl': 'brilliant_diamond___shining_pearl',
+  'Legends: Arceus':                   'legends:_arceus',
+  'Scarlet / Violet':                  'scarlet___violet',
+  'Legends: Z-A':                      'legends:_z-a',
+  'FireRed / LeafGreen':               'firered___leafgreen',
+  'Pokémon GO':                        'pokémon_go',
+  'Pokopia':                           'pokopia',
+};
 
 class NacionalDetailScreen extends StatefulWidget {
   final Pokemon pokemon;
@@ -52,6 +79,8 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
   bool _loading = true;
   List<Map<String, dynamic>> _flavorTexts = [];
   Set<String>? _activePokedexIds; // null = todas ativas
+  Map<String, List<Map<String, dynamic>>> _encounters = {};
+  bool _loadingEncounters = true;
 
   bool get _hasMultipleForms => !_loading && _forms.length > 1;
 
@@ -110,6 +139,11 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
     _api.fetchPokemon(id).then((d) {
       if (d != null && mounted) _parseMoves(d);
     });
+
+    // Carrega localizações em background
+    _api.fetchEncounters(id).then((enc) {
+      if (mounted) setState(() { _encounters = enc; _loadingEncounters = false; });
+    });
   }
 
   void _parseForms(Map<String, dynamic> d) {
@@ -156,32 +190,7 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
   String get _category => PokedexDataService.instance.getCategory(widget.pokemon.id);
 
   // Mapeamento: nome do jogo no JSON → pokedexId no storage
-  // Usado para filtrar apenas as pokedexes que o usuário tem ativas
-  static const Map<String, String> _gameToPokedexId = {
-    'Red / Blue':                      'red___blue',
-    'Gold / Silver':                   'gold___silver',
-    'Ruby / Sapphire':                 'ruby___sapphire',
-    'FireRed / LeafGreen (GBA)':       'firered___leafgreen_(gba)',
-    'Emerald':                         'emerald',
-    'Diamond / Pearl':                 'diamond___pearl',
-    'Platinum':                        'platinum',
-    'HeartGold / SoulSilver':          'heartgold___soulsilver',
-    'Black / White':                   'black___white',
-    'Black 2 / White 2':               'black_2___white_2',
-    'X / Y':                           'x___y',
-    'Omega Ruby / Alpha Sapphire':     'omega_ruby___alpha_sapphire',
-    'Sun / Moon':                      'sun___moon',
-    'Ultra Sun / Ultra Moon':          'ultra_sun___ultra_moon',
-    "Let's Go Pikachu / Eevee":        'let\'s_go_pikachu___eevee',
-    'Sword / Shield':                  'sword___shield',
-    'Brilliant Diamond / Shining Pearl': 'brilliant_diamond___shining_pearl',
-    'Legends: Arceus':                 'legends_arceus',
-    'Scarlet / Violet':                'scarlet___violet',
-    'Legends: Z-A':                    'legends_z-a',
-    'FireRed / LeafGreen':             'firered___leafgreen',
-    'Pokémon GO':                      'pokémon_go',
-    'Pokopia':                         'pokopia',
-  };
+  static const Map<String, String> _gameToPokedexId = _kGameToPokedexId;
 
   List<String> get _availableGames {
     // Dados reais do JSON — lista exata de jogos onde o pokémon aparece
@@ -240,6 +249,9 @@ class _NacionalDetailScreenState extends State<NacionalDetailScreen>
                 weight: _weight,
                 availableGames: _availableGames,
                 loading: _loading,
+                encounters: _encounters,
+                loadingEncounters: _loadingEncounters,
+                activePokedexIds: _activePokedexIds,
               ),
               StatusTab(pokemon: widget.pokemon),
               if (_hasMultipleForms) FormsTab(forms: _forms, loading: _loading),
@@ -261,6 +273,9 @@ class _NacionalInfoTab extends StatelessWidget {
   final String category, height, weight, pokedexId;
   final List<String> availableGames;
   final bool loading;
+  final Map<String, List<Map<String, dynamic>>> encounters;
+  final bool loadingEncounters;
+  final Set<String>? activePokedexIds;
 
   const _NacionalInfoTab({
     required this.pokemon, required this.abilities, required this.evoChain,
@@ -268,6 +283,8 @@ class _NacionalInfoTab extends StatelessWidget {
     required this.height, required this.weight,
     required this.availableGames, required this.loading,
     required this.pokedexId,
+    required this.encounters, required this.loadingEncounters,
+    required this.activePokedexIds,
   });
 
   @override
@@ -288,6 +305,16 @@ class _NacionalInfoTab extends StatelessWidget {
             loading: loading,
             pokedexId: pokedexId,
           ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // ── Onde encontrar ──
+        SectionCard(
+          title: 'ONDE ENCONTRAR',
+          pokemonTypes: pokemon.types,
+          loading: loadingEncounters,
+          child: _buildEncountersNacional(context),
         ),
 
         const SizedBox(height: 16),
@@ -320,32 +347,53 @@ class _NacionalInfoTab extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
-
-        // ── Disponível em ──
-        SectionCard(
-          title: 'DISPONÍVEL EM',
-          pokemonTypes: pokemon.types,
-          child: availableGames.isEmpty
-              ? Text(loading ? 'Carregando...' : 'Dados não disponíveis.',
-                  style: TextStyle(fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant))
-              : Wrap(spacing: 8, runSpacing: 8,
-                  children: availableGames.map((g) {
-                    final typeColor = TypeColors.fromType(
-                        ptType(pokemon.types.isNotEmpty ? pokemon.types[0] : 'normal'));
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: typeColor.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8)),
-                      child: Text(g, style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontSize: 11, fontWeight: FontWeight.w500)),
-                    );
-                  }).toList()),
-        ),
-
-        const SizedBox(height: 16),
       ]),
+    );
+  }
+
+  Widget _buildEncountersNacional(BuildContext context) {
+    if (loadingEncounters) return const SizedBox(height: 40);
+
+    const excluded = {'pokémon_go', 'pokopia'};
+    final rows = <Widget>[];
+
+    for (final gameName in availableGames) {
+      final dexId = _kGameToPokedexId[gameName];
+      if (dexId == null || excluded.contains(dexId)) continue;
+
+      if (rows.isNotEmpty) rows.add(const Divider(height: 12, thickness: 0.5));
+      rows.add(Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Text(gameName,
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+            color: Theme.of(context).colorScheme.primary,
+            letterSpacing: 0.3)),
+      ));
+      final locs = encounters[dexId];
+      if (locs == null || locs.isEmpty) {
+        rows.add(Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text('Dados não disponíveis.',
+            style: TextStyle(fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ));
+      } else {
+        for (final loc in locs) {
+          rows.add(EncounterRow(enc: loc, pokemonTypes: pokemon.types));
+        }
+      }
+    }
+
+    if (rows.isEmpty) {
+      return Text(
+        'Localizações não disponíveis para os jogos selecionados.',
+        style: TextStyle(fontSize: 12,
+          color: Theme.of(context).colorScheme.onSurfaceVariant),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: rows,
     );
   }
 }

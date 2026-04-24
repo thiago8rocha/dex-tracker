@@ -299,12 +299,20 @@ Future<void> initDefaultSprite() async {
   defaultSpriteNotifier.value = await StorageService().getDefaultSprite();
 }
 
-// ─── SHOW FORMS IN LIST NOTIFIER ────────────────────────────────
+// ─── FORMS IN LIST NOTIFIER ─────────────────────────────────────
 
-final showFormsInListNotifier = ValueNotifier<bool>(true);
+final formsInListNotifier = ValueNotifier<Map<String, bool>>({
+  'mega': true, 'gigantamax': true, 'regional': true, 'other': true,
+});
 
 Future<void> initShowFormsInList() async {
-  showFormsInListNotifier.value = await StorageService().getShowFormsInList();
+  final storage = StorageService();
+  formsInListNotifier.value = {
+    'mega':       await storage.getFormCategoryEnabled('mega'),
+    'gigantamax': await storage.getFormCategoryEnabled('gigantamax'),
+    'regional':   await storage.getFormCategoryEnabled('regional'),
+    'other':      await storage.getFormCategoryEnabled('other'),
+  };
 }
 
 // ─── HELPER BILÍNGUE ────────────────────────────────────────────
@@ -803,10 +811,9 @@ class SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final primaryTypePt = pokemonTypes.isNotEmpty
-        ? ptType(pokemonTypes[0])
-        : 'Normal';
-    final tColor = typeColor(primaryTypePt);
+    final tColor = pokemonTypes.isNotEmpty
+        ? typeColor(pokemonTypes[0])
+        : const Color(0xFF9E9E9E);
 
     final cardBg = isDark
         ? tColor.withOpacity(0.08)
@@ -1765,9 +1772,9 @@ class _MovesTabState extends State<MovesTab> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryTypePt = widget.pokemonTypes.isNotEmpty
-        ? ptType(widget.pokemonTypes[0]) : 'Normal';
-    final tColor = typeColor(primaryTypePt);
+    final tColor = widget.pokemonTypes.isNotEmpty
+        ? typeColor(widget.pokemonTypes[0])
+        : const Color(0xFF9E9E9E);
 
     return Stack(children: [
       SingleChildScrollView(
@@ -1980,8 +1987,7 @@ class _MoveRowState extends State<MoveRow> {
     final namePt  = translateMove(nameEn);
     final level   = widget.move['level'] as int;
     final typeEn = _detail?['type']?['name'] as String? ?? '';
-    final typePt = ptType(typeEn);
-    final tColor = typeColor(typePt);
+    final tColor = typeEn.isNotEmpty ? typeColor(typeEn) : const Color(0xFF9E9E9E);
     final catName = _detail?['damage_class']?['name'] as String? ?? '';
     final power = _detail?['power'] as int?;
 
@@ -2077,8 +2083,6 @@ class MoveModal extends StatelessWidget {
     final nameEn = move['name'] as String;
     final namePt = translateMove(nameEn);
     final typeEn = detail?['type']?['name'] as String? ?? '';
-    final typePt = ptType(typeEn);
-    final tColor = typeColor(typePt);
     final catName = detail?['damage_class']?['name'] as String? ?? '';
     final power = detail?['power'];
     final acc = detail?['accuracy'];
@@ -2395,15 +2399,29 @@ class _EvoChainWidgetState extends State<EvoChainWidget> {
               maxLines: 1, overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center),
             const SizedBox(height: 4),
-            // Badges de tipo — usa TypeBadge padrão do projeto
             if (types.isNotEmpty)
               Wrap(
                 spacing: 3, runSpacing: 3,
                 alignment: WrapAlignment.center,
-                children: types.map((t) => TypeBadge(type: t)).toList(),
+                children: types.map((t) {
+                  final tc = typeColor(t);
+                  return Container(
+                    height: 18,
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    decoration: BoxDecoration(
+                      color: tc, borderRadius: BorderRadius.circular(4)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Image.asset(typeIconAsset(t), width: 13, height: 13),
+                      const SizedBox(width: 3),
+                      Text(ptType(t), style: TextStyle(
+                        fontSize: 9, color: typeTextColor(tc),
+                        fontWeight: FontWeight.w700)),
+                    ]),
+                  );
+                }).toList(),
               )
             else
-              const SizedBox(height: 32),
+              const SizedBox(height: 18),
           ],
         ),
       ));
@@ -2420,7 +2438,7 @@ class _EvoChainWidgetState extends State<EvoChainWidget> {
                   color: Theme.of(ctx).colorScheme.onSurfaceVariant),
               if (cond.isNotEmpty)
                 Text(cond,
-                  style: TextStyle(fontSize: 8,
+                  style: TextStyle(fontSize: 10,
                       color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                   textAlign: TextAlign.center,
                   maxLines: 2),
@@ -2588,9 +2606,6 @@ class EncounterRow extends StatelessWidget {
     final scheme   = Theme.of(context).colorScheme;
     final location = enc['location'] as String;
     final method   = enc['method']   as String;
-    final minLv    = enc['minLevel'] as int;
-    final maxLv    = enc['maxLevel'] as int;
-    final levels   = minLv == maxLv ? 'Nv. $minLv' : 'Nv. $minLv–$maxLv';
     final methodPt = encounterMethodPt(method);
     final typeKey  = pokemonTypes.isNotEmpty ? pokemonTypes[0].toLowerCase() : 'normal';
     final typeColor = typeColors[typeKey] ?? const Color(0xFF888888);
@@ -2615,9 +2630,6 @@ class EncounterRow extends StatelessWidget {
             style: TextStyle(fontSize: 11, color: typeColor,
                 fontWeight: FontWeight.w600)),
         ),
-        const SizedBox(width: 8),
-        Text(levels,
-          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
       ]),
     );
   }
