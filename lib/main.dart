@@ -12,6 +12,7 @@ import 'package:dexcurator/screens/detail/detail_shared.dart'
 import 'package:dexcurator/screens/disclaimer_screen.dart';
 import 'package:dexcurator/services/tcg_pocket_service.dart'
     show kPocketSetOrder, boosterAssetPath;
+import 'package:dexcurator/services/location_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +47,8 @@ void main() async {
 
   // Carrega dados locais em isolates via compute() — não bloqueia a UI
   await PokedexDataService.instance.load();
+  // Carrega dados de localização em background — não bloqueia o launch
+  LocationService.instance.warmup();
 
   runApp(DexCuratorApp(showDisclaimer: !disclaimerSeen));
 

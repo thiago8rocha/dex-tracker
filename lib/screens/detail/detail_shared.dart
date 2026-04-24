@@ -2405,18 +2405,19 @@ class _EvoChainWidgetState extends State<EvoChainWidget> {
                 alignment: WrapAlignment.center,
                 children: types.map((t) {
                   final tc = typeColor(t);
-                  return Container(
-                    height: 18,
-                    padding: const EdgeInsets.symmetric(horizontal: 5),
-                    decoration: BoxDecoration(
-                      color: tc, borderRadius: BorderRadius.circular(4)),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Image.asset(typeIconAsset(t), width: 13, height: 13),
-                      const SizedBox(width: 3),
-                      Text(ptType(t), style: TextStyle(
-                        fontSize: 9, color: typeTextColor(tc),
-                        fontWeight: FontWeight.w700)),
-                    ]),
+                  return SizedBox(
+                    width: 72, height: 18,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(color: tc),
+                      child: Row(children: [
+                        Image.asset(typeIconAsset(t), width: 18, height: 18),
+                        Expanded(child: Text(ptType(t),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 9, color: typeTextColor(tc),
+                            fontWeight: FontWeight.w700))),
+                      ]),
+                    ),
                   );
                 }).toList(),
               )
@@ -2575,23 +2576,34 @@ Map<String, double> _calculateWeaknesses(List<String> types) => calculateWeaknes
 
 // ─── LOCALIZAÇÃO: NOME DO MÉTODO ─────────────────────────────────
 
-String encounterMethodPt(String method) => switch (method) {
-  'walk'       => 'Caminhando',
-  'surf'       => 'Surfando',
-  'old-rod'    => 'Vara Velha',
-  'good-rod'   => 'Vara Boa',
-  'super-rod'  => 'Super Vara',
-  'gift'       => 'Presente',
-  'only-one'   => 'Único',
-  'rock-smash' => 'Quebra-Pedra',
-  'headbutt'   => 'Headbutt',
-  'pokeradar'  => 'PokéRadar',
-  'slot2'      => 'Slot 2',
-  'trade'      => 'Troca',
-  'special'    => 'Especial',
-  _            => method.split('-').map((w) =>
-      w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1)).join(' '),
-};
+String encounterMethodPt(String method) {
+  const map = {
+    // PokéAPI methods
+    'walk': 'Caminhando', 'surf': 'Surfando',
+    'old-rod': 'Vara Velha', 'good-rod': 'Vara Boa', 'super-rod': 'Super Vara',
+    'gift': 'Presente', 'only-one': 'Único', 'rock-smash': 'Quebra-Pedra',
+    'headbutt': 'Headbutt', 'pokeradar': 'PokéRadar', 'slot2': 'Slot 2',
+    'trade': 'Troca', 'special': 'Especial',
+    // CTA Dex methods
+    'Walking / Grass': 'Grama', 'Walking / Cave': 'Caverna',
+    'Walking / Sand': 'Areia', 'Walking / Water': 'Água',
+    'Overworld': 'Overworld', 'Wandering': 'Errante',
+    'Surfing': 'Surfando', 'Fishing': 'Pescando',
+    'Old Rod': 'Vara Velha', 'Good Rod': 'Vara Boa', 'Super Rod': 'Super Vara',
+    'gift': 'Presente', 'Gift': 'Presente',
+    'Starter Pokémon': 'Inicial', 'Starter Pokemon': 'Inicial',
+    'Headbutt': 'Headbutt', 'Rock Smash': 'Quebra-Pedra',
+    'Raid Battle': 'Raid', 'Dynamax Adventure': 'Aventura Dynamax',
+    'Roaming': 'Errante', 'Static': 'Estático',
+    'Mass Outbreak': 'Surto em Massa', 'Alpha': 'Alpha',
+    'Trade': 'Troca', 'Evolution': 'Evolução',
+    'Evolve': 'Evolução', 'Evolve Charmander': 'Evolução',
+  };
+  if (map.containsKey(method)) return map[method]!;
+  // Capitalize first word of unknown method
+  if (method.isEmpty) return '';
+  return method[0].toUpperCase() + method.substring(1);
+}
 
 // ─── WIDGET: LINHA DE LOCALIZAÇÃO ────────────────────────────────
 
@@ -2603,33 +2615,63 @@ class EncounterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme   = Theme.of(context).colorScheme;
-    final location = enc['location'] as String;
-    final method   = enc['method']   as String;
-    final methodPt = encounterMethodPt(method);
-    final typeKey  = pokemonTypes.isNotEmpty ? pokemonTypes[0].toLowerCase() : 'normal';
-    final typeColor = typeColors[typeKey] ?? const Color(0xFF888888);
+    final scheme    = Theme.of(context).colorScheme;
+    final location  = enc['location'] as String? ?? '';
+    final method    = enc['method']   as String? ?? '';
+    final rarity    = enc['rarity']   as String? ?? '';
+    final time      = enc['time']     as String? ?? '';
+    final weather   = enc['weather']  as String? ?? '';
+    final minLevel  = enc['minLevel'] as String? ?? '';
+    final maxLevel  = enc['maxLevel'] as String? ?? '';
+    final methodPt  = encounterMethodPt(method);
+    final typeKey   = pokemonTypes.isNotEmpty ? pokemonTypes[0].toLowerCase() : 'normal';
+    final tColor    = typeColors[typeKey] ?? const Color(0xFF888888);
+
+    // Build detail tags: rarity, level range, time, weather
+    final tags = <String>[];
+    if (minLevel.isNotEmpty) {
+      tags.add(maxLevel.isNotEmpty && maxLevel != minLevel
+          ? 'Nv. $minLevel–$maxLevel'
+          : 'Nv. $minLevel');
+    }
+    if (rarity.isNotEmpty && rarity != '100' && rarity != '100%') {
+      final r = rarity.endsWith('%') ? rarity : '$rarity%';
+      tags.add(r);
+    }
+    if (time.isNotEmpty) tags.add(time);
+    if (weather.isNotEmpty) tags.add(weather);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(children: [
-        Expanded(
-          child: Text(location,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
-                color: scheme.onSurface)),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-          decoration: BoxDecoration(
-            color: typeColor.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: typeColor.withOpacity(0.4), width: 0.5),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: Text(location,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
+                  color: scheme.onSurface)),
           ),
-          child: Text(methodPt,
-            style: TextStyle(fontSize: 11, color: typeColor,
-                fontWeight: FontWeight.w600)),
-        ),
+          if (methodPt.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: tColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: tColor.withOpacity(0.4), width: 0.5),
+              ),
+              child: Text(methodPt,
+                style: TextStyle(fontSize: 11, color: tColor,
+                    fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ]),
+        if (tags.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(tags.join(' · '),
+              style: TextStyle(fontSize: 11,
+                  color: scheme.onSurfaceVariant)),
+          ),
       ]),
     );
   }
