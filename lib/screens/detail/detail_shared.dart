@@ -2570,31 +2570,68 @@ String encounterGameName(String raw) {
 
 String encounterMethodPt(String method) {
   const map = {
-    // PokéAPI methods
+    // PokéAPI (snake_case)
     'walk': 'Caminhando', 'surf': 'Surfando',
     'old-rod': 'Vara Velha', 'good-rod': 'Vara Boa', 'super-rod': 'Super Vara',
-    'gift': 'Presente', 'only-one': 'Único', 'rock-smash': 'Quebra-Pedra',
-    'headbutt': 'Headbutt', 'pokeradar': 'PokéRadar', 'slot2': 'Slot 2',
-    'trade': 'Troca', 'special': 'Especial',
-    // CTA Dex methods
+    'gift': 'Presente', 'gift-egg': 'Presente (ovo)', 'only-one': 'Único',
+    'rock-smash': 'Quebra-Pedra', 'headbutt': 'Headbutt',
+    'pokeradar': 'PokéRadar', 'slot2': 'Slot 2', 'trade': 'Troca',
+    'special': 'Especial', 'dark-grass': 'Grama Alta', 'squirt-bottle': 'Regador',
+    'grass-spots': 'Grama', 'surf-spots': 'Surf', 'super-rod-spots': 'Super Vara',
+    'cave-spots': 'Caverna', 'bridge-spots': 'Ponte', 'rough-terrain': 'Terreno Acidentado',
+    'yellow-flowers': 'Flores Amarelas', 'purple-flowers': 'Flores Roxas',
+    'red-flowers': 'Flores Vermelhas', 'pokeflute': 'Poké Flauta',
+    'wailmer-pail': 'Regador Wailmer', 'seaweed': 'Algas', 'swamp': 'Pântano',
+    // CTA Dex (Title Case / sentence)
     'Walking / Grass': 'Grama', 'Walking / Cave': 'Caverna',
     'Walking / Sand': 'Areia', 'Walking / Water': 'Água',
+    'Walking / Grass - SOS only': 'Grama (SOS)',
+    'Grass': 'Grama', 'Grass - Rare Spawns': 'Grama (Raro)',
+    'Tall Grass': 'Grama Alta', 'Shaking Grass': 'Grama Agitada',
+    'Shaking Grass - SOS only': 'Grama Agitada (SOS)',
     'Overworld': 'Overworld', 'Wandering': 'Errante',
-    'Surfing': 'Surfando', 'Fishing': 'Pescando',
+    'Wandering Surf': 'Surf Errante', 'Roaming': 'Errante',
+    'Roaming in Grass': 'Errante (Grama)', 'Roaming in the Cave': 'Errante (Caverna)',
+    'Roaming in the Grass': 'Errante (Grama)',
+    'Random': 'Aleatório', 'Random Encounter': 'Encontro Aleatório',
+    'Static': 'Estático', 'Interact': 'Interação',
+    'Surfing': 'Surfando', 'Surf': 'Surfando',
+    'Fishing': 'Pescando', 'Fish': 'Pescando',
+    'Fish - SOS only': 'Pescando (SOS)', 'Fish Special': 'Pesca Especial',
+    'Fish Special - SOS only': 'Pesca Especial (SOS)',
     'Old Rod': 'Vara Velha', 'Good Rod': 'Vara Boa', 'Super Rod': 'Super Vara',
-    'Gift': 'Presente',
-    'Starter Pokémon': 'Inicial', 'Starter Pokemon': 'Inicial',
-    'Headbutt': 'Headbutt', 'Rock Smash': 'Quebra-Pedra',
+    'Water': 'Água', 'Water - Rare Spawns': 'Água (Raro)',
+    'Underground': 'Subterrâneo', 'Curry': 'Curry',
+    'Gift': 'Presente', 'Starter Pokémon': 'Inicial', 'Starter Pokemon': 'Inicial',
+    'Headbutt': 'Headbutt', 'Headbutt N.': 'Headbutt (Norte)',
+    'Headbutt Sp.': 'Headbutt (Especial)', 'Rock Smash': 'Quebra-Pedra',
+    'Honey Tree': 'Árvore de Mel', 'Honey Tree - Rare': 'Mel (Raro)',
+    'Honey Tree - Very Rare': 'Mel (Muito Raro)', 'Berry Tree': 'Árvore de Fruta',
+    'Berry': 'Fruta', 'DexNav': 'DexNav',
+    'Swarm': 'Enxame', 'Horde': 'Horda', 'Island Scan': 'Island Scan',
+    'Weather SOS Battle': 'Batalha SOS (Clima)', 'Shaking Trees': 'Árvore Agitada',
+    'Shaking Trees - SOS only': 'Árvore Agitada (SOS)',
+    'In the Sky': 'No Ar', 'In the Sky - Rare Spawns': 'No Ar (Raro)',
+    'Flying': 'Voando', 'Wimpod': 'Wimpod', 'Sharpedo': 'Sharpedo',
     'Raid Battle': 'Raid', 'Dynamax Adventure': 'Aventura Dynamax',
-    'Roaming': 'Errante', 'Static': 'Estático',
     'Mass Outbreak': 'Surto em Massa', 'Alpha': 'Alpha',
-    'Trade': 'Troca', 'Evolution': 'Evolução',
-    'Evolve': 'Evolução', 'Evolve Charmander': 'Evolução',
+    'Trade': 'Troca', 'Evolution': 'Evolução', 'Evolve': 'Evolução',
+    'Evolve Charmander': 'Evolução', 'From totem after completion of game': 'Totem',
+    'Requires Entei & Raikou': 'Evento', 'Requires Kyogre & Groudon': 'Evento',
+    'Requires Dialga & Palkia': 'Evento', 'Requires Tornadus & Thundurus': 'Evento',
+    'Requires Reshiram & Zekrom': 'Evento', 'Shaking': 'Agitando',
   };
   if (map.containsKey(method)) return map[method]!;
-  // Capitalize first word of unknown method
   if (method.isEmpty) return '';
   return method[0].toUpperCase() + method.substring(1);
+}
+
+/// Normaliza nomes de localização: traduz "Route N" → "Rota N".
+/// Outros nomes permanecem como estão (são substantivos próprios do jogo).
+String normalizeLocationName(String location) {
+  final routeMatch = RegExp(r'^Route\s+(\d+)(.*)$', caseSensitive: false).firstMatch(location);
+  if (routeMatch != null) return 'Rota ${routeMatch.group(1)}${routeMatch.group(2)}';
+  return location;
 }
 
 // ─── WIDGET: LINHA DE LOCALIZAÇÃO ────────────────────────────────
@@ -2608,7 +2645,7 @@ class EncounterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme    = Theme.of(context).colorScheme;
-    final location  = enc['location'] as String? ?? '';
+    final location  = normalizeLocationName(enc['location'] as String? ?? '');
     final method    = enc['method']   as String? ?? '';
     final rarity    = enc['rarity']   as String? ?? '';
     final time      = enc['time']     as String? ?? '';
