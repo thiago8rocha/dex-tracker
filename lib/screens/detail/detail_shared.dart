@@ -639,7 +639,6 @@ class _AboutHeaderState extends State<AboutHeader> {
             : widget.category;
 
     final groups      = widget.flavorTexts;
-    final hasMultiple = groups.length > 1;
     final currentText = groups.isNotEmpty
         ? (groups[_selectedIdx]['textPt'] as String? ?? '')
         : '';
@@ -656,51 +655,6 @@ class _AboutHeaderState extends State<AboutHeader> {
           style: TextStyle(
             fontSize: 13, color: secondary, fontStyle: FontStyle.italic),
         ),
-
-      // Seletor de jogo — só aparece quando há múltiplos grupos
-      if (!widget.loading && hasMultiple) ...[
-        const SizedBox(height: 10),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(groups.length, (i) {
-              final games  = (groups[i]['games'] as List).cast<String>();
-              // Label: primeira palavra de cada jogo separado por "·"
-              final label  = games.map((g) => g.split(' / ').first).join(' · ');
-              final active = i == _selectedIdx;
-              final color  = typeIconColors[widget.types.isNotEmpty
-                  ? widget.types[0].toLowerCase()
-                  : 'normal'] ?? const Color(0xFF888888);
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedIdx = i),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: active ? color.withOpacity(0.15) : Colors.transparent,
-                      border: Border.all(
-                        color: active ? color : secondary.withOpacity(0.35),
-                        width: active ? 1.5 : 1.0,
-                      ),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-                        color: active ? color : secondary,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ],
 
       const SizedBox(height: 12),
 
@@ -2634,6 +2588,39 @@ String normalizeLocationName(String location) {
   return location;
 }
 
+String encounterTimePt(String time) {
+  const map = {
+    'Day': 'Dia', 'day': 'Dia', 'All Day': 'Dia Todo', 'All': 'Sempre',
+    'Morning': 'Manhã', 'morning': 'Manhã', 'Night': 'Noite', 'night': 'Noite',
+    'spring': 'Primavera', 'summer': 'Verão', 'autumn': 'Outono', 'winter': 'Inverno',
+    'swarm-yes': 'Com Enxame', 'swarm-no': 'Sem Enxame',
+    'swarm-no ,morning': 'Sem Enxame (Manhã)', 'swarm-no ,night': 'Sem Enxame (Noite)',
+    'radar-on': 'Radar Ativo', 'radar-off': 'Sem Radar',
+    'radio-hoenn': 'Rádio Hoenn', 'radio-sinnoh': 'Rádio Sinnoh', 'radio-off': 'Sem Rádio',
+    'day ,radio-off': 'Dia (Sem Rádio)', 'morning ,radio-off': 'Manhã (Sem Rádio)',
+    'night ,radio-off': 'Noite (Sem Rádio)',
+    'slot2-none': 'Slot 2 Vazio', 'slot2-ruby': 'Slot 2: Ruby',
+    'slot2-sapphire': 'Slot 2: Sapphire', 'slot2-emerald': 'Slot 2: Emerald',
+    'slot2-firered': 'Slot 2: FireRed', 'slot2-leafgreen': 'Slot 2: LeafGreen',
+  };
+  return map[time] ?? time;
+}
+
+String encounterWeatherPt(String weather) {
+  const map = {
+    'Day': 'Dia', 'Morning': 'Manhã', 'Night': 'Noite', 'All Day': 'Dia Todo',
+    'Beginning': 'Início', 'Defog Obtained': 'Defog Obtido',
+    'Fog': 'Névoa', 'Icicle Badge Obtained': 'Medalha Icicle',
+    'Intense Sun': 'Sol Intenso', 'National Pokedex': 'Pokédex Nacional',
+    'Normal Weather': 'Clima Normal', 'Overcast': 'Nublado',
+    'Raining': 'Chuva', 'Rare Spawn': 'Aparição Rara',
+    'Sandstorm': 'Tempestade de Areia', 'Snowing': 'Neve',
+    'Snowstorm': 'Nevasca', 'Strength Obtained': 'Strength Obtido',
+    'Thunderstorm': 'Tempestade', 'Waterfall Obtained': 'Waterfall Obtida',
+  };
+  return map[weather] ?? weather;
+}
+
 // ─── WIDGET: LINHA DE LOCALIZAÇÃO ────────────────────────────────
 
 class EncounterRow extends StatelessWidget {
@@ -2667,8 +2654,8 @@ class EncounterRow extends StatelessWidget {
       final r = rarity.endsWith('%') ? rarity : '$rarity%';
       tags.add(r);
     }
-    if (time.isNotEmpty) tags.add(time);
-    if (weather.isNotEmpty) tags.add(weather);
+    if (time.isNotEmpty) tags.add(encounterTimePt(time));
+    if (weather.isNotEmpty) tags.add(encounterWeatherPt(weather));
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
