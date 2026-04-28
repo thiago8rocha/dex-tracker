@@ -2782,8 +2782,14 @@ class EncounterRow extends StatelessWidget {
     }
 
     final tags = <String>[];
-    if (time.isNotEmpty)    tags.add(encounterTimePt(time));
-    if (weather.isNotEmpty) tags.add(encounterWeatherPt(weather));
+    if (time.isNotEmpty) {
+      final t = encounterTimePt(time);
+      if (t != 'Dia') tags.add(t);
+    }
+    if (weather.isNotEmpty) {
+      final w = encounterWeatherPt(weather);
+      if (w != 'Dia') tags.add(w);
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),

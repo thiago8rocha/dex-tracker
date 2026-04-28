@@ -7,7 +7,7 @@ import 'package:dexcurator/services/storage_service.dart';
 import 'package:dexcurator/services/dex_bundle_service.dart';
 import 'package:dexcurator/services/pokedex_data_service.dart';
 import 'package:dexcurator/screens/detail/detail_shared.dart'
-    show defaultSpriteNotifier, showFormsInListNotifier, typeNamePt, typeIconColors, TypeBadge, PokeballLoader, specialtyIconPath;
+    show defaultSpriteNotifier, formsInListNotifier, typeNamePt, typeIconColors, TypeBadge, PokeballLoader, specialtyIconPath;
 import 'package:dexcurator/screens/detail/nacional_detail_screen.dart';
 import 'package:dexcurator/screens/detail/mainline_detail_screen.dart';
 import 'package:dexcurator/screens/go/go_detail_screen.dart';
@@ -293,6 +293,15 @@ String? _extractFormSuffix(String formName) {
   return null;
 }
 
+String _formSuffixCategory(String suffix) {
+  if (suffix.startsWith('GMAX')) return 'gigantamax';
+  if (suffix == 'MEGA' || suffix == 'MEGAX' || suffix == 'MEGAY' ||
+      suffix == 'MEGAZ' || suffix == 'PRIMAL') return 'mega';
+  if (suffix == 'ALOLA' || suffix.startsWith('GALARIAN') ||
+      suffix.startsWith('HISUI') || suffix.startsWith('PALDEA')) return 'regional';
+  return 'other';
+}
+
 String _suffixToPt(String suffix) {
   switch (suffix) {
     case 'ALOLA':        return 'de Alola';
@@ -478,7 +487,7 @@ class _PokedexScreenState extends State<PokedexScreen>
 
   @override
   void dispose() {
-    showFormsInListNotifier.removeListener(_onFormsSettingChanged);
+    formsInListNotifier.removeListener(_onFormsSettingChanged);
     _searchController.dispose();
     _pokopiaTabController?.dispose();
     super.dispose();
@@ -498,7 +507,7 @@ class _PokedexScreenState extends State<PokedexScreen>
   @override
   void initState() {
     super.initState();
-    showFormsInListNotifier.addListener(_onFormsSettingChanged);
+    formsInListNotifier.addListener(_onFormsSettingChanged);
     _sections = _api.getSections(widget.pokedexId);
 
     if (_isPokopiaBase) {
@@ -634,34 +643,40 @@ class _PokedexScreenState extends State<PokedexScreen>
         }
       }
 
-      // Injeta formas alternativas na Nacional se habilitado
-      if (_isNacional && showFormsInListNotifier.value) {
-        final svc = PokedexDataService.instance;
-        for (final key in bySection.keys.toList()) {
-          final list = bySection[key]!;
-          final withForms = <_Entry>[];
-          for (final e in list) {
-            withForms.add(e);
-            if (!svc.hasForms(e.speciesId)) continue;
-            final seenKeys = <String>{};
-            for (final form in svc.getForms(e.speciesId)) {
-              if (form['isDefault'] == true) continue;
-              final formName = form['name'] as String;
-              final formId   = form['id']   as int;
-              final suffix   = _extractFormSuffix(formName);
-              if (suffix == null) continue;
-              final formaKey = '${e.speciesId}_$suffix';
-              if (!_knownFormSprites.contains(formaKey)) continue;
-              if (!seenKeys.add(formaKey)) continue;
-              withForms.add(_Entry(
-                entryNumber: e.entryNumber,
-                speciesId:   e.speciesId,
-                formaKey:    formaKey,
-                formId:      formId,
-              ));
+      // Injeta formas alternativas na Nacional filtrando por categoria
+      if (_isNacional) {
+        final cats = formsInListNotifier.value;
+        final anyEnabled = cats.values.any((v) => v);
+        if (anyEnabled) {
+          final svc = PokedexDataService.instance;
+          for (final key in bySection.keys.toList()) {
+            final list = bySection[key]!;
+            final withForms = <_Entry>[];
+            for (final e in list) {
+              withForms.add(e);
+              if (!svc.hasForms(e.speciesId)) continue;
+              final seenKeys = <String>{};
+              for (final form in svc.getForms(e.speciesId)) {
+                if (form['isDefault'] == true) continue;
+                final formName = form['name'] as String;
+                final formId   = form['id']   as int;
+                final suffix   = _extractFormSuffix(formName);
+                if (suffix == null) continue;
+                final category = _formSuffixCategory(suffix);
+                if (cats[category] != true) continue;
+                final formaKey = '${e.speciesId}_$suffix';
+                if (!_knownFormSprites.contains(formaKey)) continue;
+                if (!seenKeys.add(formaKey)) continue;
+                withForms.add(_Entry(
+                  entryNumber: e.entryNumber,
+                  speciesId:   e.speciesId,
+                  formaKey:    formaKey,
+                  formId:      formId,
+                ));
+              }
             }
+            bySection[key] = withForms;
           }
-          bySection[key] = withForms;
         }
       }
 
@@ -744,6 +759,17 @@ class _PokedexScreenState extends State<PokedexScreen>
           if (seen.add(e.catchKey)) entries.add(e);
         }
       }
+    }
+
+    // Filtro de geração para dex de jogos
+    if (!_isNacional && _selectedGens.isNotEmpty) {
+      const genMap = {'1':'Gen I','2':'Gen II','3':'Gen III','4':'Gen IV','5':'Gen V',
+                      '6':'Gen VI','7':'Gen VII','8':'Gen VIII','9':'Gen IX'};
+      final genLabels = _selectedGens.map((n) => genMap[n] ?? n).toSet();
+      final genRanges = nationalGens.where((g) => genLabels.contains(g.label)).toList();
+      entries = entries.where((e) =>
+        genRanges.any((g) => e.speciesId >= g.startId && e.speciesId <= g.endId)
+      ).toList();
     }
 
     // Filtro status
@@ -1813,7 +1839,7 @@ class _PokedexScreenState extends State<PokedexScreen>
 
     String genLabel = hasGen
         ? _selectedGens.map((g) => 'Gen $g').join(', ')
-        : 'Geração';
+        : (launchGen != null ? 'Gen $launchGen' : 'Geração');
     if (genLabel.length > 14) genLabel = '${_selectedGens.length} gens';
 
     String typeLabel = hasType
@@ -1846,7 +1872,7 @@ class _PokedexScreenState extends State<PokedexScreen>
                   border: Border.all(color: c1.withOpacity(0.45), width: 1)),
                 child: Row(children: [
                   Expanded(child: Text(
-                    gameName + genSuffix,
+                    gameName,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600))),
                   Icon(Icons.keyboard_arrow_down, size: 15,
