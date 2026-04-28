@@ -353,16 +353,6 @@ class _NacionalInfoTab extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // ── Onde encontrar ──
-        SectionCard(
-          title: 'ONDE ENCONTRAR',
-          pokemonTypes: pokemon.types,
-          loading: loadingEncounters,
-          child: _buildEncountersNacional(context),
-        ),
-
-        const SizedBox(height: 16),
-
         // ── Habilidades ──
         SectionCard(
           title: 'HABILIDADES',
@@ -391,6 +381,16 @@ class _NacionalInfoTab extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
+
+        // ── Onde encontrar ──
+        SectionCard(
+          title: 'ONDE ENCONTRAR',
+          pokemonTypes: pokemon.types,
+          loading: loadingEncounters,
+          child: _buildEncountersNacional(context),
+        ),
+
+        const SizedBox(height: 16),
       ]),
     );
   }
@@ -401,25 +401,25 @@ class _NacionalInfoTab extends StatelessWidget {
     final rows = <Widget>[];
 
     for (final dexId in _kGameOrder) {
-      if (!encounters.containsKey(dexId)) continue;
       if (activePokedexIds != null && !activePokedexIds!.contains(dexId)) continue;
 
       final gameName = _kDexIdToGameName[dexId] ?? dexId;
 
       if (rows.isNotEmpty) rows.add(const Divider(height: 12, thickness: 0.5));
 
+      rows.add(Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Text(gameName,
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+            color: Theme.of(context).colorScheme.primary,
+            letterSpacing: 0.3)),
+      ));
+
       final locs = encounters[dexId];
       if (locs == null || locs.isEmpty) {
         rows.add(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Text(gameName,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.primary,
-              letterSpacing: 0.3)),
-        ));
-        rows.add(Padding(
           padding: const EdgeInsets.only(bottom: 4),
-          child: Text('Dados não disponíveis.',
+          child: Text('Sem registro neste jogo.',
             style: TextStyle(fontSize: 12,
               color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ));
@@ -430,13 +430,6 @@ class _NacionalInfoTab extends StatelessWidget {
           final key = '${loc['location']}|${loc['method']}|${loc['minLevel']}|${loc['maxLevel']}|${loc['rarity']}|${loc['time']}|${loc['weather']}';
           if (seen.add(key)) merged.add(loc);
         }
-        rows.add(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Text(gameName,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.primary,
-              letterSpacing: 0.3)),
-        ));
         for (final loc in merged) {
           rows.add(EncounterRow(enc: loc, pokemonTypes: pokemon.types));
         }

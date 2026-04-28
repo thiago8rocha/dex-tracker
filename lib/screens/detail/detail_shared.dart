@@ -2676,6 +2676,15 @@ String normalizeLocationName(String location) {
   s = s.replaceFirst('Safari Zone', 'Zona Safari');
   s = s.replaceFirst('Pokemon Ranch', 'Fazenda Pokémon');
 
+  // X Forest → Floresta de X
+  s = s.replaceAllMapped(
+    RegExp(r'(\S+) Forest\b'),
+    (m) => 'Floresta de ${m.group(1)}',
+  );
+
+  // Remove sufixos " City" / " Town" — redundantes em nomes de cidades
+  s = s.replaceAll(RegExp(r'\s+(City|Town)\b'), '');
+
   return s;
 }
 
