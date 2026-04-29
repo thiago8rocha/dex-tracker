@@ -2886,7 +2886,6 @@ String _translateMethod(String method) {
     'Walking (Grass spots)':         'Manchas de Grama',
     'Walking (SOS)':                 'Grama Alta (SOS)',
     'Dark Grass':                    'Grama Escura',
-    'Surfing':                       'Surfando',
     'Surfing (Overworld)':           'Errante (Surf)',
     'Surfing (Spots)':               'Manchas de Surf',
     'Fishing (Old Rod)':             'Vara Velha',
@@ -2910,7 +2909,6 @@ String _translateMethod(String method) {
     'Evolve':                        'Evolução',
     'Glitch':                        'Glitch',
     'Pokémon Bank':                  'Pokémon Bank',
-    'Shaking Trees':                 'Árvore Agitada',
   };
   // Ignora entradas que são nomes de locais com método embutido (dados de raid)
   if (method.contains('(Max Raid Battle)') || method.contains('(Max Raid Den)')) {
