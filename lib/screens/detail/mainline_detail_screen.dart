@@ -108,11 +108,15 @@ class _SwitchDetailScreenState extends State<SwitchDetailScreen>
 
     // Localizations from bundled asset
     final locationSvc = LocationService.instance;
-    if (!locationSvc.isLoaded) await locationSvc.warmup();
-    if (mounted) setState(() {
-      _encounters = locationSvc.getLocations(id, widget.pokedexId);
-      _loadingEncounters = false;
-    });
+    try {
+      if (!locationSvc.isLoaded) await locationSvc.warmup();
+      if (mounted) setState(() {
+        _encounters = locationSvc.getLocations(id, widget.pokedexId);
+        _loadingEncounters = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingEncounters = false);
+    }
   }
 
   void _parseForms(Map<String, dynamic> d) {
@@ -300,11 +304,21 @@ class _SwitchInfoTab extends StatelessWidget {
           color: Theme.of(context).colorScheme.onSurfaceVariant),
       );
     }
-    final groups = groupEncounters(encounters);
+    final regionGroups = groupEncountersByRegion(encounters, pokedexId);
+    if (regionGroups.length <= 1) {
+      final groups = groupEncounters(encounters);
+      return Column(
+        children: groups.values
+            .map((g) => LocationRow(entries: g, pokemonTypes: pokemon.types))
+            .toList(),
+      );
+    }
     return Column(
-      children: groups.values
-          .map((g) => LocationRow(entries: g, pokemonTypes: pokemon.types))
-          .toList(),
+      children: regionGroups.entries.map((e) => ExpandableRegionSection(
+        region: e.key,
+        groups: e.value,
+        pokemonTypes: pokemon.types,
+      )).toList(),
     );
   }
 }

@@ -2591,6 +2591,16 @@ String encounterMethodPt(String method) {
 String normalizeLocationName(String location) {
   var s = location;
 
+  // Strip "Area: " prefix used in Legends: Arceus (e.g. "Crimson Mirelands: Golden Lowlands")
+  const _laAreas = {
+    'Obsidian Fieldlands', 'Crimson Mirelands', 'Cobalt Coastlands',
+    'Coronet Highlands', 'Alabaster Icelands',
+  };
+  final colonIdx = s.indexOf(': ');
+  if (colonIdx > 0 && _laAreas.contains(s.substring(0, colonIdx))) {
+    s = s.substring(colonIdx + 2);
+  }
+
   // Route N → Rota N
   s = s.replaceAllMapped(
     RegExp(r'\bRoute\s+(\d+)\b', caseSensitive: false),
@@ -2933,7 +2943,7 @@ Map<String, List<Map<String, dynamic>>> groupEncounters(
   for (final e in entries) {
     final loc = e['location'] as String? ?? '';
     if (loc.startsWith('Unknown') || loc.startsWith('unknown')) continue;
-    final key = '$loc|${e['method']}|${e['time']}|${e['weather']}';
+    final key = '$loc|${_translateMethod(e['method'] as String? ?? '')}|${e['time']}|${e['weather']}';
     groups.putIfAbsent(key, () => []).add(e);
   }
   return groups;
@@ -3288,7 +3298,7 @@ class ExpandableRegionSection extends StatefulWidget {
     required this.region,
     required this.groups,
     required this.pokemonTypes,
-    this.initiallyExpanded = false,
+    this.initiallyExpanded = true,
   });
 
   @override
