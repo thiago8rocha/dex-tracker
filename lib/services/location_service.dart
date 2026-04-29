@@ -69,9 +69,14 @@ class LocationService {
   };
 
   /// Safe to call concurrently — all callers share the same Future.
+  /// Resets on failure so subsequent calls retry automatically.
   Future<void> warmup() {
+    if (_data != null) return Future.value();
     _warmupFuture ??= _doWarmup();
-    return _warmupFuture!;
+    return _warmupFuture!.catchError((Object e) {
+      _warmupFuture = null;
+      throw e;
+    });
   }
 
   Future<void> _doWarmup() async {
@@ -115,9 +120,9 @@ class LocationService {
     if (_data == null) return [];
     final gameId = _dexIdToGameId[dexId];
     if (gameId == null) return [];
-    final raw = _data![speciesId.toString()] as List<dynamic>?;
-    if (raw == null) return [];
-    return raw
+    final rawEntry = _data![speciesId.toString()];
+    if (rawEntry is! List<dynamic>) return [];
+    return rawEntry
         .cast<Map<String, dynamic>>()
         .where((e) => e['game'] == gameId)
         .map((e) => {
@@ -135,9 +140,9 @@ class LocationService {
   /// Returns all dexIds that have location data for a species (canonical IDs).
   List<String> getAvailableDexIds(int speciesId) {
     if (_data == null) return [];
-    final raw = _data![speciesId.toString()] as List<dynamic>?;
-    if (raw == null) return [];
-    final gameIds = raw
+    final rawEntry = _data![speciesId.toString()];
+    if (rawEntry is! List<dynamic>) return [];
+    final gameIds = rawEntry
         .cast<Map<String, dynamic>>()
         .map((e) => e['game'] as String? ?? '')
         .where((g) => g.isNotEmpty)
