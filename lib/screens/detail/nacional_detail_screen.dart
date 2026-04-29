@@ -452,6 +452,7 @@ class _NacionalInfoTab extends StatelessWidget {
               region: e.key,
               groups: e.value,
               pokemonTypes: pokemon.types,
+              initiallyExpanded: false,
             )).toList(),
           ));
         }
