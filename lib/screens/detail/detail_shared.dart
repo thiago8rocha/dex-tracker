@@ -2965,6 +2965,39 @@ Map<String, Map<String, List<Map<String, dynamic>>>> groupEncountersByRegion(
   return result;
 }
 
+// Agrupa sub-grupos (output de groupEncounters) por nome de localização.
+Map<String, Map<String, List<Map<String, dynamic>>>> _groupByLocation(
+    Map<String, List<Map<String, dynamic>>> groups) {
+  final result = <String, Map<String, List<Map<String, dynamic>>>>{};
+  for (final entry in groups.entries) {
+    final locKey = entry.value.isNotEmpty ? _locationChipText(entry.value.first) : '';
+    result.putIfAbsent(locKey, () => {})[entry.key] = entry.value;
+  }
+  return result;
+}
+
+/// Renders encounter groups as LocationRow (single sub-group) or
+/// ExpandableLocationGroup (multiple sub-groups for the same location).
+List<Widget> renderLocationGroups(
+    Map<String, List<Map<String, dynamic>>> groups,
+    List<String> pokemonTypes) {
+  final byLoc = _groupByLocation(groups);
+  return byLoc.entries.map<Widget>((locEntry) {
+    final locSubGroups = locEntry.value;
+    if (locSubGroups.length == 1) {
+      return LocationRow(
+        entries: locSubGroups.values.first,
+        pokemonTypes: pokemonTypes,
+      );
+    }
+    return ExpandableLocationGroup(
+      location: locEntry.key,
+      subGroups: locSubGroups,
+      pokemonTypes: pokemonTypes,
+    );
+  }).toList();
+}
+
 // ─── HELPER: REGIÃO POR JOGO ─────────────────────────────────────
 
 /// Returns the region name for a location in the given dex.
@@ -3188,6 +3221,166 @@ class LocationRow extends StatelessWidget {
   }
 }
 
+// ─── WIDGET: LOCALIZAÇÃO RECOLHÍVEL (múltiplos horários/métodos) ──
+
+class ExpandableLocationGroup extends StatefulWidget {
+  final String location;
+  final Map<String, List<Map<String, dynamic>>> subGroups;
+  final List<String> pokemonTypes;
+
+  const ExpandableLocationGroup({
+    super.key,
+    required this.location,
+    required this.subGroups,
+    required this.pokemonTypes,
+  });
+
+  @override
+  State<ExpandableLocationGroup> createState() => _ExpandableLocationGroupState();
+}
+
+class _ExpandableLocationGroupState extends State<ExpandableLocationGroup> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant, width: 0.8),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(widget.location,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurface,
+                      )),
+                  ),
+                  Icon(
+                    _expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded) ...[
+            Divider(height: 1, thickness: 0.8, color: scheme.outlineVariant),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              child: Column(
+                children: widget.subGroups.values
+                    .map((entries) => _LocationSubRow(
+                          entries: entries,
+                          pokemonTypes: widget.pokemonTypes,
+                        ))
+                    .toList(),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// Sub-linha de encontro (sem nome de localização — usada dentro de ExpandableLocationGroup)
+class _LocationSubRow extends StatelessWidget {
+  final List<Map<String, dynamic>> entries;
+  final List<String> pokemonTypes;
+
+  const _LocationSubRow({required this.entries, required this.pokemonTypes});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final first = entries.first;
+    final rawMethod = first['method'] as String? ?? '';
+    final method = _translateMethod(rawMethod);
+    final time = encounterTimePt(first['time'] as String? ?? '');
+    final weather = encounterWeatherPt(first['weather'] as String? ?? '');
+
+    final statGroups = <String, List<String>>{};
+    for (final e in entries) {
+      final statsKey = '${e['levels']}|${e['rarity']}';
+      final gamesList = (e['games'] as List?)?.cast<String>() ?? <String>[];
+      statGroups.putIfAbsent(statsKey, () => []);
+      for (final g in gamesList) {
+        if (g.isNotEmpty && !statGroups[statsKey]!.contains(g)) {
+          statGroups[statsKey]!.add(g);
+        }
+      }
+    }
+
+    final subtitleParts = <String>[];
+    if (method.isNotEmpty) subtitleParts.add(method);
+    if (time.isNotEmpty && time != 'Dia' && time != 'Dia Todo' && time != 'Sempre') {
+      subtitleParts.add(time);
+    }
+    if (weather.isNotEmpty && weather != 'Dia' && weather != 'Dia Todo') {
+      subtitleParts.add(weather);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (subtitleParts.isNotEmpty)
+            Text(subtitleParts.join(' · '),
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 2),
+          ...statGroups.entries.map((sg) {
+            final parts = sg.key.split('|');
+            final levels = parts[0];
+            final rarity = parts[1];
+            final games = sg.value;
+            final levelStr = _formatLevels(levels);
+            final rarityStr = _formatRarity(rarity, rawMethod);
+            return Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                children: [
+                  if (games.isNotEmpty)
+                    Wrap(
+                      spacing: 4,
+                      children: games.map((g) => _VersionTag(game: g)).toList(),
+                    ),
+                  if (games.isNotEmpty && (levelStr.isNotEmpty || rarityStr.isNotEmpty))
+                    const SizedBox(width: 8),
+                  if (levelStr.isNotEmpty)
+                    Text(levelStr,
+                      style: TextStyle(fontSize: 11, color: scheme.onSurface)),
+                  if (levelStr.isNotEmpty && rarityStr.isNotEmpty)
+                    Text(' · ',
+                      style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                  if (rarityStr.isNotEmpty)
+                    Text(rarityStr,
+                      style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
 String _formatLevels(String levels) {
   if (levels.isEmpty) return '';
   if (levels.contains('-')) return 'Lv. ${levels.replaceAll('-', '–')}';
@@ -3298,7 +3491,7 @@ class ExpandableRegionSection extends StatefulWidget {
     required this.region,
     required this.groups,
     required this.pokemonTypes,
-    this.initiallyExpanded = true,
+    this.initiallyExpanded = false,
   });
 
   @override
@@ -3354,9 +3547,7 @@ class _ExpandableRegionSectionState extends State<ExpandableRegionSection> {
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
               child: Column(
-                children: widget.groups.values
-                    .map((g) => LocationRow(entries: g, pokemonTypes: widget.pokemonTypes))
-                    .toList(),
+                children: renderLocationGroups(widget.groups, widget.pokemonTypes),
               ),
             ),
           ],

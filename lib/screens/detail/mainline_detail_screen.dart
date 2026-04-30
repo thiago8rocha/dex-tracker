@@ -307,11 +307,7 @@ class _SwitchInfoTab extends StatelessWidget {
     final regionGroups = groupEncountersByRegion(encounters, pokedexId);
     if (regionGroups.length <= 1) {
       final groups = groupEncounters(encounters);
-      return Column(
-        children: groups.values
-            .map((g) => LocationRow(entries: g, pokemonTypes: pokemon.types))
-            .toList(),
-      );
+      return Column(children: renderLocationGroups(groups, pokemon.types));
     }
     return Column(
       children: regionGroups.entries.map((e) => ExpandableRegionSection(
