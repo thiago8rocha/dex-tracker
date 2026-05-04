@@ -30,9 +30,15 @@ class PokedexDataService {
         rootBundle.loadString(_formsPath),
       ]);
 
-      _data  = await compute(_decodePokedex,  results[0]);
-      _names = await compute(_decodeNames,    results[1]);
-      _forms = await compute(_decodeForms,    results[2]);
+      if (kDebugMode) {
+        _data  = _decodePokedex(results[0]);
+        _names = _decodeNames(results[1]);
+        _forms = _decodeForms(results[2]);
+      } else {
+        _data  = await compute(_decodePokedex,  results[0]);
+        _names = await compute(_decodeNames,    results[1]);
+        _forms = await compute(_decodeForms,    results[2]);
+      }
       _loaded = true;
     } catch (_) {}
   }
