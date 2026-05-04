@@ -2927,17 +2927,6 @@ String _translateMethod(String method) {
     'Evolve':                        'Evolução',
     'Glitch':                        'Glitch',
     'Pokémon Bank':                  'Pokémon Bank',
-    // Métodos do ProKedex (não duplicados acima)
-    'Flying':                        'Voando',
-    'Surfing':                       'Surf',
-    'Good Rod':                      'Vara Boa',
-    'Old Rod':                       'Vara Velha',
-    'Super Rod':                     'Super Vara',
-    'Rock Smash':                    'Quebrar Pedra',
-    'Headbutt':                      'Cabeçada',
-    'PokeRadar':                     'PokéRadar',
-    'Honey Tree':                    'Árvore com Mel',
-    'Interact':                      'Interação',
   };
   // Métodos com nome de local embutido (raids)
   if (method.contains('(Max Raid Battle)') || method.contains('(Max Raid Den)')) {
